@@ -74,10 +74,10 @@ function refresh() {
   } else {
     periodRow.innerHTML = `
       <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        From <input type="date" id="range-start" value="${_customStart}" style="width:145px">
+        From <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="width:145px">
       </label>
       <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        To <input type="date" id="range-end" value="${_customEnd}" style="width:145px">
+        To <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="width:145px">
       </label>
       <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
     `;
@@ -89,6 +89,19 @@ function refresh() {
   }
 
   _container.appendChild(periodRow);
+
+  if (_mode === 'custom') {
+    flatpickr(periodRow.querySelector('#range-start'), {
+      dateFormat: 'Y-m-d',
+      locale: { firstDayOfWeek: 1 },
+      defaultDate: _customStart || null,
+    });
+    flatpickr(periodRow.querySelector('#range-end'), {
+      dateFormat: 'Y-m-d',
+      locale: { firstDayOfWeek: 1 },
+      defaultDate: _customEnd || null,
+    });
+  }
 
   // Compute report
   const data = getData();

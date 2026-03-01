@@ -200,7 +200,7 @@ function openTxModal(tx, data) {
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
       <div class="form-group" style="grid-column:1/-1">
         <label for="tx-date">Date</label>
-        <input type="date" id="tx-date" value="${tx?.date ?? new Date().toISOString().slice(0, 10)}">
+        <input type="text" id="tx-date" placeholder="YYYY-MM-DD" autocomplete="off">
       </div>
       <div class="form-group">
         <label for="tx-amount">Amount (negative = expense)</label>
@@ -262,7 +262,10 @@ function openTxModal(tx, data) {
         </div>
         <div class="form-group">
           <label for="tx-end">End date (optional)</label>
-          <input type="date" id="tx-end" value="${tx?.recurrence?.endDate ?? ''}">
+          <div style="display:flex;gap:0.25rem">
+            <input type="text" id="tx-end" placeholder="No end date" autocomplete="off" style="flex:1">
+            <button type="button" id="tx-end-clear" class="btn btn-sm btn-secondary" title="Clear end date">×</button>
+          </div>
         </div>
       </div>
     </div>
@@ -276,6 +279,21 @@ function openTxModal(tx, data) {
   `;
 
   const { close } = openModal({ title: isEdit ? 'Edit transaction' : 'New transaction', body, footer });
+
+  const fpDate = flatpickr(body.querySelector('#tx-date'), {
+    dateFormat: 'Y-m-d',
+    locale: { firstDayOfWeek: 1 },
+    defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
+    onChange: () => updateRate(),
+  });
+
+  const fpEnd = flatpickr(body.querySelector('#tx-end'), {
+    dateFormat: 'Y-m-d',
+    locale: { firstDayOfWeek: 1 },
+    defaultDate: tx?.recurrence?.endDate || null,
+  });
+
+  body.querySelector('#tx-end-clear').addEventListener('click', () => fpEnd.clear());
 
   // Auto-fetch exchange rate on currency/date change
   async function updateRate() {
@@ -304,7 +322,6 @@ function openTxModal(tx, data) {
   }
 
   body.querySelector('#tx-currency').addEventListener('change', updateRate);
-  body.querySelector('#tx-date').addEventListener('change', updateRate);
   body.querySelector('#tx-amount').addEventListener('input', syncAmountDefault);
   body.querySelector('#tx-exchange').addEventListener('input', syncAmountDefault);
 
