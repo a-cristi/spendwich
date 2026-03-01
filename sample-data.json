@@ -1,0 +1,127 @@
+{
+  "version": 1,
+  "settings": {
+    "defaultCurrency": "USD"
+  },
+  "categories": [
+    { "id": "cat-food", "name": "Groceries", "color": "#f59e0b" },
+    { "id": "cat-transport", "name": "Transport", "color": "#3b82f6" },
+    { "id": "cat-salary", "name": "Salary", "color": "#10b981" },
+    { "id": "cat-dining", "name": "Dining out", "color": "#ec4899" }
+  ],
+  "labels": [
+    { "id": "lbl-work", "name": "work" },
+    { "id": "lbl-personal", "name": "personal" },
+    { "id": "lbl-recurring", "name": "monthly-bill" }
+  ],
+  "transactions": [
+    {
+      "id": "tx-salary",
+      "date": "2026-01-01",
+      "amount": 3500,
+      "currency": "USD",
+      "amountInDefault": 3500,
+      "exchangeRate": 1,
+      "categoryId": "cat-salary",
+      "labelIds": ["lbl-work"],
+      "description": "January salary",
+      "recurrence": {
+        "frequency": "monthly",
+        "interval": 1,
+        "endDate": null
+      }
+    },
+    {
+      "id": "tx-rent",
+      "date": "2026-01-01",
+      "amount": -1200,
+      "currency": "USD",
+      "amountInDefault": -1200,
+      "exchangeRate": 1,
+      "categoryId": null,
+      "labelIds": ["lbl-recurring"],
+      "description": "Rent",
+      "recurrence": {
+        "frequency": "monthly",
+        "interval": 1,
+        "endDate": null
+      }
+    },
+    {
+      "id": "tx-groceries-1",
+      "date": "2026-01-05",
+      "amount": -84.30,
+      "currency": "USD",
+      "amountInDefault": -84.30,
+      "exchangeRate": 1,
+      "categoryId": "cat-food",
+      "labelIds": ["lbl-personal"],
+      "description": "Weekly groceries",
+      "recurrence": null
+    },
+    {
+      "id": "tx-taxi",
+      "date": "2026-01-08",
+      "amount": -22.50,
+      "currency": "USD",
+      "amountInDefault": -22.50,
+      "exchangeRate": 1,
+      "categoryId": "cat-transport",
+      "labelIds": ["lbl-work"],
+      "description": "Taxi to airport",
+      "recurrence": null
+    },
+    {
+      "id": "tx-dinner",
+      "date": "2026-01-12",
+      "amount": -47.80,
+      "currency": "USD",
+      "amountInDefault": -47.80,
+      "exchangeRate": 1,
+      "categoryId": "cat-dining",
+      "labelIds": ["lbl-personal"],
+      "description": "Dinner with friends",
+      "recurrence": null
+    },
+    {
+      "id": "tx-coffee",
+      "date": "2026-01-15",
+      "amount": -4.50,
+      "currency": "USD",
+      "amountInDefault": -4.50,
+      "exchangeRate": 1,
+      "categoryId": "cat-dining",
+      "labelIds": [],
+      "description": "Coffee",
+      "recurrence": {
+        "frequency": "weekly",
+        "interval": 1,
+        "endDate": null
+      }
+    },
+    {
+      "id": "tx-groceries-2",
+      "date": "2026-01-19",
+      "amount": -91.20,
+      "currency": "USD",
+      "amountInDefault": -91.20,
+      "exchangeRate": 1,
+      "categoryId": "cat-food",
+      "labelIds": ["lbl-personal"],
+      "description": "Weekly groceries",
+      "recurrence": null
+    },
+    {
+      "id": "tx-eur-hotel",
+      "date": "2026-01-22",
+      "amount": -189,
+      "currency": "EUR",
+      "amountInDefault": -205.11,
+      "exchangeRate": 1.085,
+      "categoryId": "cat-transport",
+      "labelIds": ["lbl-work"],
+      "description": "Hotel in Paris",
+      "recurrence": null
+    }
+  ]
+}
