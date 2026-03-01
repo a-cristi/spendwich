@@ -63,12 +63,28 @@ test('expandAndFilter filters by categoryId', () => {
   assert.equal(result[0].categoryId, 'cat-a');
 });
 
-test('expandAndFilter filters by labelPattern using label id', () => {
-  const tx1 = makeTx({ labelIds: ['lbl-work'] });
-  const tx2 = makeTx({ labelIds: ['lbl-home'] });
-  const result = expandAndFilter([tx1, tx2], { labelPattern: 'lbl-work', windowEnd: d('2026-12-31') });
+test('expandAndFilter filters by labelPattern using label name', () => {
+  const labels = [
+    { id: 'id-1', name: 'work' },
+    { id: 'id-2', name: 'home' },
+  ];
+  const tx1 = makeTx({ labelIds: ['id-1'] });
+  const tx2 = makeTx({ labelIds: ['id-2'] });
+  const result = expandAndFilter([tx1, tx2], { labelPattern: 'work', labels, windowEnd: d('2026-12-31') });
   assert.equal(result.length, 1);
-  assert.deepEqual(result[0].labelIds, ['lbl-work']);
+  assert.deepEqual(result[0].labelIds, ['id-1']);
+});
+
+test('expandAndFilter label glob wildcard matches label names', () => {
+  const labels = [
+    { id: 'id-1', name: 'Paris-hotel' },
+    { id: 'id-2', name: 'taxi' },
+  ];
+  const tx1 = makeTx({ labelIds: ['id-1'] });
+  const tx2 = makeTx({ labelIds: ['id-2'] });
+  const result = expandAndFilter([tx1, tx2], { labelPattern: '*-hotel', labels, windowEnd: d('2026-12-31') });
+  assert.equal(result.length, 1);
+  assert.deepEqual(result[0].labelIds, ['id-1']);
 });
 
 test('expandAndFilter result is sorted by date ascending', () => {

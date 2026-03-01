@@ -69,7 +69,7 @@ function refresh() {
   });
 
   // Build filtered transaction list
-  const filterOpts = { windowEnd: today };
+  const filterOpts = { windowEnd: today, labels: data.labels };
   if (_filterCategoryId) filterOpts.categoryId = _filterCategoryId;
   if (_filterLabel.trim()) filterOpts.labelPattern = _filterLabel.trim();
 

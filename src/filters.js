@@ -6,8 +6,9 @@ export function matchesGlob(pattern, str) {
   return new RegExp('^' + escaped + '$').test(str);
 }
 
-export function expandAndFilter(transactions, { categoryId = null, labelPattern = null, windowEnd } = {}) {
+export function expandAndFilter(transactions, { categoryId = null, labelPattern = null, labels = [], windowEnd } = {}) {
   const end = windowEnd instanceof Date ? windowEnd : new Date();
+  const lblMap = new Map(labels.map(l => [l.id, l]));
   const all = [];
 
   for (const tx of transactions) {
@@ -21,7 +22,10 @@ export function expandAndFilter(transactions, { categoryId = null, labelPattern 
     .filter(tx => {
       if (categoryId !== null && tx.categoryId !== categoryId) return false;
       if (labelPattern !== null) {
-        const hasMatch = tx.labelIds.some(id => matchesGlob(labelPattern, id));
+        const hasMatch = tx.labelIds.some(id => {
+          const lbl = lblMap.get(id);
+          return lbl && matchesGlob(labelPattern, lbl.name);
+        });
         if (!hasMatch) return false;
       }
       return true;
