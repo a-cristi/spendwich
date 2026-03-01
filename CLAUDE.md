@@ -20,6 +20,8 @@
 
 - Before adding any new library, present a short **pros / cons list** and wait for permission. Factors to weigh: bundle size, number of transitive dependencies, API stability, whether a native browser API covers the same ground.
 - Always pin CDN resources to an exact version and include a matching SRI `integrity` attribute (`sha256-…`) with `crossorigin="anonymous"`. Fetch the hash from `https://data.jsdelivr.com/v1/package/npm/<pkg>@<version>/flat` when adding or upgrading.
+- **Chart.js 4.4.9** — `https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.js`
+  `integrity="sha256-3jFXc0VLYHa2OZC/oFzlFVo39xmSyH17tfmi6mmGl+8=" crossorigin="anonymous"`
 
 ## Architecture
 
@@ -31,6 +33,8 @@
 - The store is the single source of truth. UI components never mutate data directly; they call store functions and re-render
 - Every view module exports `render(container)`, manages its own module-level `_container` reference, and has a local `refresh()` for re-renders without full remount
 - Modal pattern: `openModal({ title, body, footer }) → { close, dialog, bodyEl }` using native `<dialog>` element — no library needed
+- `expandAndFilter` matches `labelPattern` against **label names** (not IDs). Always pass `labels: data.labels` in the options object when a labelPattern may be used
+- `groupByLabel`: a transaction with N labels appears in all N groups. Totals can overlap and will not sum to the overall total — each label shows the full cost of everything tagged with it
 
 ## Data
 
@@ -46,6 +50,7 @@
 - Orphaned category/label references (from deleted entities) are preserved in the JSON and rendered with a `(deleted)` badge. Never strip or null-out references on delete
 - JSON schema version is stored as `data.version` (integer). `CURRENT_VERSION = 1`. Run `migrate()` on import. Warn but do not block if version is higher than `CURRENT_VERSION`
 - Virtual transactions produced by the recurrence expander carry `isVirtual: true` and a `sourceId` pointing to the parent. They must never be passed to store mutation functions
+- Virtual transaction IDs use the format `sourceId + '-' + YYYY-MM-DD`. They are not UUIDs
 - Recurrence expansion window: from the transaction's `date` up to today (inclusive) for the list view; up to the report period's end date for reports. Never expand to infinity
 
 ## Exchange rates
@@ -77,6 +82,7 @@
 - Run with: `node --test tests/*.test.js`
 - Only `src/` modules are tested. `src/ui/` is not covered by tests
 - Tests must pass before any commit touching `src/`
+- `store._reset()` exists solely for test isolation — call it in `beforeEach` in any test file that touches store state. Do not call it in application code
 
 ## Git
 
