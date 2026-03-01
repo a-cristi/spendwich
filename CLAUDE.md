@@ -28,6 +28,7 @@
   CSS: `https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css`
   `integrity="sha256-GzSkJVLJbxDk36qko2cnawOGiqz/Y8GsQv/jMTUrx1Q=" crossorigin="anonymous"`
   Always use `dateFormat: 'Y-m-d'` and `locale: { firstDayOfWeek: 1 }`. Use `type="text"` inputs (not `type="date"`).
+  Inside a `<dialog>`, always add `static: true` — dialogs render in the browser top layer, so Flatpickr's default of appending the calendar to `<body>` puts it behind the dialog.
 
 ## Architecture
 
