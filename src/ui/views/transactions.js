@@ -284,6 +284,7 @@ function openTxModal(tx, data) {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
+    static: true,
     onChange: () => updateRate(),
   });
 
@@ -291,6 +292,7 @@ function openTxModal(tx, data) {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.recurrence?.endDate || null,
+    static: true,
   });
 
   body.querySelector('#tx-end-clear').addEventListener('click', () => fpEnd.clear());
