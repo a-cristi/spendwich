@@ -1,0 +1,86 @@
+# spendwich — dev notes
+
+## Philosophy
+
+- No build step — the app must be servable as static files directly (e.g. GitHub Pages, `python -m http.server`, `npx serve`)
+- No backend, no database, no auth — everything runs in the browser
+- Minimal dependencies — prefer native browser APIs; third-party libraries are fine when they serve a clear purpose and are lightweight (ideally zero dependencies of their own)
+- Responsive — must work on desktop and mobile
+- Suggest changes to `CLAUDE.md` that can improve the app
+
+## Design tokens
+
+- `--primary: #5055d8` (warm indigo)
+- `--bg: #f4f3ef` (off-white)
+- `--surface: #ffffff`
+- Income amounts: `#15803d` (green)
+- Expense amounts: `#b91c1c` (red)
+
+## Dependencies
+
+- Before adding any new library, present a short **pros / cons list** and wait for permission. Factors to weigh: bundle size, number of transitive dependencies, API stability, whether a native browser API covers the same ground.
+- Always pin CDN resources to an exact version and include a matching SRI `integrity` attribute (`sha256-…`) with `crossorigin="anonymous"`. Fetch the hash from `https://data.jsdelivr.com/v1/package/npm/<pkg>@<version>/flat` when adding or upgrading.
+
+## Architecture
+
+- Vanilla JavaScript (ES modules)
+- Single `index.html` entry point
+- Pure logic lives in `src/` — no DOM dependencies, fully testable with Node
+- DOM/UI code lives in `src/ui/` — not covered by tests
+- Hash-based client-side routing (`#transactions`, `#categories`, `#labels`, `#reports`, `#settings`). No History API — keeps compatibility with `file://` serving
+- The store is the single source of truth. UI components never mutate data directly; they call store functions and re-render
+- Every view module exports `render(container)`, manages its own module-level `_container` reference, and has a local `refresh()` for re-renders without full remount
+- Modal pattern: `openModal({ title, body, footer }) → { close, dialog, bodyEl }` using native `<dialog>` element — no library needed
+
+## Data
+
+- User data is stored as a single JSON file — no File System Access API, no browser-specific code
+- `settings.defaultCurrency` (ISO 4217, e.g. `"USD"`) is the baseline currency for `amountInDefault` calculations
+- Load via `<input type="file">`, save via programmatic file download — works universally including Firefox
+- The JSON structure must be human-readable and directly editable by the user
+- Recurrence is stored as a single entry in the JSON (easy to manually edit) but displayed in the UI as individual expanded occurrences — the app generates virtual transactions from the recurrence rule at runtime without mutating the source entry
+- When a recurrence date is invalid (e.g. Feb 30), clamp to the last valid day of that month
+- **Use UTC date methods exclusively** (`getUTCFullYear`, `setUTCDate`, etc.) throughout recurrence logic
+- Transaction sign convention: negative amount = expense, positive = income. Do not use a separate type field
+- `amountInDefault` and `exchangeRate` are stored on every transaction and must be kept in sync when editing
+- Orphaned category/label references (from deleted entities) are preserved in the JSON and rendered with a `(deleted)` badge. Never strip or null-out references on delete
+- JSON schema version is stored as `data.version` (integer). `CURRENT_VERSION = 1`. Run `migrate()` on import. Warn but do not block if version is higher than `CURRENT_VERSION`
+- Virtual transactions produced by the recurrence expander carry `isVirtual: true` and a `sourceId` pointing to the parent. They must never be passed to store mutation functions
+- Recurrence expansion window: from the transaction's `date` up to today (inclusive) for the list view; up to the report period's end date for reports. Never expand to infinity
+
+## Exchange rates
+
+- Fetch from the Frankfurter API (free, no auth) based on transaction date
+- Degrade gracefully if offline or API unavailable — fall back to manual entry
+- Never block the user from saving a transaction due to exchange rate unavailability
+- Cache fetched rates in a module-level `Map` for the lifetime of the page. Key format: `"<FROM>-<TO>-<DATE>"`
+- Set a 5-second `AbortController` timeout on every fetch
+- Frankfurter returns the most recent prior business day's rate for weekends — store the rate as returned. This is acceptable
+
+## CSV import
+
+- Parsed entirely in the browser (no server upload). RFC 4180 compliant (quoted fields, escaped quotes).
+- On failure, throw a specific human-readable error (e.g. `Row 4: unknown category "Food"`). Never a silent failure or generic "import failed".
+- Expected columns (header row required, order-independent): `date` (YYYY-MM-DD), `amount` (signed decimal), `currency`, `category`, `description`, `labels` (semicolon-separated, optional)
+
+## Code style
+
+- ES modules (`import`/`export`), not CommonJS
+- No TypeScript — plain JS is fine for this scope
+- No comments unless the logic is genuinely non-obvious
+- Keep functions small and single-purpose
+- No transpilation, no bundler
+
+## Testing
+
+- Use `node:test` (Node 20+) — zero install, ES-module-native, no config required
+- Run with: `node --test tests/*.test.js`
+- Only `src/` modules are tested. `src/ui/` is not covered by tests
+- Tests must pass before any commit touching `src/`
+
+## Git
+
+- Commit after each feature is working, not all at once at the end
+- Partially implemented features that can be committed are also ok
+- Use conventional commit messages (`feat:`, `fix:`, `chore:`, etc.)
+- Work directly on `main`
