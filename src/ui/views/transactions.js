@@ -93,6 +93,13 @@ function refresh() {
     renderGrouped(list, groupByLabel(txs, data.labels), 'label', catMap, lblMap, defaultCurrency, data);
   }
 
+  if (_viewMode === 'by-label') {
+    const note = document.createElement('p');
+    note.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem';
+    note.textContent = 'Transactions with multiple labels appear in each group — totals may overlap.';
+    _container.appendChild(note);
+  }
+
   _container.appendChild(list);
 
   _container.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
