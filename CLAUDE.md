@@ -31,6 +31,7 @@
   `integrity="sha256-GzSkJVLJbxDk36qko2cnawOGiqz/Y8GsQv/jMTUrx1Q=" crossorigin="anonymous"`
   Always use `dateFormat: 'Y-m-d'` and `locale: { firstDayOfWeek: 1 }`. Use `type="text"` inputs (not `type="date"`).
   Inside a `<dialog>`, use `appendTo: dialog` instead of `static: true`. `static: true` keeps the calendar in the dialog DOM but always positions it below the input via `top: calc(100% + 2px)`, which gets clipped when the input is near the bottom. `appendTo: dialog` attaches the calendar to the `<dialog>` element (keeping it in the top layer) and uses page-absolute coordinates so it can position above or below the input as needed.
+  The dialog has `overflow: auto`, so any Flatpickr input that sits in the right portion of the dialog (e.g. the last column of a multi-column grid) will have its calendar clipped on the right. Keep date inputs full-width or left-aligned so the calendar opens near the left edge of the dialog and stays within bounds.
 
 ## Architecture
 
