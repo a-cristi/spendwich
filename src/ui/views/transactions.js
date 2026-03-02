@@ -424,7 +424,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
 function openTxModal(tx, data) {
   const isEdit = tx != null;
   const { defaultCurrency } = data.settings;
-  let isExpense = tx ? tx.amount <= 0 : true;
+  let isExpense = tx ? tx.amount < 0 : true;
 
   const body = document.createElement('div');
   body.innerHTML = `
