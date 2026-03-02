@@ -422,7 +422,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
 }
 
 function openTxModal(tx, data) {
-  const isEdit = tx !== null;
+  const isEdit = tx != null;
   const { defaultCurrency } = data.settings;
   let isExpense = tx ? tx.amount <= 0 : true;
 
