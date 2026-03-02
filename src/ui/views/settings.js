@@ -86,7 +86,7 @@ function refresh() {
 
       // Phase 4: tag failed transactions with an 'error' label so user can find them
       if (failed.length > 0) {
-        let errorLabel = getData().labels.find(l => l.name === 'error') ?? addLabel('error');
+        let errorLabel = getData().labels.find(l => l.name === 'exchange-rate-error') ?? addLabel('exchange-rate-error');
         for (const { id } of failed) {
           const tx = getData().transactions.find(t => t.id === id);
           if (tx && !tx.labelIds.includes(errorLabel.id)) {
@@ -182,7 +182,7 @@ function confirmPartialMigration(newCurrency, failedCurrencies) {
     body.style.fontSize = '0.9rem';
     body.innerHTML = `Exchange rates could not be fetched for: <strong>${escHtml(failedCurrencies.join(', '))}</strong>.
       <br><br>You can still switch to ${escHtml(newCurrency)} — affected transactions will be
-      tagged with an <strong>error</strong> label so you can find and correct them.`;
+      tagged with an <strong>exchange-rate-error</strong> label so you can find and correct them.`;
 
     const footer = document.createElement('div');
     footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
