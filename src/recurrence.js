@@ -1,3 +1,24 @@
+export function nextOccurrenceAfter(dateStr, recurrence) {
+  const { frequency, interval = 1 } = recurrence;
+  const d = new Date(dateStr + 'T00:00:00Z');
+  const originDay = parseInt(dateStr.slice(8, 10), 10);
+  if (frequency === 'daily')
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + interval))
+      .toISOString().slice(0, 10);
+  if (frequency === 'weekly')
+    return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + interval * 7))
+      .toISOString().slice(0, 10);
+  if (frequency === 'monthly') {
+    const m = d.getUTCMonth() + interval;
+    return clampToMonth(d.getUTCFullYear() + Math.floor(m / 12), ((m % 12) + 12) % 12, originDay)
+      .toISOString().slice(0, 10);
+  }
+  if (frequency === 'yearly')
+    return clampToMonth(d.getUTCFullYear() + interval, d.getUTCMonth(), originDay)
+      .toISOString().slice(0, 10);
+  return null;
+}
+
 export function clampToMonth(year, month, day) {
   const last = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
   return new Date(Date.UTC(year, month, Math.min(day, last)));

@@ -135,3 +135,95 @@ test('loadData replaces state with imported data', async () => {
   assert.equal(d.categories[0].name, 'New');
   assert.equal(d.settings.defaultCurrency, 'EUR');
 });
+
+// --- Recurring scope operations ---
+
+function makeRecurringTx(overrides = {}) {
+  return store.addTransaction({
+    date: '2026-01-01',
+    amount: -10,
+    currency: 'USD',
+    amountInDefault: -10,
+    exchangeRate: 1,
+    categoryId: null,
+    labelIds: [],
+    description: 'Rent',
+    recurrence: { frequency: 'monthly', interval: 1, endDate: null },
+    ...overrides,
+  });
+}
+
+test('deleteOccurrenceAt non-first: source becomes head, tail added, occurrence absent', () => {
+  const src = makeRecurringTx({ date: '2026-01-01', recurrence: { frequency: 'monthly', interval: 1, endDate: '2026-06-01' } });
+  store.deleteOccurrenceAt(src.id, '2026-03-01');
+  const txs = store.getData().transactions;
+  const head = txs.find(t => t.id === src.id);
+  assert.equal(head.recurrence.endDate, '2026-02-28'); // day before Mar 1
+  const tail = txs.find(t => t.id !== src.id);
+  assert.ok(tail, 'tail transaction created');
+  assert.equal(tail.date, '2026-04-01');
+  assert.equal(tail.recurrence.endDate, '2026-06-01');
+});
+
+test('deleteOccurrenceAt first occurrence: source date advances to next', () => {
+  const src = makeRecurringTx({ date: '2026-01-01', recurrence: { frequency: 'monthly', interval: 1, endDate: null } });
+  store.deleteOccurrenceAt(src.id, '2026-01-01');
+  const txs = store.getData().transactions;
+  assert.equal(txs.length, 1);
+  assert.equal(txs[0].id, src.id);
+  assert.equal(txs[0].date, '2026-02-01');
+});
+
+test('deleteOccurrenceAt only occurrence: source is removed', () => {
+  const src = makeRecurringTx({ date: '2026-01-01', recurrence: { frequency: 'monthly', interval: 1, endDate: '2026-01-31' } });
+  store.deleteOccurrenceAt(src.id, '2026-01-01');
+  assert.equal(store.getData().transactions.length, 0);
+});
+
+test('truncateSeries sets endDate to day before fromDate', () => {
+  const src = makeRecurringTx({ date: '2026-01-01' });
+  store.truncateSeries(src.id, '2026-04-01');
+  const tx = store.getData().transactions[0];
+  assert.equal(tx.recurrence.endDate, '2026-03-31');
+});
+
+test('truncateSeries with fromDate equal to source.date deletes the source', () => {
+  const src = makeRecurringTx({ date: '2026-01-01' });
+  store.truncateSeries(src.id, '2026-01-01');
+  assert.equal(store.getData().transactions.length, 0);
+});
+
+test('overrideOccurrence: source becomes head, one-off added, tail added', () => {
+  const src = makeRecurringTx({ date: '2026-01-01', recurrence: { frequency: 'monthly', interval: 1, endDate: '2026-06-01' } });
+  store.overrideOccurrence(src.id, '2026-03-01', { date: '2026-03-01', amount: -999, currency: 'USD', amountInDefault: -999, exchangeRate: 1, categoryId: null, labelIds: [], description: 'override' });
+  const txs = store.getData().transactions;
+  assert.equal(txs.length, 3);
+  const head = txs.find(t => t.id === src.id);
+  assert.equal(head.recurrence.endDate, '2026-02-28');
+  const oneOff = txs.find(t => t.date === '2026-03-01' && t.recurrence === null);
+  assert.ok(oneOff);
+  assert.equal(oneOff.amount, -999);
+  const tail = txs.find(t => t.date === '2026-04-01');
+  assert.ok(tail);
+  assert.equal(tail.recurrence.endDate, '2026-06-01');
+});
+
+test('splitSeries: source becomes head, new series added from fromDate', () => {
+  const src = makeRecurringTx({ date: '2026-01-01', recurrence: { frequency: 'monthly', interval: 1, endDate: null } });
+  store.splitSeries(src.id, '2026-04-01', { date: '2026-04-01', amount: -20, currency: 'USD', amountInDefault: -20, exchangeRate: 1, categoryId: null, labelIds: [], description: 'new', recurrence: { frequency: 'monthly', interval: 1, endDate: null } });
+  const txs = store.getData().transactions;
+  assert.equal(txs.length, 2);
+  const head = txs.find(t => t.id === src.id);
+  assert.equal(head.recurrence.endDate, '2026-03-31');
+  const newSeries = txs.find(t => t.id !== src.id);
+  assert.equal(newSeries.date, '2026-04-01');
+  assert.equal(newSeries.amount, -20);
+});
+
+test('splitSeries with fromDate equal to source.date updates source (edit-all)', () => {
+  const src = makeRecurringTx({ date: '2026-01-01' });
+  store.splitSeries(src.id, '2026-01-01', { date: '2026-01-01', amount: -50, currency: 'USD', amountInDefault: -50, exchangeRate: 1, categoryId: null, labelIds: [], description: 'updated', recurrence: { frequency: 'monthly', interval: 1, endDate: null } });
+  const txs = store.getData().transactions;
+  assert.equal(txs.length, 1);
+  assert.equal(txs[0].amount, -50);
+});

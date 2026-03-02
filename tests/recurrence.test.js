@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { clampToMonth, expandRecurring } from '../src/recurrence.js';
+import { clampToMonth, expandRecurring, nextOccurrenceAfter } from '../src/recurrence.js';
 
 function makeTx(overrides = {}) {
   return {
@@ -118,4 +118,17 @@ test('windowEnd equal to next date is inclusive', () => {
   const virtuals = expandRecurring(tx, d('2026-02-15'));
   assert.equal(virtuals.length, 1);
   assert.equal(virtuals[0].date, '2026-02-15');
+});
+
+test('nextOccurrenceAfter monthly returns correct next date', () => {
+  assert.equal(nextOccurrenceAfter('2026-01-15', { frequency: 'monthly', interval: 1 }), '2026-02-15');
+  assert.equal(nextOccurrenceAfter('2026-01-15', { frequency: 'monthly', interval: 2 }), '2026-03-15');
+});
+
+test('nextOccurrenceAfter daily with interval=2 returns correct next date', () => {
+  assert.equal(nextOccurrenceAfter('2026-01-01', { frequency: 'daily', interval: 2 }), '2026-01-03');
+});
+
+test('nextOccurrenceAfter yearly on leap day clamps correctly', () => {
+  assert.equal(nextOccurrenceAfter('2024-02-29', { frequency: 'yearly', interval: 1 }), '2025-02-28');
 });
