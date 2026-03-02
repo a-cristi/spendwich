@@ -57,8 +57,11 @@ function refresh() {
   });
 
   filterBar.querySelector('#filter-label').addEventListener('input', e => {
+    const pos = e.target.selectionStart;
     _filterLabel = e.target.value;
     refresh();
+    const newInput = _container.querySelector('#filter-label');
+    if (newInput) { newInput.focus(); newInput.setSelectionRange(pos, pos); }
   });
 
   filterBar.querySelectorAll('[data-mode]').forEach(btn => {
