@@ -364,7 +364,7 @@ function months() {
 function yearRange() {
   const now = new Date().getFullYear();
   const years = [];
-  for (let y = now - 5; y <= now + 2; y++) years.push(y);
+  for (let y = now - 10; y <= now + 2; y++) years.push(y);
   return years;
 }
 
