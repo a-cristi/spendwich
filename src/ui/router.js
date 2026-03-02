@@ -20,7 +20,7 @@ export function init(container) {
     const render = ROUTES[hash] ?? ROUTES[DEFAULT_ROUTE];
     container.innerHTML = '';
 
-    document.querySelectorAll('nav a').forEach(a => {
+    document.querySelectorAll('nav a:not(.brand)').forEach(a => {
       a.classList.toggle('active', a.getAttribute('href') === hash);
     });
 
