@@ -3,6 +3,7 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
+import { escHtml } from '../utils.js';
 
 let _container = null;
 
@@ -200,6 +201,3 @@ function confirmPartialMigration(newCurrency, failedCurrencies) {
   });
 }
 
-function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

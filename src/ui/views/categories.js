@@ -1,6 +1,7 @@
 import { getData, addCategory, updateCategory, deleteCategory } from '../../store.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
+import { escHtml } from '../utils.js';
 
 const EMOJI_SET = [
   '🏷️','🍔','🍕','🍜','🍣','🥗','☕','🍺','🥂',
@@ -143,6 +144,3 @@ function confirmDelete(cat) {
   });
 }
 
-function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

@@ -1,6 +1,7 @@
 import { getData, addLabel, updateLabel, deleteLabel } from '../../store.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
+import { escHtml } from '../utils.js';
 
 let _container = null;
 
@@ -103,6 +104,3 @@ function confirmDelete(lbl) {
   });
 }
 
-function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

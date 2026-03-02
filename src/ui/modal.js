@@ -1,3 +1,5 @@
+import { escHtml } from './utils.js';
+
 export function openModal({ title, body, footer }) {
   const dialog = document.createElement('dialog');
 
@@ -36,10 +38,3 @@ export function openModal({ title, body, footer }) {
   return { close, dialog, bodyEl };
 }
 
-function escHtml(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}

@@ -1,5 +1,6 @@
 import { getData } from '../../store.js';
 import { monthlyReport, yearlyReport, customRangeReport } from '../../reports.js';
+import { escHtml } from '../utils.js';
 
 let _container = null;
 let _mode = 'monthly'; // monthly | yearly | custom
@@ -368,6 +369,3 @@ function yearRange() {
   return years;
 }
 
-function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}

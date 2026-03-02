@@ -4,6 +4,7 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
+import { escHtml, formatAmount } from '../utils.js';
 
 let _container = null;
 let _viewMode = 'flat'; // flat | by-category | by-label
@@ -747,14 +748,3 @@ function yearRange() {
   return years;
 }
 
-function formatAmount(amount, currency) {
-  try {
-    return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
-  } catch {
-    return `${amount.toFixed(2)} ${currency}`;
-  }
-}
-
-function escHtml(str) {
-  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
