@@ -210,13 +210,13 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   row.innerHTML = `
     <span style="color:var(--text-muted);font-size:0.8rem;min-width:90px">${escHtml(tx.date)}</span>
     <span style="flex:1;min-width:120px">
-      ${tx.description ? `<span style="font-weight:500">${escHtml(tx.description)}</span>` : ''}
-      <div style="display:flex;flex-wrap:wrap;gap:0.25rem;margin-top:0.2rem">
+      <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
         ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(cat.name)}</span>` : ''}
         ${catDeleted ? '<span class="badge badge-deleted">(deleted category)</span>' : ''}
         ${lblPills}
         ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
       </div>
+      ${tx.description ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">${escHtml(tx.description)}</div>` : ''}
     </span>
     <span class="${amountCls}" style="font-weight:600;min-width:80px;text-align:right">${amountStr}</span>
     <div style="display:flex;gap:0.25rem">
