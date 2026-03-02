@@ -49,51 +49,57 @@ function refresh() {
       return;
     }
 
-    const txs = getData().transactions;
+    const btn = card.querySelector('#save-currency');
+    btn.disabled = true;
+    try {
+      const txs = getData().transactions;
 
-    // Phase 1: pre-fetch all rates
-    const succeeded = [];
-    const failed = [];
-    const failedPairs = new Set();
-    for (const tx of txs) {
-      if (tx.currency === val) {
-        succeeded.push({ id: tx.id, exchangeRate: 1, amountInDefault: tx.amount });
-      } else {
-        const rate = await fetchRate(tx.currency, val, tx.date);
-        if (rate == null) {
-          failed.push({ id: tx.id });
-          failedPairs.add(tx.currency);
+      // Phase 1: pre-fetch all rates
+      const succeeded = [];
+      const failed = [];
+      const failedPairs = new Set();
+      for (const tx of txs) {
+        if (tx.currency === val) {
+          succeeded.push({ id: tx.id, exchangeRate: 1, amountInDefault: tx.amount });
         } else {
-          succeeded.push({ id: tx.id, exchangeRate: rate, amountInDefault: convertAmount(tx.amount, rate) });
+          const rate = await fetchRate(tx.currency, val, tx.date);
+          if (rate == null) {
+            failed.push({ id: tx.id });
+            failedPairs.add(tx.currency);
+          } else {
+            succeeded.push({ id: tx.id, exchangeRate: rate, amountInDefault: convertAmount(tx.amount, rate) });
+          }
         }
       }
-    }
 
-    // Phase 2: if any failures, ask the user whether to proceed
-    if (failed.length > 0) {
-      const proceed = await confirmPartialMigration(val, [...failedPairs]);
-      if (!proceed) return;
-    }
+      // Phase 2: if any failures, ask the user whether to proceed
+      if (failed.length > 0) {
+        const proceed = await confirmPartialMigration(val, [...failedPairs]);
+        if (!proceed) return;
+      }
 
-    // Phase 3: commit currency change + successful recalculations
-    updateSettings({ defaultCurrency: val });
-    for (const { id, exchangeRate, amountInDefault } of succeeded) {
-      updateTransaction(id, { exchangeRate, amountInDefault });
-    }
+      // Phase 3: commit currency change + successful recalculations
+      updateSettings({ defaultCurrency: val });
+      for (const { id, exchangeRate, amountInDefault } of succeeded) {
+        updateTransaction(id, { exchangeRate, amountInDefault });
+      }
 
-    // Phase 4: tag failed transactions with an 'error' label so user can find them
-    if (failed.length > 0) {
-      let errorLabel = getData().labels.find(l => l.name === 'error') ?? addLabel('error');
-      for (const { id } of failed) {
-        const tx = getData().transactions.find(t => t.id === id);
-        if (tx && !tx.labelIds.includes(errorLabel.id)) {
-          updateTransaction(id, { labelIds: [...tx.labelIds, errorLabel.id] });
+      // Phase 4: tag failed transactions with an 'error' label so user can find them
+      if (failed.length > 0) {
+        let errorLabel = getData().labels.find(l => l.name === 'error') ?? addLabel('error');
+        for (const { id } of failed) {
+          const tx = getData().transactions.find(t => t.id === id);
+          if (tx && !tx.labelIds.includes(errorLabel.id)) {
+            updateTransaction(id, { labelIds: [...tx.labelIds, errorLabel.id] });
+          }
         }
       }
-    }
 
-    toast('Default currency updated', 'success');
-    refresh();
+      toast('Default currency updated', 'success');
+      refresh();
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   card.appendChild(document.createElement('hr'));
