@@ -6,6 +6,18 @@ import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { escHtml, formatAmount } from '../utils.js';
 
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function formatTxDate(dateStr) {
+  const y = +dateStr.slice(0, 4);
+  const m = MONTH_NAMES[+dateStr.slice(5, 7) - 1];
+  const d = +dateStr.slice(8, 10);
+  return _dateMode === 'month' ? `${m} ${d}` : `${m} ${d}, ${y}`;
+}
+
+const ICON_EDIT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const ICON_DEL  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
 let _container = null;
 let _viewMode = 'flat'; // flat | by-category | by-label
 let _filterCategoryId = null;
@@ -57,7 +69,8 @@ function refresh() {
   _container.appendChild(header);
 
   const dateTabs = document.createElement('div');
-  dateTabs.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:0.5rem';
+  dateTabs.className = 'seg-group';
+  dateTabs.style.cssText = 'margin-bottom:0.5rem';
   dateTabs.innerHTML = `
     <button class="btn btn-sm ${_dateMode === 'month'  ? 'btn-primary' : 'btn-secondary'}" data-dm="month">Month</button>
     <button class="btn btn-sm ${_dateMode === 'year'   ? 'btn-primary' : 'btn-secondary'}" data-dm="year">Year</button>
@@ -136,7 +149,7 @@ function refresh() {
       ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
     </select>
     <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Label filter (glob ok)" style="flex:0 1 180px">
-    <div style="display:flex;gap:0.25rem;margin-left:auto">
+    <div class="seg-group" style="margin-left:auto">
       <button class="btn btn-sm ${_viewMode === 'flat' ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
       <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
       <button class="btn btn-sm ${_viewMode === 'by-label' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
@@ -390,7 +403,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const amountCls = tx.amount >= 0 ? 'amount-income' : 'amount-expense';
 
   row.innerHTML = `
-    <span style="color:var(--text-muted);font-size:0.8rem;min-width:90px">${escHtml(tx.date)}</span>
+    <span style="color:var(--text-muted);font-size:0.8rem;min-width:90px">${escHtml(formatTxDate(tx.date))}</span>
     <span style="flex:1;min-width:120px">
       <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
         ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>` : ''}
@@ -402,8 +415,8 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     </span>
     <span class="${amountCls}" style="font-weight:600;min-width:80px;text-align:right">${amountStr}</span>
     <div style="display:flex;gap:0.25rem">
-      <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
-      <button class="btn btn-sm btn-danger del-btn">Del</button>
+      <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
+      <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
     </div>
   `;
 
@@ -564,10 +577,8 @@ function openTxModal(tx, data, saveOverride = null) {
   }
 
   function updateToggle() {
-    body.querySelector('#tx-expense-btn').className =
-      'btn btn-sm ' + (isExpense ? 'btn-primary' : 'btn-secondary');
-    body.querySelector('#tx-income-btn').className =
-      'btn btn-sm ' + (isExpense ? 'btn-secondary' : 'btn-primary');
+    body.querySelector('#tx-expense-btn').className = 'btn btn-sm ' + (isExpense ? 'btn-expense' : 'btn-secondary');
+    body.querySelector('#tx-income-btn').className  = 'btn btn-sm ' + (isExpense ? 'btn-secondary' : 'btn-income');
   }
 
   updateToggle();

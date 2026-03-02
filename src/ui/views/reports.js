@@ -28,7 +28,8 @@ function refresh() {
 
   // Mode tabs
   const tabs = document.createElement('div');
-  tabs.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:1.5rem';
+  tabs.className = 'seg-group';
+  tabs.style.cssText = 'margin-bottom:1.5rem';
   tabs.innerHTML = `
     <button class="btn btn-sm ${_mode === 'monthly' ? 'btn-primary' : 'btn-secondary'}" data-mode="monthly">Monthly</button>
     <button class="btn btn-sm ${_mode === 'yearly' ? 'btn-primary' : 'btn-secondary'}" data-mode="yearly">Yearly</button>
@@ -134,7 +135,8 @@ function refresh() {
 
   // Breakdown toggle
   const breakdownRow = document.createElement('div');
-  breakdownRow.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:1.5rem';
+  breakdownRow.className = 'seg-group';
+  breakdownRow.style.cssText = 'margin-bottom:1.5rem';
   breakdownRow.innerHTML = `
     <button class="btn btn-sm ${_breakdown === 'category' ? 'btn-primary' : 'btn-secondary'}" data-bd="category">By category</button>
     <button class="btn btn-sm ${_breakdown === 'label' ? 'btn-primary' : 'btn-secondary'}" data-bd="label">By label</button>
@@ -156,15 +158,15 @@ function renderSummaryReport(report, currency, data) {
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
   cards.innerHTML = `
-    <div class="summary-card">
+    <div class="summary-card summary-card-income">
       <div class="label">Income</div>
       <div class="value amount-income">${fmt(report.income, currency)}</div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card summary-card-expense">
       <div class="label">Expenses</div>
       <div class="value amount-expense">${fmt(report.expenses, currency)}</div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card ${report.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
       <div class="label">Net</div>
       <div class="value ${report.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.net, currency)}</div>
     </div>
@@ -208,15 +210,15 @@ function renderYearlyReport(report, currency, data) {
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
   cards.innerHTML = `
-    <div class="summary-card">
+    <div class="summary-card summary-card-income">
       <div class="label">Total income</div>
       <div class="value amount-income">${fmt(report.total.income, currency)}</div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card summary-card-expense">
       <div class="label">Total expenses</div>
       <div class="value amount-expense">${fmt(report.total.expenses, currency)}</div>
     </div>
-    <div class="summary-card">
+    <div class="summary-card ${report.total.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
       <div class="label">Net</div>
       <div class="value ${report.total.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.total.net, currency)}</div>
     </div>
