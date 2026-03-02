@@ -196,7 +196,7 @@ function refresh() {
   const list = document.createElement('div');
   list.className = 'list';
 
-  if (txs.length === 0) {
+  if (txs.length === 0 && data.transactions.length === 0) {
     const emptyCard = document.createElement('div');
     emptyCard.className = 'card';
     emptyCard.style.cssText = 'padding:2rem;text-align:center;margin-bottom:1.5rem';
@@ -236,6 +236,11 @@ function refresh() {
       e.target.value = '';
     });
     _container.appendChild(emptyCard);
+  } else if (txs.length === 0) {
+    const empty = document.createElement('p');
+    empty.style.cssText = 'color:var(--text-muted);padding:1.5rem 0;text-align:center';
+    empty.textContent = 'No transactions in this period.';
+    _container.appendChild(empty);
   } else if (_viewMode === 'flat') {
     const pageSlice = txs.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE);
     renderFlatList(list, pageSlice, catMap, lblMap, defaultCurrency, data);
