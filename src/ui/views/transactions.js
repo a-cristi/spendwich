@@ -484,7 +484,7 @@ function openTxModal(tx, data) {
       </label>
     </div>
     <div id="recurrence-fields" style="${tx?.recurrence ? '' : 'display:none'}">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0 1rem">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
         <div class="form-group">
           <label for="tx-freq">Frequency</label>
           <select id="tx-freq">
@@ -495,12 +495,12 @@ function openTxModal(tx, data) {
           <label for="tx-interval">Every N</label>
           <input type="number" id="tx-interval" min="1" value="${tx?.recurrence?.interval ?? 1}">
         </div>
-        <div class="form-group">
-          <label for="tx-end">End date (optional)</label>
-          <div style="display:flex;gap:0.25rem">
-            <input type="text" id="tx-end" placeholder="No end date" autocomplete="off" style="flex:1">
-            <button type="button" id="tx-end-clear" class="btn btn-sm btn-secondary" title="Clear end date">×</button>
-          </div>
+      </div>
+      <div class="form-group">
+        <label for="tx-end">End date (optional)</label>
+        <div style="display:flex;gap:0.25rem">
+          <input type="text" id="tx-end" placeholder="No end date" autocomplete="off" style="flex:1">
+          <button type="button" id="tx-end-clear" class="btn btn-sm btn-secondary" title="Clear end date">×</button>
         </div>
       </div>
     </div>
