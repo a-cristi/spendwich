@@ -174,12 +174,13 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
       ? (group.category?.name ?? (isNull ? '(uncategorized)' : '(deleted)'))
       : (group.label?.name ?? (isNull ? '(no label)' : '(deleted)'));
 
+    const catIcon = isCatGroup && !isNull && !isDeleted ? (group.category?.icon ?? '') : '';
     const groupBadge = isDeleted
       ? `<span class="badge badge-deleted">${escHtml(groupName)}</span>`
       : isNull
         ? `<span style="font-size:0.875rem;color:var(--text-muted)">${escHtml(groupName)}</span>`
         : isCatGroup
-          ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(groupName)}</span>`
+          ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${catIcon} ${escHtml(groupName)}</span>`
           : `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(groupName)}</span>`;
 
     const groupHeader = document.createElement('div');
@@ -281,7 +282,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     <span style="color:var(--text-muted);font-size:0.8rem;min-width:90px">${escHtml(tx.date)}</span>
     <span style="flex:1;min-width:120px">
       <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
-        ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(cat.name)}</span>` : ''}
+        ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>` : ''}
         ${catDeleted ? '<span class="badge badge-deleted">(deleted category)</span>' : ''}
         ${lblPills}
         ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
@@ -342,11 +343,20 @@ function openTxModal(tx, data) {
       <input type="text" id="tx-desc" value="${escHtml(tx?.description ?? '')}" autocomplete="off">
     </div>
     <div class="form-group">
-      <label for="tx-cat">Category</label>
-      <select id="tx-cat">
-        <option value="">— none —</option>
-        ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${tx?.categoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
-      </select>
+      <label>Category</label>
+      <div id="tx-cat" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;border:1px solid var(--border);border-radius:var(--radius)">
+        <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
+          <input type="radio" name="tx-cat" value="" ${!tx?.categoryId ? 'checked' : ''}>
+          — none —
+        </label>
+        ${data.categories.map(c => `
+          <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
+            <input type="radio" name="tx-cat" value="${escHtml(c.id)}" ${tx?.categoryId === c.id ? 'checked' : ''}>
+            ${c.icon ?? ''} ${escHtml(c.name)}
+          </label>
+        `).join('')}
+        ${data.categories.length === 0 ? '<span style="color:var(--text-muted);font-size:0.8rem">No categories defined</span>' : ''}
+      </div>
     </div>
     <div class="form-group">
       <label>Labels</label>
@@ -483,7 +493,7 @@ function openTxModal(tx, data) {
     const exchangeRate = parseFloat(body.querySelector('#tx-exchange').value) || 1;
     const amountInDefault = parseFloat(body.querySelector('#tx-amount-default').value) || amount;
     const description = body.querySelector('#tx-desc').value.trim();
-    const categoryId = body.querySelector('#tx-cat').value || null;
+    const categoryId = body.querySelector('#tx-cat input[name="tx-cat"]:checked')?.value || null;
     const labelIds = [...body.querySelectorAll('#tx-labels input:checked')].map(cb => cb.value);
 
     if (!date || isNaN(amount) || !currency) {

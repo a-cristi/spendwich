@@ -2,13 +2,13 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CURRENT_VERSION, emptyData, makeCategory, makeLabel, makeTransaction, validate, migrate } from '../src/schema.js';
 
-test('CURRENT_VERSION is 1', () => {
-  assert.equal(CURRENT_VERSION, 1);
+test('CURRENT_VERSION is 2', () => {
+  assert.equal(CURRENT_VERSION, 2);
 });
 
 test('emptyData returns correct shape', () => {
   const d = emptyData();
-  assert.equal(d.version, 1);
+  assert.equal(d.version, 2);
   assert.deepEqual(d.categories, []);
   assert.deepEqual(d.labels, []);
   assert.deepEqual(d.transactions, []);
@@ -19,7 +19,8 @@ test('makeCategory sets defaults', () => {
   const c = makeCategory('Food');
   assert.equal(c.name, 'Food');
   assert.ok(c.id);
-  assert.ok(c.color);
+  assert.equal(c.icon, '🏷️');
+  assert.equal(c.color, undefined);
 });
 
 test('makeLabel sets name and id', () => {
@@ -74,10 +75,28 @@ test('validate rejects unknown recurrence frequency', () => {
   assert.throws(() => validate(d), /unknown recurrence frequency/);
 });
 
-test('migrate is a no-op at v1', () => {
+test('migrate is a no-op at v2', () => {
   const d = emptyData();
   const result = migrate(d);
-  assert.equal(result.version, 1);
+  assert.equal(result.version, 2);
+});
+
+test('migrate v1→v2 adds icon and removes color', () => {
+  const d = {
+    version: 1,
+    settings: { defaultCurrency: 'USD' },
+    categories: [
+      { id: 'c1', name: 'Food', color: '#ff0000' },
+      { id: 'c2', name: 'Transport' },
+    ],
+    labels: [],
+    transactions: [],
+  };
+  const result = migrate(d);
+  assert.equal(result.version, 2);
+  assert.equal(result.categories[0].icon, '🏷️');
+  assert.equal(result.categories[0].color, undefined);
+  assert.equal(result.categories[1].icon, '🏷️');
 });
 
 test('migrate warns but does not throw on future version', () => {

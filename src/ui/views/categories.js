@@ -2,6 +2,17 @@ import { getData, addCategory, updateCategory, deleteCategory } from '../../stor
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 
+const EMOJI_SET = [
+  '🏷️','🍔','🍕','🍜','🍣','🥗','☕','🍺','🥂',
+  '🚗','🚌','✈️','🚂','🚲','⛽',
+  '🏠','🛁','🔨','💡','🛒',
+  '🛍️','👕','👟','💄','💎',
+  '🎬','🎮','🎵','🎨','📚','🎭','🏖️',
+  '💊','🏥','💪','🧘',
+  '💰','💳','📈','🏦','💵','🎁',
+  '👶','🐶','🐱','🌿','⚽','💼','💻','📱','🎓',
+];
+
 let _container = null;
 
 export function render(container) {
@@ -31,7 +42,7 @@ function refresh() {
       const row = document.createElement('div');
       row.className = 'list-row';
       row.innerHTML = `
-        <span class="color-swatch" style="width:20px;height:20px;border-radius:50%;background:${escHtml(cat.color)};flex-shrink:0"></span>
+        <span style="font-size:1.25rem;flex-shrink:0">${cat.icon ?? '🏷️'}</span>
         <span style="flex:1;font-weight:500">${escHtml(cat.name)}</span>
         <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
         <button class="btn btn-sm btn-danger del-btn">Delete</button>
@@ -49,6 +60,8 @@ function refresh() {
 
 function openCategoryModal(cat) {
   const isEdit = cat !== null;
+  let selectedIcon = cat?.icon ?? '🏷️';
+
   const body = document.createElement('div');
   body.innerHTML = `
     <div class="form-group">
@@ -56,10 +69,25 @@ function openCategoryModal(cat) {
       <input type="text" id="cat-name" value="${escHtml(cat?.name ?? '')}" placeholder="e.g. Groceries" autocomplete="off">
     </div>
     <div class="form-group">
-      <label for="cat-color">Color</label>
-      <input type="color" id="cat-color" value="${escHtml(cat?.color ?? '#6366f1')}" style="height:40px;padding:0.25rem">
+      <label>Icon</label>
+      <div id="icon-picker" style="display:flex;flex-wrap:wrap;gap:0.25rem;padding:0.5rem;border:1px solid var(--border);border-radius:var(--radius);max-height:160px;overflow-y:auto">
+        ${EMOJI_SET.map(e => `
+          <button type="button" class="icon-btn" data-icon="${e}"
+                  style="font-size:1.25rem;padding:0.25rem;border:2px solid ${e === selectedIcon ? 'var(--primary)' : 'transparent'};
+                         border-radius:var(--radius);background:none;cursor:pointer;line-height:1">${e}</button>
+        `).join('')}
+      </div>
     </div>
   `;
+
+  body.querySelector('#icon-picker').addEventListener('click', e => {
+    const btn = e.target.closest('.icon-btn');
+    if (!btn) return;
+    selectedIcon = btn.dataset.icon;
+    body.querySelectorAll('.icon-btn').forEach(b => {
+      b.style.borderColor = b.dataset.icon === selectedIcon ? 'var(--primary)' : 'transparent';
+    });
+  });
 
   const footer = document.createElement('div');
   footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
@@ -73,16 +101,15 @@ function openCategoryModal(cat) {
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.save-btn').addEventListener('click', () => {
     const name = body.querySelector('#cat-name').value.trim();
-    const color = body.querySelector('#cat-color').value;
     if (!name) {
       body.querySelector('#cat-name').focus();
       return;
     }
     if (isEdit) {
-      updateCategory(cat.id, { name, color });
+      updateCategory(cat.id, { name, icon: selectedIcon });
       toast('Category updated', 'success');
     } else {
-      addCategory(name, color);
+      addCategory(name, selectedIcon);
       toast('Category added', 'success');
     }
     close();

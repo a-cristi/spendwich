@@ -14,17 +14,17 @@ test('getData returns empty data initially', () => {
 });
 
 test('addCategory adds a category', async () => {
-  const cat = store.addCategory('Food', '#ff0000');
+  const cat = store.addCategory('Food', '🍔');
   const d = store.getData();
   assert.equal(d.categories.length, 1);
   assert.equal(d.categories[0].name, 'Food');
-  assert.equal(d.categories[0].color, '#ff0000');
+  assert.equal(d.categories[0].icon, '🍔');
   assert.ok(d.categories[0].id);
   assert.equal(cat.name, 'Food');
 });
 
 test('updateCategory modifies existing category', async () => {
-  const cat = store.addCategory('Food', '#ff0000');
+  const cat = store.addCategory('Food', '🍔');
   store.updateCategory(cat.id, { name: 'Groceries' });
   const d = store.getData();
   assert.equal(d.categories[0].name, 'Groceries');
@@ -35,13 +35,13 @@ test('updateCategory throws on unknown id', async () => {
 });
 
 test('deleteCategory removes the category', async () => {
-  const cat = store.addCategory('Food', '#ff0000');
+  const cat = store.addCategory('Food', '🍔');
   store.deleteCategory(cat.id);
   assert.equal(store.getData().categories.length, 0);
 });
 
 test('deleteCategory does not touch categoryId on transactions', async () => {
-  const cat = store.addCategory('Food', '#ff0000');
+  const cat = store.addCategory('Food', '🍔');
   store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD', categoryId: cat.id });
   store.deleteCategory(cat.id);
   const d = store.getData();
@@ -93,7 +93,7 @@ test('deleteTransaction removes transaction', async () => {
 });
 
 test('importBulk appends categories, labels, transactions', async () => {
-  const cats = [{ id: 'cat-1', name: 'Food', color: '#f00' }];
+  const cats = [{ id: 'cat-1', name: 'Food', icon: '🍔' }];
   const lbls = [{ id: 'lbl-1', name: 'work' }];
   const txs = [{ id: 'tx-1', date: '2026-01-01', amount: -10, currency: 'USD' }];
   store.importBulk(cats, lbls, txs);
@@ -105,14 +105,14 @@ test('importBulk appends categories, labels, transactions', async () => {
 });
 
 test('importBulk does not duplicate existing categories by id', async () => {
-  const cat = store.addCategory('Food', '#f00');
-  store.importBulk([{ id: cat.id, name: 'Food Duplicate', color: '#0f0' }], [], []);
+  const cat = store.addCategory('Food', '🍔');
+  store.importBulk([{ id: cat.id, name: 'Food Duplicate', icon: '🥗' }], [], []);
   assert.equal(store.getData().categories.length, 1);
   assert.equal(store.getData().categories[0].name, 'Food');
 });
 
 test('exportData round-trips through JSON.parse', async () => {
-  store.addCategory('Food', '#f00');
+  store.addCategory('Food', '🍔');
   store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD' });
   const json = store.exportData();
   const parsed = JSON.parse(json);
@@ -123,9 +123,9 @@ test('exportData round-trips through JSON.parse', async () => {
 test('loadData replaces state with imported data', async () => {
   store.addCategory('Old', '#000');
   const freshData = JSON.stringify({
-    version: 1,
+    version: 2,
     settings: { defaultCurrency: 'EUR' },
-    categories: [{ id: 'x', name: 'New', color: '#fff' }],
+    categories: [{ id: 'x', name: 'New', icon: '🏷️' }],
     labels: [],
     transactions: [],
   });

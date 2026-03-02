@@ -293,12 +293,19 @@ function renderBreakdownTable(items, nameKey, fallback, currency) {
   title.textContent = nameKey === 'categoryName' ? 'By category' : 'By label';
   section.appendChild(title);
 
+  const isCatBreakdown = nameKey === 'categoryName';
+  const catsByName = isCatBreakdown
+    ? new Map(getData().categories.map(c => [c.name, c]))
+    : null;
+
   const sorted = [...items].sort((a, b) => a.total - b.total);
   for (const b of sorted) {
+    const name = b[nameKey] ?? fallback;
+    const icon = isCatBreakdown ? (catsByName.get(name)?.icon ?? '') : '';
     const row = document.createElement('div');
     row.className = 'list-row';
     row.innerHTML = `
-      <span style="flex:1">${escHtml(b[nameKey] ?? fallback)}</span>
+      <span style="flex:1">${icon ? icon + ' ' : ''}${escHtml(name)}</span>
       <span style="color:var(--text-muted);font-size:0.8rem;margin-right:1rem">${b.count} transaction${b.count !== 1 ? 's' : ''}</span>
       <span class="${b.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600">${fmt(b.total, currency)}</span>
     `;

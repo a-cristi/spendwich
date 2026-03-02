@@ -20,8 +20,8 @@ export function exportData() {
   return JSON.stringify(_data, null, 2);
 }
 
-export function addCategory(name, color) {
-  const cat = makeCategory(name, color);
+export function addCategory(name, icon) {
+  const cat = makeCategory(name, icon);
   _data.categories.push(cat);
   return cat;
 }

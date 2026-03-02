@@ -1,4 +1,4 @@
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 export function emptyData() {
   return {
@@ -10,8 +10,8 @@ export function emptyData() {
   };
 }
 
-export function makeCategory(name, color = '#6366f1') {
-  return { id: crypto.randomUUID(), name, color };
+export function makeCategory(name, icon = '🏷️') {
+  return { id: crypto.randomUUID(), name, icon };
 }
 
 export function makeLabel(name) {
@@ -75,10 +75,16 @@ export function validate(data) {
 }
 
 export function migrate(data) {
-  const version = data.version ?? 0;
+  let version = data.version ?? 0;
   if (version > CURRENT_VERSION) {
     console.warn(`spendwich: data version ${version} is newer than app version ${CURRENT_VERSION}. Some data may be ignored.`);
   }
-  // future: if (version < 1) { /* v0→v1 migrations */ }
+  if (version < 2) {
+    for (const cat of data.categories) {
+      if (!cat.icon) cat.icon = '🏷️';
+      delete cat.color;
+    }
+    version = 2;
+  }
   return { ...data, version: Math.min(version, CURRENT_VERSION) };
 }
