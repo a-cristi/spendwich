@@ -58,6 +58,8 @@
 - Recurrence is stored as a single entry in the JSON (easy to manually edit) but displayed in the UI as individual expanded occurrences — the app generates virtual transactions from the recurrence rule at runtime without mutating the source entry
 - When a recurrence date is invalid (e.g. Feb 30), clamp to the last valid day of that month
 - **Use UTC date methods exclusively** (`getUTCFullYear`, `setUTCDate`, etc.) throughout recurrence logic
+- Never construct a `Date` from a bare YYYY-MM-DD string — `new Date('2026-01-15')` is implementation-defined (UTC in V8 today, but fragile). Always append the suffix: `new Date(dateString + 'T00:00:00Z')`
+- Always call `migrate()` before `validate()` when loading imported JSON. Validation must see current-schema data; running it on pre-migration data produces false failures if a future `validate()` check references a field that `migrate()` is responsible for introducing
 - Transaction sign convention: negative amount = expense, positive = income. Do not use a separate type field
 - `amountInDefault` and `exchangeRate` are stored on every transaction and must be kept in sync when editing
 - Orphaned category/label references (from deleted entities) are preserved in the JSON and rendered with a `(deleted)` badge. Never strip or null-out references on delete
@@ -81,6 +83,7 @@
 - Parsed entirely in the browser (no server upload). RFC 4180 compliant (quoted fields, escaped quotes).
 - On failure, throw a specific human-readable error (e.g. `Row 4: unknown category "Food"`). Never a silent failure or generic "import failed".
 - Expected columns (header row required, order-independent): `date` (YYYY-MM-DD), `amount` (signed decimal), `currency`, `category`, `description`, `labels` (semicolon-separated, optional)
+- `category` is required and must be non-empty after trimming — throw `Row N: category is required` for blank values. `labels` is the only optional column
 
 ## Code style
 
@@ -91,6 +94,7 @@
 - No transpilation, no bundler
 - Never use `innerHTML +=` — it re-serializes and re-parses the entire container, destroying all child nodes and their event listeners. Use `appendChild` with `createElement` instead
 - Always pass user-supplied or imported data through `escHtml()` before inserting into innerHTML, including values from imported JSON (e.g., error messages). Emoji icon values do not need escaping — they contain no HTML-special characters
+- `escHtml()` and `formatAmount()` live in `src/ui/utils.js` — import from there; do not define private copies in individual view files
 
 ## Testing
 
