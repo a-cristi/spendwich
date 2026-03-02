@@ -9,7 +9,7 @@ export function expandRecurring(transaction, windowEnd) {
 
   const { frequency, interval = 1, endDate } = recurrence;
   const stop = endDate
-    ? new Date(Math.min(new Date(endDate).getTime(), windowEnd.getTime()))
+    ? new Date(Math.min(new Date(endDate + 'T00:00:00Z').getTime(), windowEnd.getTime()))
     : windowEnd;
 
   const originDay = parseInt(transaction.date.slice(8, 10), 10);
