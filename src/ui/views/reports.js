@@ -188,6 +188,7 @@ function renderSummaryReport(report, currency, data) {
       data: buildPieChartData(items, nameKey, fallback, catsByName),
       options: {
         responsive: true,
+        aspectRatio: 2.5,
         plugins: { legend: { display: true, position: 'right' } },
       },
     }));
@@ -274,6 +275,7 @@ function renderYearlyReport(report, currency, data) {
       data: buildPieChartData(items, nameKey, fallback, catsByName),
       options: {
         responsive: true,
+        aspectRatio: 2.5,
         plugins: { legend: { display: true, position: 'right' } },
       },
     }));
