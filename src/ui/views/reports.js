@@ -114,13 +114,16 @@ function refresh() {
       report = yearlyReport(data, _year);
     } else {
       if (!_customStart || !_customEnd) {
-        _container.innerHTML += '<p class="placeholder">Select a date range and click Apply.</p>';
+        _container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'Select a date range and click Apply.' }));
         return;
       }
       report = customRangeReport(data, _customStart, _customEnd);
     }
   } catch (e) {
-    _container.innerHTML += `<p style="color:var(--expense)">${e.message}</p>`;
+    const errEl = document.createElement('p');
+    errEl.style.color = 'var(--expense)';
+    errEl.textContent = e.message;
+    _container.appendChild(errEl);
     return;
   }
 
