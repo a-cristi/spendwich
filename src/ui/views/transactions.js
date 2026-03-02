@@ -43,7 +43,6 @@ function refresh() {
 
   _container.innerHTML = '';
 
-  // Header
   const header = document.createElement('div');
   header.className = 'page-header';
   header.innerHTML = `
@@ -56,7 +55,6 @@ function refresh() {
   `;
   _container.appendChild(header);
 
-  // Date mode tabs
   const dateTabs = document.createElement('div');
   dateTabs.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:0.5rem';
   dateTabs.innerHTML = `
@@ -70,7 +68,6 @@ function refresh() {
   );
   _container.appendChild(dateTabs);
 
-  // Period selector row (conditional on date mode)
   const periodRow = document.createElement('div');
   periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem';
 
@@ -130,7 +127,6 @@ function refresh() {
   }
   _container.appendChild(periodRow);
 
-  // Filters + view toggle
   const filterBar = document.createElement('div');
   filterBar.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center';
   filterBar.innerHTML = `
@@ -170,7 +166,6 @@ function refresh() {
     });
   });
 
-  // Build filtered transaction list
   const range = getDateRange();
   const windowEnd = range.end
     ? new Date(range.end + 'T23:59:59Z')
@@ -192,7 +187,6 @@ function refresh() {
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
   const { defaultCurrency } = data.settings;
 
-  // Render list
   const list = document.createElement('div');
   list.className = 'list';
 
