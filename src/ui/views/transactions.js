@@ -9,16 +9,37 @@ let _container = null;
 let _viewMode = 'flat'; // flat | by-category | by-label
 let _filterCategoryId = null;
 let _filterLabel = '';
+let _dateMode = 'month'; // month | year | custom | all
+let _year = new Date().getFullYear();
+let _month = new Date().getMonth() + 1;
+let _customStart = '';
+let _customEnd = '';
+let _page = 0;
+const PAGE_SIZE = 100;
 
 export function render(container) {
   _container = container;
   refresh();
 }
 
+function getDateRange() {
+  if (_dateMode === 'month') {
+    const lastDay = new Date(Date.UTC(_year, _month, 0)).getUTCDate();
+    const m = String(_month).padStart(2, '0');
+    const d = String(lastDay).padStart(2, '0');
+    return { start: `${_year}-${m}-01`, end: `${_year}-${m}-${d}` };
+  }
+  if (_dateMode === 'year') {
+    return { start: `${_year}-01-01`, end: `${_year}-12-31` };
+  }
+  if (_dateMode === 'custom') {
+    return { start: _customStart || null, end: _customEnd || null };
+  }
+  return { start: null, end: null };
+}
+
 function refresh() {
   const data = getData();
-  const today = new Date();
-  today.setUTCHours(23, 59, 59, 999);
 
   _container.innerHTML = '';
 
@@ -34,6 +55,80 @@ function refresh() {
     </div>
   `;
   _container.appendChild(header);
+
+  // Date mode tabs
+  const dateTabs = document.createElement('div');
+  dateTabs.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:0.5rem';
+  dateTabs.innerHTML = `
+    <button class="btn btn-sm ${_dateMode === 'month'  ? 'btn-primary' : 'btn-secondary'}" data-dm="month">Month</button>
+    <button class="btn btn-sm ${_dateMode === 'year'   ? 'btn-primary' : 'btn-secondary'}" data-dm="year">Year</button>
+    <button class="btn btn-sm ${_dateMode === 'custom' ? 'btn-primary' : 'btn-secondary'}" data-dm="custom">Custom</button>
+    <button class="btn btn-sm ${_dateMode === 'all'    ? 'btn-primary' : 'btn-secondary'}" data-dm="all">All time</button>
+  `;
+  dateTabs.querySelectorAll('[data-dm]').forEach(btn =>
+    btn.addEventListener('click', () => { _dateMode = btn.dataset.dm; _page = 0; refresh(); })
+  );
+  _container.appendChild(dateTabs);
+
+  // Period selector row (conditional on date mode)
+  const periodRow = document.createElement('div');
+  periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem';
+
+  if (_dateMode === 'month') {
+    periodRow.innerHTML = `
+      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+      <select id="sel-month" style="width:140px">
+        ${months().map((m, i) => `<option value="${i + 1}" ${_month === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}
+      </select>
+      <select id="sel-year" style="width:90px">
+        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
+    `;
+    periodRow.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; _page = 0; refresh(); });
+    periodRow.querySelector('#sel-year').addEventListener('change',  e => { _year  = +e.target.value; _page = 0; refresh(); });
+    periodRow.querySelector('#prev-period').addEventListener('click', () => {
+      if (_month === 1) { _month = 12; _year--; } else _month--;
+      _page = 0; refresh();
+    });
+    periodRow.querySelector('#next-period').addEventListener('click', () => {
+      if (_month === 12) { _month = 1; _year++; } else _month++;
+      _page = 0; refresh();
+    });
+  } else if (_dateMode === 'year') {
+    periodRow.innerHTML = `
+      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+      <select id="sel-year" style="width:90px">
+        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
+    `;
+    periodRow.querySelector('#sel-year').addEventListener('change',  e => { _year = +e.target.value; _page = 0; refresh(); });
+    periodRow.querySelector('#prev-period').addEventListener('click', () => { _year--; _page = 0; refresh(); });
+    periodRow.querySelector('#next-period').addEventListener('click', () => { _year++; _page = 0; refresh(); });
+  } else if (_dateMode === 'custom') {
+    periodRow.innerHTML = `
+      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
+        From <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="width:130px">
+      </label>
+      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
+        To <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="width:130px">
+      </label>
+      <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
+    `;
+    periodRow.querySelector('#apply-range').addEventListener('click', () => {
+      _customStart = periodRow.querySelector('#range-start').value;
+      _customEnd   = periodRow.querySelector('#range-end').value;
+      _page = 0; refresh();
+    });
+    flatpickr(periodRow.querySelector('#range-start'), {
+      dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
+    });
+    flatpickr(periodRow.querySelector('#range-end'), {
+      dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
+    });
+  }
+  _container.appendChild(periodRow);
 
   // Filters + view toggle
   const filterBar = document.createElement('div');
@@ -54,12 +149,14 @@ function refresh() {
 
   filterBar.querySelector('#filter-cat').addEventListener('change', e => {
     _filterCategoryId = e.target.value || null;
+    _page = 0;
     refresh();
   });
 
   filterBar.querySelector('#filter-label').addEventListener('input', e => {
     const pos = e.target.selectionStart;
     _filterLabel = e.target.value;
+    _page = 0;
     refresh();
     const newInput = _container.querySelector('#filter-label');
     if (newInput) { newInput.focus(); newInput.setSelectionRange(pos, pos); }
@@ -68,16 +165,28 @@ function refresh() {
   filterBar.querySelectorAll('[data-mode]').forEach(btn => {
     btn.addEventListener('click', () => {
       _viewMode = btn.dataset.mode;
+      _page = 0;
       refresh();
     });
   });
 
   // Build filtered transaction list
-  const filterOpts = { windowEnd: today, labels: data.labels };
+  const range = getDateRange();
+  const windowEnd = range.end
+    ? new Date(range.end + 'T23:59:59Z')
+    : (() => { const d = new Date(); d.setUTCHours(23, 59, 59, 999); return d; })();
+
+  const filterOpts = { windowEnd, labels: data.labels };
   if (_filterCategoryId) filterOpts.categoryId = _filterCategoryId;
   if (_filterLabel.trim()) filterOpts.labelPattern = _filterLabel.trim();
 
-  const txs = expandAndFilter(data.transactions, filterOpts).reverse(); // newest first
+  const txs = expandAndFilter(data.transactions, filterOpts)
+    .filter(tx => {
+      if (range.start && tx.date < range.start) return false;
+      if (range.end   && tx.date > range.end)   return false;
+      return true;
+    })
+    .reverse(); // newest first
 
   const catMap = new Map(data.categories.map(c => [c.id, c]));
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
@@ -128,7 +237,9 @@ function refresh() {
     });
     _container.appendChild(emptyCard);
   } else if (_viewMode === 'flat') {
-    renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data);
+    const pageSlice = txs.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE);
+    renderFlatList(list, pageSlice, catMap, lblMap, defaultCurrency, data);
+    if (txs.length > PAGE_SIZE) list.appendChild(buildPaginationBar(txs.length));
   } else if (_viewMode === 'by-category') {
     renderGrouped(list, groupByCategory(txs, data.categories), 'category', catMap, lblMap, defaultCurrency, data);
   } else {
@@ -602,6 +713,41 @@ function openCsvImport(data) {
     reader.readAsText(file);
     e.target.value = '';
   });
+}
+
+function buildPaginationBar(total) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const start = _page * PAGE_SIZE + 1;
+  const end   = Math.min((_page + 1) * PAGE_SIZE, total);
+  const bar = document.createElement('div');
+  bar.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;'
+    + 'border-top:1px solid var(--border);font-size:0.875rem;flex-wrap:wrap';
+  bar.innerHTML = `
+    <span style="color:var(--text-muted)">Showing ${start}–${end} of ${total}</span>
+    <div style="display:flex;gap:0.25rem;margin-left:auto;align-items:center">
+      <button class="btn btn-sm btn-secondary" id="pg-prev"
+              ${_page === 0 ? 'disabled' : ''}>‹ Prev</button>
+      <span style="padding:0 0.4rem;color:var(--text-muted)">
+        Page ${_page + 1} of ${totalPages}
+      </span>
+      <button class="btn btn-sm btn-secondary" id="pg-next"
+              ${_page >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>
+    </div>
+  `;
+  bar.querySelector('#pg-prev').addEventListener('click', () => { _page--; refresh(); });
+  bar.querySelector('#pg-next').addEventListener('click', () => { _page++; refresh(); });
+  return bar;
+}
+
+function months() {
+  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+}
+
+function yearRange() {
+  const now = new Date().getFullYear();
+  const years = [];
+  for (let y = now - 10; y <= now + 1; y++) years.push(y);
+  return years;
 }
 
 function formatAmount(amount, currency) {
