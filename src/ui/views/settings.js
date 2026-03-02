@@ -1,4 +1,5 @@
-import { getData, loadData, exportData, updateSettings } from '../../store.js';
+import { getData, loadData, exportData, updateSettings, importBulk } from '../../store.js';
+import { importTransactions } from '../../csv.js';
 import { toast } from '../toast.js';
 
 let _container = null;
@@ -50,15 +51,21 @@ function refresh() {
   const ioSection = document.createElement('div');
   ioSection.innerHTML = `
     <p style="font-weight:600;margin-bottom:1rem">Data</p>
-    <div style="display:flex;gap:0.75rem;flex-wrap:wrap">
+    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
       <button class="btn btn-secondary" id="export-btn">Export JSON</button>
       <label class="btn btn-secondary" style="cursor:pointer">
         Import JSON
-        <input type="file" id="import-input" accept=".json" style="display:none">
+        <input type="file" id="import-json-input" accept=".json" style="display:none">
+      </label>
+      <label class="btn btn-secondary" style="cursor:pointer">
+        Import CSV
+        <input type="file" id="import-csv-input" accept=".csv,text/csv" style="display:none">
       </label>
     </div>
+    <div id="csv-status" style="margin-top:0.5rem;font-size:0.8rem"></div>
     <p style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-muted)">
-      Exporting saves your data as a JSON file. Importing replaces all current data.
+      JSON export/import saves or restores all data. CSV import appends transactions.<br>
+      CSV columns: <code>date</code>, <code>amount</code>, <code>currency</code>, <code>category</code>, <code>description</code>, <code>labels</code> (optional, semicolon-separated).
     </p>
   `;
   card.appendChild(ioSection);
@@ -74,7 +81,7 @@ function refresh() {
     URL.revokeObjectURL(url);
   });
 
-  card.querySelector('#import-input').addEventListener('change', e => {
+  card.querySelector('#import-json-input').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -85,6 +92,25 @@ function refresh() {
         refresh();
       } catch (err) {
         toast(`Import failed: ${err.message}`, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  });
+
+  card.querySelector('#import-csv-input').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const statusEl = card.querySelector('#csv-status');
+    const reader = new FileReader();
+    reader.onload = evt => {
+      try {
+        const { categories, labels, transactions } = importTransactions(evt.target.result, getData());
+        importBulk(categories, labels, transactions);
+        statusEl.innerHTML = '';
+        toast(`Imported ${transactions.length} transaction(s)`, 'success');
+      } catch (err) {
+        statusEl.innerHTML = `<span style="color:var(--expense)">${escHtml(err.message)}</span>`;
       }
     };
     reader.readAsText(file);
