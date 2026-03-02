@@ -86,6 +86,8 @@
 - No comments unless the logic is genuinely non-obvious
 - Keep functions small and single-purpose
 - No transpilation, no bundler
+- Never use `innerHTML +=` — it re-serializes and re-parses the entire container, destroying all child nodes and their event listeners. Use `appendChild` with `createElement` instead
+- Always pass user-supplied or imported data through `escHtml()` before inserting into innerHTML, including values from imported JSON (e.g., color fields, error messages)
 
 ## Testing
 
