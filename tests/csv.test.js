@@ -105,3 +105,10 @@ test('importTransactions: trims whitespace from category name', () => {
   assert.equal(result.categories[0].name, 'Food');
   assert.equal(result.transactions[0].categoryId, result.categories[0].id);
 });
+
+test('parseCSV: trailing comma yields empty last field', () => {
+  const csv = 'date,amount,currency,category,description,labels\n2026-01-01,-10,USD,Food,Lunch,';
+  const rows = parseCSV(csv);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].labels, '');
+});

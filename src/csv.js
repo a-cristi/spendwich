@@ -45,12 +45,12 @@ function splitRow(line) {
         }
       }
       fields.push(field);
-      if (line[i] === ',') i++;
+      if (line[i] === ',') { i++; if (i === line.length) fields.push(''); }
     } else {
       let field = '';
       while (i < line.length && line[i] !== ',') field += line[i++];
       fields.push(field);
-      if (line[i] === ',') i++;
+      if (line[i] === ',') { i++; if (i === line.length) fields.push(''); }
     }
   }
   return fields;
