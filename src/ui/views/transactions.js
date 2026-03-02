@@ -132,8 +132,19 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
 
     const groupRows = document.createElement('div');
     groupRows.style.display = 'none';
-    for (const tx of [...group.transactions].reverse()) {
-      groupRows.appendChild(buildTxRow(tx, catMap, lblMap, defaultCurrency, data));
+    const subGroups = groupType === 'category'
+      ? crossGroupByLabel(group.transactions, data.labels)
+      : crossGroupByCategory(group.transactions, data.categories);
+    for (const sub of subGroups) {
+      const subRow = document.createElement('div');
+      subRow.className = 'list-row';
+      subRow.style.paddingLeft = '2rem';
+      subRow.innerHTML = `
+        <span style="flex:1;font-size:0.875rem;color:var(--text-muted)">${escHtml(sub.name)}</span>
+        ${sub.isDeleted ? '<span class="badge badge-deleted">(deleted)</span>' : ''}
+        <span class="${sub.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600;font-size:0.875rem">${formatAmount(sub.total, defaultCurrency)}</span>
+      `;
+      groupRows.appendChild(subRow);
     }
 
     groupHeader.addEventListener('click', () => {
@@ -145,6 +156,38 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
     list.appendChild(groupHeader);
     list.appendChild(groupRows);
   }
+}
+
+function crossGroupByLabel(transactions, labels) {
+  const lblMap = new Map(labels.map(l => [l.id, l]));
+  const totals = new Map();
+  for (const tx of transactions) {
+    const keys = tx.labelIds.length ? tx.labelIds : [null];
+    for (const k of keys) totals.set(k, (totals.get(k) ?? 0) + tx.amountInDefault);
+  }
+  return [...totals]
+    .map(([k, total]) => ({
+      name: k ? (lblMap.get(k)?.name ?? '(deleted)') : '(no label)',
+      total,
+      isDeleted: k !== null && !lblMap.get(k),
+    }))
+    .sort((a, b) => a.total - b.total);
+}
+
+function crossGroupByCategory(transactions, categories) {
+  const catMap = new Map(categories.map(c => [c.id, c]));
+  const totals = new Map();
+  for (const tx of transactions) {
+    const k = tx.categoryId ?? null;
+    totals.set(k, (totals.get(k) ?? 0) + tx.amountInDefault);
+  }
+  return [...totals]
+    .map(([k, total]) => ({
+      name: k ? (catMap.get(k)?.name ?? '(deleted)') : '(uncategorized)',
+      total,
+      isDeleted: k !== null && !catMap.get(k),
+    }))
+    .sort((a, b) => a.total - b.total);
 }
 
 function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
