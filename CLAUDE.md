@@ -48,6 +48,7 @@
 - Import/export split: CSV import and Export JSON live in the Transactions header (quick access, contextually a transaction operation). Full JSON import/export (backup/restore) also lives in Settings. The Transactions empty state shows prominent import CTAs for first-time users
 - When `refresh()` destroys and recreates the DOM while a text input has focus, capture `selectionStart` before calling `refresh()` and restore focus + cursor to the new input after — see the `#filter-label` handler in `src/ui/views/transactions.js`
 - Transaction modal: Expense/Income segmented toggle defaults to Expense for new transactions; the amount field always shows an absolute value. Typing a negative number auto-flips the toggle and strips the sign. On save, the sign is applied: `isExpense ? -Math.abs(absAmt) : Math.abs(absAmt)`
+- `openTxModal` accepts an optional `saveOverride(fields)` callback. When provided it replaces the default `addTransaction`/`updateTransaction` call while keeping toast/close/refresh unchanged. Used by the recurring scope dialog to route saves to `overrideOccurrence` or `splitSeries`
 - Category icon: a single emoji stored as `cat.icon` (default `'🏷️'`). Shown in category list rows, transaction badges, group headers, modal category selector, and reports breakdown. The emoji picker in the category modal is a button grid of `EMOJI_SET` (~50 curated finance emoji); clicking highlights the selected button via border color and updates `selectedIcon`
 
 ## Data
@@ -57,6 +58,7 @@
 - Load via `<input type="file">`, save via programmatic file download — works universally including Firefox
 - The JSON structure must be human-readable and directly editable by the user
 - Recurrence is stored as a single entry in the JSON (easy to manually edit) but displayed in the UI as individual expanded occurrences — the app generates virtual transactions from the recurrence rule at runtime without mutating the source entry
+- Recurring edit/delete uses a **split-into-separate-transactions** approach rather than an `exceptions` field. Three scopes: (1) *Only this occurrence* — `overrideOccurrence`/`deleteOccurrenceAt` splits the series into a head (before), an override or gap, and a tail (after); (2) *This and all future* — `splitSeries`/`truncateSeries` truncates the head and creates a new tail; (3) *All occurrences* — operates directly on the source transaction. This keeps the JSON human-readable with no schema changes
 - When a recurrence date is invalid (e.g. Feb 30), clamp to the last valid day of that month
 - **Use UTC date methods exclusively** (`getUTCFullYear`, `setUTCDate`, etc.) throughout recurrence logic
 - Never construct a `Date` from a bare YYYY-MM-DD string — `new Date('2026-01-15')` is implementation-defined (UTC in V8 today, but fragile). Always append the suffix: `new Date(dateString + 'T00:00:00Z')`
