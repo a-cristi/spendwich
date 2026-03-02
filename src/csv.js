@@ -88,9 +88,10 @@ export function importTransactions(csvText, data) {
       throw new Error(`Row ${rowNum}: currency is required`);
     }
 
-    let cat = catsByName.get(row.category);
-    if (!cat && row.category) {
-      cat = makeCategory(row.category);
+    const catName = row.category.trim();
+    let cat = catsByName.get(catName);
+    if (!cat && catName) {
+      cat = makeCategory(catName);
       catsByName.set(cat.name, cat);
       newCats.push(cat);
     }

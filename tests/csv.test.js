@@ -97,3 +97,11 @@ test('importTransactions: order-independent columns', () => {
   assert.equal(result.transactions[0].date, '2026-01-15');
   assert.equal(result.transactions[0].amount, -5);
 });
+
+test('importTransactions: trims whitespace from category name', () => {
+  const csv = 'date,amount,currency,category,description\n2026-01-01,-10,USD,  Food  ,Lunch';
+  const result = importTransactions(csv, emptyData());
+  assert.equal(result.categories.length, 1);
+  assert.equal(result.categories[0].name, 'Food');
+  assert.equal(result.transactions[0].categoryId, result.categories[0].id);
+});
