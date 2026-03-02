@@ -89,8 +89,9 @@ export function importTransactions(csvText, data) {
     }
 
     const catName = row.category.trim();
+    if (!catName) throw new Error(`Row ${rowNum}: category is required`);
     let cat = catsByName.get(catName);
-    if (!cat && catName) {
+    if (!cat) {
       cat = makeCategory(catName);
       catsByName.set(cat.name, cat);
       newCats.push(cat);

@@ -106,6 +106,11 @@ test('importTransactions: trims whitespace from category name', () => {
   assert.equal(result.transactions[0].categoryId, result.categories[0].id);
 });
 
+test('importTransactions: throws on empty category', () => {
+  const csv = 'date,amount,currency,category,description\n2026-01-01,-10,USD,,Lunch';
+  assert.throws(() => importTransactions(csv, emptyData()), /Row 2: category is required/);
+});
+
 test('parseCSV: trailing comma yields empty last field', () => {
   const csv = 'date,amount,currency,category,description,labels\n2026-01-01,-10,USD,Food,Lunch,';
   const rows = parseCSV(csv);
