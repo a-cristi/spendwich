@@ -1,4 +1,4 @@
-import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData } from '../../store.js';
+import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData, deleteOccurrenceAt, truncateSeries, overrideOccurrence, splitSeries } from '../../store.js';
 import { expandAndFilter, groupByCategory, groupByLabel } from '../../filters.js';
 import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
@@ -403,20 +403,24 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     <span class="${amountCls}" style="font-weight:600;min-width:80px;text-align:right">${amountStr}</span>
     <div style="display:flex;gap:0.25rem">
       <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
-      ${!tx.isVirtual ? '<button class="btn btn-sm btn-danger del-btn">Del</button>' : ''}
+      <button class="btn btn-sm btn-danger del-btn">Del</button>
     </div>
   `;
 
-  const editTarget = tx.isVirtual ? data.transactions.find(t => t.id === tx.sourceId) : tx;
-  row.querySelector('.edit-btn').addEventListener('click', () => openTxModal(editTarget, data));
-  if (!tx.isVirtual) {
+  const sourceTx = tx.isVirtual ? data.transactions.find(t => t.id === tx.sourceId) : tx;
+  const occurrenceDate = tx.date;
+  if (sourceTx?.recurrence) {
+    row.querySelector('.edit-btn').addEventListener('click', () => openRecurringScopeDialog('edit', sourceTx, occurrenceDate, data));
+    row.querySelector('.del-btn').addEventListener('click', () => openRecurringScopeDialog('delete', sourceTx, occurrenceDate, data));
+  } else {
+    row.querySelector('.edit-btn').addEventListener('click', () => openTxModal(sourceTx, data));
     row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteTx(tx));
   }
 
   return row;
 }
 
-function openTxModal(tx, data) {
+function openTxModal(tx, data, saveOverride = null) {
   const isEdit = tx != null;
   const { defaultCurrency } = data.settings;
   let isExpense = tx ? tx.amount < 0 : true;
@@ -619,7 +623,10 @@ function openTxModal(tx, data) {
 
     const fields = { date, amount, currency, exchangeRate, amountInDefault, description, categoryId, labelIds, recurrence };
 
-    if (isEdit) {
+    if (saveOverride) {
+      saveOverride(fields);
+      toast('Transaction updated', 'success');
+    } else if (isEdit) {
       updateTransaction(tx.id, fields);
       toast('Transaction updated', 'success');
     } else {
@@ -633,6 +640,63 @@ function openTxModal(tx, data) {
 
   if (!isEdit) updateRate();
   setTimeout(() => body.querySelector('#tx-amount').focus(), 50);
+}
+
+function openRecurringScopeDialog(action, sourceTx, occurrenceDate, data) {
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <p style="margin-bottom:1rem;color:var(--text-muted);font-size:0.875rem">Which occurrences should be ${action === 'edit' ? 'updated' : 'deleted'}?</p>
+    <div style="display:flex;flex-direction:column;gap:0.75rem">
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+        <input type="radio" name="scope" value="occurrence" checked> Only this occurrence (${escHtml(occurrenceDate)})
+      </label>
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+        <input type="radio" name="scope" value="from-here"> This and all future occurrences
+      </label>
+      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
+        <input type="radio" name="scope" value="all"> All occurrences in the series
+      </label>
+    </div>
+  `;
+
+  const footer = document.createElement('div');
+  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
+  footer.innerHTML = `
+    <button class="btn btn-secondary cancel-btn">Cancel</button>
+    <button class="btn ${action === 'delete' ? 'btn-danger' : 'btn-primary'} confirm-btn">${action === 'edit' ? 'Edit' : 'Delete'}</button>
+  `;
+
+  const { close } = openModal({ title: action === 'edit' ? 'Edit recurring transaction' : 'Delete recurring transaction', body, footer });
+  footer.querySelector('.cancel-btn').addEventListener('click', close);
+  footer.querySelector('.confirm-btn').addEventListener('click', () => {
+    const scope = body.querySelector('input[name="scope"]:checked').value;
+    close();
+
+    if (action === 'delete') {
+      if (scope === 'occurrence') {
+        deleteOccurrenceAt(sourceTx.id, occurrenceDate);
+        toast('Occurrence deleted', 'success');
+      } else if (scope === 'from-here') {
+        truncateSeries(sourceTx.id, occurrenceDate);
+        toast('Transactions deleted', 'success');
+      } else {
+        deleteTransaction(sourceTx.id);
+        toast('Transaction deleted', 'success');
+      }
+      _page = 0;
+      refresh();
+    } else {
+      if (scope === 'occurrence') {
+        openTxModal({ ...sourceTx, date: occurrenceDate, recurrence: null }, data,
+          fields => overrideOccurrence(sourceTx.id, occurrenceDate, fields));
+      } else if (scope === 'from-here') {
+        openTxModal({ ...sourceTx, date: occurrenceDate }, data,
+          fields => splitSeries(sourceTx.id, occurrenceDate, fields));
+      } else {
+        openTxModal(sourceTx, data);
+      }
+    }
+  });
 }
 
 function confirmDeleteTx(tx) {
