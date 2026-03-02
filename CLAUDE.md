@@ -15,6 +15,7 @@
 - `--surface: #ffffff`
 - Income amounts: `#15803d` (green)
 - Expense amounts: `#b91c1c` (red)
+- Category badges: `background:#e0e7ff; color:#3730a3` (blue). Label badges: `background:#ede9fe; color:#5b21b6` (purple). Apply consistently in both flat list and tree views. Null groups (uncategorized / no label) use plain muted text, no badge.
 
 ## Dependencies
 
@@ -41,7 +42,9 @@
 - Every view module exports `render(container)`, manages its own module-level `_container` reference, and has a local `refresh()` for re-renders without full remount
 - Modal pattern: `openModal({ title, body, footer }) → { close, dialog, bodyEl }` using native `<dialog>` element — no library needed
 - `expandAndFilter` matches `labelPattern` against **label names** (not IDs). Always pass `labels: data.labels` in the options object when a labelPattern may be used
-- `groupByLabel`: a transaction with N labels appears in all N groups. Totals can overlap and will not sum to the overall total — each label shows the full cost of everything tagged with it
+- `groupByLabel`: a transaction with N labels appears in all N groups. Totals can overlap and will not sum to the overall total — each label shows the full cost of everything tagged with it. The by-label view displays a visible note warning users about this overlap
+- Import/export split: CSV import and Export JSON live in the Transactions header (quick access, contextually a transaction operation). Full JSON import/export (backup/restore) also lives in Settings. The Transactions empty state shows prominent import CTAs for first-time users
+- When `refresh()` destroys and recreates the DOM while a text input has focus, capture `selectionStart` before calling `refresh()` and restore focus + cursor to the new input after — see the `#filter-label` handler in `src/ui/views/transactions.js`
 
 ## Data
 
