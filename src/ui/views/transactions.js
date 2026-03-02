@@ -307,6 +307,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
 function openTxModal(tx, data) {
   const isEdit = tx !== null;
   const { defaultCurrency } = data.settings;
+  let isExpense = tx ? tx.amount <= 0 : true;
 
   const body = document.createElement('div');
   body.innerHTML = `
@@ -315,9 +316,13 @@ function openTxModal(tx, data) {
         <label for="tx-date">Date</label>
         <input type="text" id="tx-date" placeholder="YYYY-MM-DD" autocomplete="off">
       </div>
+      <div style="grid-column:1/-1;display:flex;gap:0.25rem;margin-bottom:0.25rem">
+        <button type="button" id="tx-expense-btn" class="btn btn-sm">Expense</button>
+        <button type="button" id="tx-income-btn"  class="btn btn-sm">Income</button>
+      </div>
       <div class="form-group">
-        <label for="tx-amount">Amount (negative = expense)</label>
-        <input type="number" id="tx-amount" step="0.01" value="${tx?.amount ?? ''}">
+        <label for="tx-amount">Amount</label>
+        <input type="number" id="tx-amount" step="0.01" min="0" value="${tx ? Math.abs(tx.amount) : ''}">
       </div>
       <div class="form-group">
         <label for="tx-currency">Currency</label>
@@ -429,15 +434,40 @@ function openTxModal(tx, data) {
   }
 
   function syncAmountDefault() {
-    const amount = parseFloat(body.querySelector('#tx-amount').value);
+    const absAmt = parseFloat(body.querySelector('#tx-amount').value);
     const rate = parseFloat(body.querySelector('#tx-exchange').value);
-    if (!isNaN(amount) && !isNaN(rate)) {
-      body.querySelector('#tx-amount-default').value = convertAmount(amount, rate);
+    if (!isNaN(absAmt) && !isNaN(rate)) {
+      const signed = isExpense ? -Math.abs(absAmt) : Math.abs(absAmt);
+      body.querySelector('#tx-amount-default').value = convertAmount(signed, rate);
     }
   }
 
+  function updateToggle() {
+    body.querySelector('#tx-expense-btn').className =
+      'btn btn-sm ' + (isExpense ? 'btn-primary' : 'btn-secondary');
+    body.querySelector('#tx-income-btn').className =
+      'btn btn-sm ' + (isExpense ? 'btn-secondary' : 'btn-primary');
+  }
+
+  updateToggle();
+
+  body.querySelector('#tx-expense-btn').addEventListener('click', () => {
+    isExpense = true; updateToggle(); syncAmountDefault();
+  });
+  body.querySelector('#tx-income-btn').addEventListener('click', () => {
+    isExpense = false; updateToggle(); syncAmountDefault();
+  });
+
   body.querySelector('#tx-currency').addEventListener('change', updateRate);
-  body.querySelector('#tx-amount').addEventListener('input', syncAmountDefault);
+  body.querySelector('#tx-amount').addEventListener('input', () => {
+    const el = body.querySelector('#tx-amount');
+    if (el.valueAsNumber < 0) {
+      el.value = Math.abs(el.valueAsNumber);
+      isExpense = !isExpense;
+      updateToggle();
+    }
+    syncAmountDefault();
+  });
   body.querySelector('#tx-exchange').addEventListener('input', syncAmountDefault);
 
   body.querySelector('#tx-recurring').addEventListener('change', e => {
@@ -447,7 +477,8 @@ function openTxModal(tx, data) {
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.save-btn').addEventListener('click', () => {
     const date = body.querySelector('#tx-date').value;
-    const amount = parseFloat(body.querySelector('#tx-amount').value);
+    const absAmt = parseFloat(body.querySelector('#tx-amount').value);
+    const amount = isExpense ? -Math.abs(absAmt) : Math.abs(absAmt);
     const currency = body.querySelector('#tx-currency').value.trim().toUpperCase();
     const exchangeRate = parseFloat(body.querySelector('#tx-exchange').value) || 1;
     const amountInDefault = parseFloat(body.querySelector('#tx-amount-default').value) || amount;
