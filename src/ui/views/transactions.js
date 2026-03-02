@@ -519,12 +519,10 @@ function openTxModal(tx, data) {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
-    static: true,
+    appendTo: dialog,
     onChange: () => updateRate(),
   });
 
-  // appendTo: dialog keeps the calendar in the top layer (avoiding overflow clipping)
-  // while letting Flatpickr position it freely using page coordinates
   const fpEnd = flatpickr(body.querySelector('#tx-end'), {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
