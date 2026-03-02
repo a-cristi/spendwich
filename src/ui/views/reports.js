@@ -286,9 +286,23 @@ function renderYearlyReport(report, currency, data) {
   }
 }
 
+const PIE_COLORS = [
+  '#6366f1', // indigo  — matches --primary
+  '#0d9488', // teal
+  '#f59e0b', // amber
+  '#db2777', // pink
+  '#16a34a', // green
+  '#9333ea', // purple
+  '#ea580c', // orange
+  '#2563eb', // blue
+  '#ca8a04', // yellow-dark
+  '#dc2626', // red
+  '#0891b2', // cyan
+  '#be185d', // rose
+];
+
 function buildPieChartData(items, nameKey, fallback, catsByName) {
   const sorted = [...items].filter(b => b.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
-  const n = sorted.length;
   return {
     labels: sorted.map(b => {
       const name = b[nameKey] ?? fallback;
@@ -297,7 +311,7 @@ function buildPieChartData(items, nameKey, fallback, catsByName) {
     }),
     datasets: [{
       data: sorted.map(b => Math.abs(b.total)),
-      backgroundColor: sorted.map((_, i) => `hsl(${Math.round(i * 360 / n)}, 65%, 55%)`),
+      backgroundColor: sorted.map((_, i) => PIE_COLORS[i % PIE_COLORS.length]),
       borderWidth: 1,
     }],
   };
