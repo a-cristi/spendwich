@@ -8,7 +8,7 @@ let _year = new Date().getFullYear();
 let _month = new Date().getMonth() + 1;
 let _customStart = '';
 let _customEnd = '';
-let _chartInstance = null;
+let _chartInstances = [];
 
 export function render(container) {
   _container = container;
@@ -16,6 +16,8 @@ export function render(container) {
 }
 
 function refresh() {
+  _chartInstances.forEach(c => c.destroy());
+  _chartInstances = [];
   _container.innerHTML = '';
 
   const header = document.createElement('div');
@@ -142,13 +144,13 @@ function refresh() {
   _container.appendChild(breakdownRow);
 
   if (_mode === 'yearly') {
-    renderYearlyReport(report, defaultCurrency);
+    renderYearlyReport(report, defaultCurrency, data);
   } else {
-    renderSummaryReport(report, defaultCurrency);
+    renderSummaryReport(report, defaultCurrency, data);
   }
 }
 
-function renderSummaryReport(report, currency) {
+function renderSummaryReport(report, currency, data) {
   // Summary cards
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
@@ -172,26 +174,23 @@ function renderSummaryReport(report, currency) {
   const items = isCat ? report.byCategory : report.byLabel;
   const nameKey = isCat ? 'categoryName' : 'labelName';
   const fallback = isCat ? '(uncategorized)' : '(no label)';
+  const catsByName = isCat ? new Map(data.categories.map(c => [c.name, c])) : null;
 
-  // Chart: breakdown bar chart
-  if (report.transactions.length > 0) {
+  // Pie chart
+  if (items.some(b => b.total !== 0)) {
     const chartWrap = document.createElement('div');
     chartWrap.className = 'card';
     chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
-    chartWrap.innerHTML = '<canvas id="report-chart" height="120"></canvas>';
+    chartWrap.innerHTML = '<canvas></canvas>';
     _container.appendChild(chartWrap);
-
-    const ctx = chartWrap.querySelector('#report-chart').getContext('2d');
-    if (_chartInstance) _chartInstance.destroy();
-    _chartInstance = new Chart(ctx, {
-      type: 'bar',
-      data: buildBreakdownChartData(items, nameKey, fallback),
+    _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
+      type: 'pie',
+      data: buildPieChartData(items, nameKey, fallback, catsByName),
       options: {
         responsive: true,
-        plugins: { legend: { display: true } },
-        scales: { y: { beginAtZero: true } },
+        plugins: { legend: { display: true, position: 'right' } },
       },
-    });
+    }));
   }
 
   // Breakdown table
@@ -202,7 +201,7 @@ function renderSummaryReport(report, currency) {
   }
 }
 
-function renderYearlyReport(report, currency) {
+function renderYearlyReport(report, currency, data) {
   // Totals
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
@@ -226,12 +225,10 @@ function renderYearlyReport(report, currency) {
   const chartWrap = document.createElement('div');
   chartWrap.className = 'card';
   chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
-  chartWrap.innerHTML = '<canvas id="report-chart" height="120"></canvas>';
+  chartWrap.innerHTML = '<canvas height="120"></canvas>';
   _container.appendChild(chartWrap);
 
-  const ctx = chartWrap.querySelector('#report-chart').getContext('2d');
-  if (_chartInstance) _chartInstance.destroy();
-  _chartInstance = new Chart(ctx, {
+  _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
     type: 'bar',
     data: {
       labels: months(),
@@ -257,27 +254,48 @@ function renderYearlyReport(report, currency) {
       plugins: { legend: { display: true } },
       scales: { y: { beginAtZero: true } },
     },
-  });
+  }));
 
-  // Breakdown table
+  // Breakdown pie + table
   const isCat = _breakdown === 'category';
   const items = isCat ? report.byCategory : report.byLabel;
   const nameKey = isCat ? 'categoryName' : 'labelName';
   const fallback = isCat ? '(uncategorized)' : '(no label)';
+  const catsByName = isCat ? new Map(data.categories.map(c => [c.name, c])) : null;
+
+  if (items.some(b => b.total !== 0)) {
+    const pieWrap = document.createElement('div');
+    pieWrap.className = 'card';
+    pieWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
+    pieWrap.innerHTML = '<canvas></canvas>';
+    _container.appendChild(pieWrap);
+    _chartInstances.push(new Chart(pieWrap.querySelector('canvas').getContext('2d'), {
+      type: 'pie',
+      data: buildPieChartData(items, nameKey, fallback, catsByName),
+      options: {
+        responsive: true,
+        plugins: { legend: { display: true, position: 'right' } },
+      },
+    }));
+  }
+
   if (items.length > 0) {
     renderBreakdownTable(items, nameKey, fallback, currency);
   }
 }
 
-function buildBreakdownChartData(items, nameKey, fallback) {
-  const sorted = [...items].sort((a, b) => a.total - b.total);
+function buildPieChartData(items, nameKey, fallback, catsByName) {
+  const sorted = [...items].filter(b => b.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  const n = sorted.length;
   return {
-    labels: sorted.map(b => b[nameKey] ?? fallback),
+    labels: sorted.map(b => {
+      const name = b[nameKey] ?? fallback;
+      const icon = catsByName?.get(name)?.icon;
+      return icon ? `${icon} ${name}` : name;
+    }),
     datasets: [{
-      label: 'Amount',
-      data: sorted.map(b => b.total),
-      backgroundColor: sorted.map(b => b.total >= 0 ? '#15803d88' : '#b91c1c88'),
-      borderColor: sorted.map(b => b.total >= 0 ? '#15803d' : '#b91c1c'),
+      data: sorted.map(b => Math.abs(b.total)),
+      backgroundColor: sorted.map((_, i) => `hsl(${Math.round(i * 360 / n)}, 65%, 55%)`),
       borderWidth: 1,
     }],
   };
