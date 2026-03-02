@@ -6,7 +6,8 @@
 - No backend, no database, no auth — everything runs in the browser
 - Minimal dependencies — prefer native browser APIs; third-party libraries are fine when they serve a clear purpose and are lightweight (ideally zero dependencies of their own)
 - Responsive — must work on desktop and mobile
-- Suggest changes to `CLAUDE.md` that can improve the app
+- After completing any feature, fix, or refactor, proactively review `CLAUDE.md` and propose additions for any decisions, patterns, or conventions that were established. Do not wait to be asked
+- Changes to `CLAUDE.md` always land in a dedicated commit — nothing else changes in that commit
 
 ## Design tokens
 
