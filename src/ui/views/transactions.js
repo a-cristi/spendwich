@@ -461,17 +461,13 @@ function openTxModal(tx, data) {
     <div class="form-group">
       <label>Category</label>
       <div id="tx-cat" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;border:1px solid var(--border);border-radius:var(--radius)">
-        <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
-          <input type="radio" name="tx-cat" value="" ${!tx?.categoryId ? 'checked' : ''}>
-          — none —
-        </label>
-        ${data.categories.map(c => `
+        ${data.categories.map((c, i) => `
           <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
-            <input type="radio" name="tx-cat" value="${escHtml(c.id)}" ${tx?.categoryId === c.id ? 'checked' : ''}>
+            <input type="radio" name="tx-cat" value="${escHtml(c.id)}" ${(tx ? tx.categoryId === c.id : i === 0) ? 'checked' : ''}>
             ${c.icon ?? ''} ${escHtml(c.name)}
           </label>
         `).join('')}
-        ${data.categories.length === 0 ? '<span style="color:var(--text-muted);font-size:0.8rem">No categories defined</span>' : ''}
+        ${data.categories.length === 0 ? '<span style="color:var(--text-muted);font-size:0.8rem">No categories — go to Categories to create one first.</span>' : ''}
       </div>
     </div>
     <div class="form-group">
@@ -519,7 +515,7 @@ function openTxModal(tx, data) {
   footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
   footer.innerHTML = `
     <button class="btn btn-secondary cancel-btn">Cancel</button>
-    <button class="btn btn-primary save-btn">${isEdit ? 'Save' : 'Add'}</button>
+    <button class="btn btn-primary save-btn" ${data.categories.length === 0 ? 'disabled' : ''}>${isEdit ? 'Save' : 'Add'}</button>
   `;
 
   const { close } = openModal({ title: isEdit ? 'Edit transaction' : 'New transaction', body, footer });
@@ -612,8 +608,8 @@ function openTxModal(tx, data) {
     const categoryId = body.querySelector('#tx-cat input[name="tx-cat"]:checked')?.value || null;
     const labelIds = [...body.querySelectorAll('#tx-labels input:checked')].map(cb => cb.value);
 
-    if (!date || isNaN(amount) || !currency) {
-      toast('Please fill in date, amount, and currency', 'error');
+    if (!date || isNaN(amount) || !currency || !categoryId) {
+      toast('Please fill in date, amount, currency, and category', 'error');
       return;
     }
 
