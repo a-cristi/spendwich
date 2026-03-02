@@ -113,35 +113,51 @@ function renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data) {
 }
 
 function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency, data) {
+  const isCatGroup = groupType === 'category';
+
   for (const [key, group] of groups) {
-    const groupName = groupType === 'category'
-      ? (group.category?.name ?? '(uncategorized)')
-      : (group.label?.name ?? '(no label)');
-    const isDeleted = groupType === 'category'
-      ? (key !== null && !group.category)
-      : (key !== null && !group.label);
+    const isNull = key === null;
+    const isDeleted = !isNull && (isCatGroup ? !group.category : !group.label);
+    const groupName = isCatGroup
+      ? (group.category?.name ?? (isNull ? '(uncategorized)' : '(deleted)'))
+      : (group.label?.name ?? (isNull ? '(no label)' : '(deleted)'));
+
+    const groupBadge = isDeleted
+      ? `<span class="badge badge-deleted">${escHtml(groupName)}</span>`
+      : isNull
+        ? `<span style="font-size:0.875rem;color:var(--text-muted)">${escHtml(groupName)}</span>`
+        : isCatGroup
+          ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(groupName)}</span>`
+          : `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(groupName)}</span>`;
 
     const groupHeader = document.createElement('div');
     groupHeader.style.cssText = 'padding:0.6rem 1rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none';
     groupHeader.innerHTML = `
-      <span style="font-weight:600;font-size:0.875rem">${escHtml(groupName)}</span>
-      ${isDeleted ? '<span class="badge badge-deleted">(deleted)</span>' : ''}
+      ${groupBadge}
       <span style="margin-left:auto;font-size:0.875rem;font-weight:600" class="${group.total >= 0 ? 'amount-income' : 'amount-expense'}">${formatAmount(group.total, defaultCurrency)}</span>
       <span class="toggle-icon">▼</span>
     `;
 
     const groupRows = document.createElement('div');
     groupRows.style.display = 'none';
-    const subGroups = groupType === 'category'
+    const subGroups = isCatGroup
       ? crossGroupByLabel(group.transactions, data.labels)
       : crossGroupByCategory(group.transactions, data.categories);
     for (const sub of subGroups) {
       const subRow = document.createElement('div');
       subRow.className = 'list-row';
       subRow.style.paddingLeft = '2rem';
+
+      const subBadge = sub.isDeleted
+        ? `<span class="badge badge-deleted">${escHtml(sub.name)}</span>`
+        : sub.isNull
+          ? `<span style="font-size:0.875rem;color:var(--text-muted)">${escHtml(sub.name)}</span>`
+          : isCatGroup
+            ? `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(sub.name)}</span>`
+            : `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(sub.name)}</span>`;
+
       subRow.innerHTML = `
-        <span style="flex:1;font-size:0.875rem;color:var(--text-muted)">${escHtml(sub.name)}</span>
-        ${sub.isDeleted ? '<span class="badge badge-deleted">(deleted)</span>' : ''}
+        <span style="flex:1">${subBadge}</span>
         <span class="${sub.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600;font-size:0.875rem">${formatAmount(sub.total, defaultCurrency)}</span>
       `;
       groupRows.appendChild(subRow);
@@ -169,6 +185,7 @@ function crossGroupByLabel(transactions, labels) {
     .map(([k, total]) => ({
       name: k ? (lblMap.get(k)?.name ?? '(deleted)') : '(no label)',
       total,
+      isNull: k === null,
       isDeleted: k !== null && !lblMap.get(k),
     }))
     .sort((a, b) => a.total - b.total);
@@ -185,6 +202,7 @@ function crossGroupByCategory(transactions, categories) {
     .map(([k, total]) => ({
       name: k ? (catMap.get(k)?.name ?? '(deleted)') : '(uncategorized)',
       total,
+      isNull: k === null,
       isDeleted: k !== null && !catMap.get(k),
     }))
     .sort((a, b) => a.total - b.total);
