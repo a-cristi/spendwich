@@ -57,7 +57,7 @@ function openCategoryModal(cat) {
     </div>
     <div class="form-group">
       <label for="cat-color">Color</label>
-      <input type="color" id="cat-color" value="${cat?.color ?? '#6366f1'}" style="height:40px;padding:0.25rem">
+      <input type="color" id="cat-color" value="${escHtml(cat?.color ?? '#6366f1')}" style="height:40px;padding:0.25rem">
     </div>
   `;
 

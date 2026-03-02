@@ -61,12 +61,13 @@ export function validate(data) {
     if (typeof tx.amount !== 'number') throw new Error(`Transaction ${tx.id}: amount must be a number`);
     if (typeof tx.currency !== 'string') throw new Error(`Transaction ${tx.id}: currency must be a string`);
     if (typeof tx.amountInDefault !== 'number') throw new Error(`Transaction ${tx.id}: amountInDefault must be a number`);
-    if (typeof tx.exchangeRate !== 'number') throw new Error(`Transaction ${tx.id}: exchangeRate must be a number`);
+    if (typeof tx.exchangeRate !== 'number' || tx.exchangeRate <= 0) throw new Error(`Transaction ${tx.id}: exchangeRate must be a positive number`);
     if (!Array.isArray(tx.labelIds)) throw new Error(`Transaction ${tx.id}: labelIds must be an array`);
     if (tx.recurrence !== null && tx.recurrence !== undefined) {
       const r = tx.recurrence;
       if (!FREQUENCIES.includes(r.frequency)) throw new Error(`Transaction ${tx.id}: unknown recurrence frequency "${r.frequency}"`);
       if (typeof r.interval !== 'number' || r.interval < 1) throw new Error(`Transaction ${tx.id}: recurrence interval must be a positive number`);
+      if (r.endDate != null && !DATE_RE.test(r.endDate)) throw new Error(`Transaction ${tx.id}: recurrence endDate must be YYYY-MM-DD`);
     }
   }
 

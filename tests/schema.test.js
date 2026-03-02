@@ -92,3 +92,21 @@ test('migrate warns but does not throw on future version', () => {
     console.warn = orig;
   }
 });
+
+test('validate rejects exchangeRate of 0', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 0, labelIds: [], recurrence: null });
+  assert.throws(() => validate(d), /exchangeRate must be a positive number/);
+});
+
+test('validate rejects negative exchangeRate', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: -1, labelIds: [], recurrence: null });
+  assert.throws(() => validate(d), /exchangeRate must be a positive number/);
+});
+
+test('validate rejects invalid recurrence endDate format', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: { frequency: 'monthly', interval: 1, endDate: 'not-a-date' } });
+  assert.throws(() => validate(d), /recurrence endDate must be YYYY-MM-DD/);
+});
