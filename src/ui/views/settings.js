@@ -1,5 +1,7 @@
-import { getData, loadData, exportData, updateSettings, importBulk } from '../../store.js';
+import { getData, loadData, exportData, updateSettings, importBulk, updateTransaction, addLabel } from '../../store.js';
+import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
+import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 
 let _container = null;
@@ -37,11 +39,61 @@ function refresh() {
   `;
   card.appendChild(currGroup);
 
-  card.querySelector('#save-currency').addEventListener('click', () => {
+  card.querySelector('#save-currency').addEventListener('click', async () => {
     const val = card.querySelector('#default-currency').value.trim().toUpperCase();
     if (!val) return;
+
+    const oldDefault = getData().settings.defaultCurrency;
+    if (val === oldDefault) {
+      toast('Default currency updated', 'success');
+      return;
+    }
+
+    const txs = getData().transactions;
+
+    // Phase 1: pre-fetch all rates
+    const succeeded = [];
+    const failed = [];
+    const failedPairs = new Set();
+    for (const tx of txs) {
+      if (tx.currency === val) {
+        succeeded.push({ id: tx.id, exchangeRate: 1, amountInDefault: tx.amount });
+      } else {
+        const rate = await fetchRate(tx.currency, val, tx.date);
+        if (rate == null) {
+          failed.push({ id: tx.id });
+          failedPairs.add(tx.currency);
+        } else {
+          succeeded.push({ id: tx.id, exchangeRate: rate, amountInDefault: convertAmount(tx.amount, rate) });
+        }
+      }
+    }
+
+    // Phase 2: if any failures, ask the user whether to proceed
+    if (failed.length > 0) {
+      const proceed = await confirmPartialMigration(val, [...failedPairs]);
+      if (!proceed) return;
+    }
+
+    // Phase 3: commit currency change + successful recalculations
     updateSettings({ defaultCurrency: val });
+    for (const { id, exchangeRate, amountInDefault } of succeeded) {
+      updateTransaction(id, { exchangeRate, amountInDefault });
+    }
+
+    // Phase 4: tag failed transactions with an 'error' label so user can find them
+    if (failed.length > 0) {
+      let errorLabel = getData().labels.find(l => l.name === 'error') ?? addLabel('error');
+      for (const { id } of failed) {
+        const tx = getData().transactions.find(t => t.id === id);
+        if (tx && !tx.labelIds.includes(errorLabel.id)) {
+          updateTransaction(id, { labelIds: [...tx.labelIds, errorLabel.id] });
+        }
+      }
+    }
+
     toast('Default currency updated', 'success');
+    refresh();
   });
 
   card.appendChild(document.createElement('hr'));
@@ -115,6 +167,27 @@ function refresh() {
     };
     reader.readAsText(file);
     e.target.value = '';
+  });
+}
+
+function confirmPartialMigration(newCurrency, failedCurrencies) {
+  return new Promise(resolve => {
+    const body = document.createElement('p');
+    body.style.fontSize = '0.9rem';
+    body.innerHTML = `Exchange rates could not be fetched for: <strong>${escHtml(failedCurrencies.join(', '))}</strong>.
+      <br><br>You can still switch to ${escHtml(newCurrency)} — affected transactions will be
+      tagged with an <strong>error</strong> label so you can find and correct them.`;
+
+    const footer = document.createElement('div');
+    footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
+    footer.innerHTML = `
+      <button class="btn btn-secondary cancel-btn">Cancel</button>
+      <button class="btn btn-primary proceed-btn">Change anyway</button>
+    `;
+
+    const { close } = openModal({ title: 'Some rates unavailable', body, footer });
+    footer.querySelector('.cancel-btn').addEventListener('click',  () => { close(); resolve(false); });
+    footer.querySelector('.proceed-btn').addEventListener('click', () => { close(); resolve(true);  });
   });
 }
 
