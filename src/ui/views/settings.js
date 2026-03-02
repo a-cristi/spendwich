@@ -58,6 +58,7 @@ function refresh() {
       const succeeded = [];
       const failed = [];
       const failedPairs = new Set();
+      btn.textContent = txs.length ? `Fetching rates… 0/${txs.length}` : 'Saving…';
       for (const tx of txs) {
         if (tx.currency === val) {
           succeeded.push({ id: tx.id, exchangeRate: 1, amountInDefault: tx.amount });
@@ -70,6 +71,7 @@ function refresh() {
             succeeded.push({ id: tx.id, exchangeRate: rate, amountInDefault: convertAmount(tx.amount, rate) });
           }
         }
+        btn.textContent = `Fetching rates… ${succeeded.length + failed.length}/${txs.length}`;
       }
 
       // Phase 2: if any failures, ask the user whether to proceed
@@ -99,6 +101,7 @@ function refresh() {
       refresh();
     } finally {
       btn.disabled = false;
+      btn.textContent = 'Save';
     }
   });
 
