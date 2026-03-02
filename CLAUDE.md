@@ -47,6 +47,7 @@
 - Import/export split: CSV import and Export JSON live in the Transactions header (quick access, contextually a transaction operation). Full JSON import/export (backup/restore) also lives in Settings. The Transactions empty state shows prominent import CTAs for first-time users
 - When `refresh()` destroys and recreates the DOM while a text input has focus, capture `selectionStart` before calling `refresh()` and restore focus + cursor to the new input after — see the `#filter-label` handler in `src/ui/views/transactions.js`
 - Transaction modal: Expense/Income segmented toggle defaults to Expense for new transactions; the amount field always shows an absolute value. Typing a negative number auto-flips the toggle and strips the sign. On save, the sign is applied: `isExpense ? -Math.abs(absAmt) : Math.abs(absAmt)`
+- Category icon: a single emoji stored as `cat.icon` (default `'🏷️'`). Shown in category list rows, transaction badges, group headers, modal category selector, and reports breakdown. The emoji picker in the category modal is a button grid of `EMOJI_SET` (~50 curated finance emoji); clicking highlights the selected button via border color and updates `selectedIcon`
 
 ## Data
 
@@ -60,7 +61,8 @@
 - Transaction sign convention: negative amount = expense, positive = income. Do not use a separate type field
 - `amountInDefault` and `exchangeRate` are stored on every transaction and must be kept in sync when editing
 - Orphaned category/label references (from deleted entities) are preserved in the JSON and rendered with a `(deleted)` badge. Never strip or null-out references on delete
-- JSON schema version is stored as `data.version` (integer). `CURRENT_VERSION = 1`. Run `migrate()` on import. Warn but do not block if version is higher than `CURRENT_VERSION`
+- JSON schema version is stored as `data.version` (integer). `CURRENT_VERSION = 2`. Run `migrate()` on import. Warn but do not block if version is higher than `CURRENT_VERSION`
+- v1→v2 migration: `color` was removed from categories; `icon` (single emoji, default `'🏷️'`) was added
 - Virtual transactions produced by the recurrence expander carry `isVirtual: true` and a `sourceId` pointing to the parent. They must never be passed to store mutation functions
 - Virtual transaction IDs use the format `sourceId + '-' + YYYY-MM-DD`. They are not UUIDs
 - Recurrence expansion window: from the transaction's `date` up to today (inclusive) for the list view; up to the report period's end date for reports. Never expand to infinity
@@ -88,7 +90,7 @@
 - Keep functions small and single-purpose
 - No transpilation, no bundler
 - Never use `innerHTML +=` — it re-serializes and re-parses the entire container, destroying all child nodes and their event listeners. Use `appendChild` with `createElement` instead
-- Always pass user-supplied or imported data through `escHtml()` before inserting into innerHTML, including values from imported JSON (e.g., color fields, error messages)
+- Always pass user-supplied or imported data through `escHtml()` before inserting into innerHTML, including values from imported JSON (e.g., error messages). Emoji icon values do not need escaping — they contain no HTML-special characters
 
 ## Testing
 
