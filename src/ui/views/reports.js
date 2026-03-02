@@ -3,6 +3,7 @@ import { monthlyReport, yearlyReport, customRangeReport } from '../../reports.js
 
 let _container = null;
 let _mode = 'monthly'; // monthly | yearly | custom
+let _breakdown = 'category'; // category | label
 let _year = new Date().getFullYear();
 let _month = new Date().getMonth() + 1;
 let _customStart = '';
@@ -125,6 +126,18 @@ function refresh() {
 
   const { defaultCurrency } = data.settings;
 
+  // Breakdown toggle
+  const breakdownRow = document.createElement('div');
+  breakdownRow.style.cssText = 'display:flex;gap:0.25rem;margin-bottom:1.5rem';
+  breakdownRow.innerHTML = `
+    <button class="btn btn-sm ${_breakdown === 'category' ? 'btn-primary' : 'btn-secondary'}" data-bd="category">By category</button>
+    <button class="btn btn-sm ${_breakdown === 'label' ? 'btn-primary' : 'btn-secondary'}" data-bd="label">By label</button>
+  `;
+  breakdownRow.querySelectorAll('[data-bd]').forEach(btn => {
+    btn.addEventListener('click', () => { _breakdown = btn.dataset.bd; refresh(); });
+  });
+  _container.appendChild(breakdownRow);
+
   if (_mode === 'yearly') {
     renderYearlyReport(report, defaultCurrency);
   } else {
@@ -152,7 +165,12 @@ function renderSummaryReport(report, currency) {
   `;
   _container.appendChild(cards);
 
-  // Chart: income vs expenses bar chart
+  const isCat = _breakdown === 'category';
+  const items = isCat ? report.byCategory : report.byLabel;
+  const nameKey = isCat ? 'categoryName' : 'labelName';
+  const fallback = isCat ? '(uncategorized)' : '(no label)';
+
+  // Chart: breakdown bar chart
   if (report.transactions.length > 0) {
     const chartWrap = document.createElement('div');
     chartWrap.className = 'card';
@@ -164,7 +182,7 @@ function renderSummaryReport(report, currency) {
     if (_chartInstance) _chartInstance.destroy();
     _chartInstance = new Chart(ctx, {
       type: 'bar',
-      data: buildCategoryChartData(report, currency),
+      data: buildBreakdownChartData(items, nameKey, fallback),
       options: {
         responsive: true,
         plugins: { legend: { display: true } },
@@ -173,9 +191,9 @@ function renderSummaryReport(report, currency) {
     });
   }
 
-  // Category breakdown
-  if (report.byCategory.length > 0) {
-    renderCategoryTable(report.byCategory, currency);
+  // Breakdown table
+  if (items.length > 0) {
+    renderBreakdownTable(items, nameKey, fallback, currency);
   } else {
     _container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'No transactions in this period.' }));
   }
@@ -238,16 +256,20 @@ function renderYearlyReport(report, currency) {
     },
   });
 
-  // Category breakdown
-  if (report.byCategory.length > 0) {
-    renderCategoryTable(report.byCategory, currency);
+  // Breakdown table
+  const isCat = _breakdown === 'category';
+  const items = isCat ? report.byCategory : report.byLabel;
+  const nameKey = isCat ? 'categoryName' : 'labelName';
+  const fallback = isCat ? '(uncategorized)' : '(no label)';
+  if (items.length > 0) {
+    renderBreakdownTable(items, nameKey, fallback, currency);
   }
 }
 
-function buildCategoryChartData(report, currency) {
-  const sorted = [...report.byCategory].sort((a, b) => a.total - b.total);
+function buildBreakdownChartData(items, nameKey, fallback) {
+  const sorted = [...items].sort((a, b) => a.total - b.total);
   return {
-    labels: sorted.map(b => b.categoryName ?? '(uncategorized)'),
+    labels: sorted.map(b => b[nameKey] ?? fallback),
     datasets: [{
       label: 'Amount',
       data: sorted.map(b => b.total),
@@ -258,22 +280,22 @@ function buildCategoryChartData(report, currency) {
   };
 }
 
-function renderCategoryTable(byCategory, currency) {
+function renderBreakdownTable(items, nameKey, fallback, currency) {
   const section = document.createElement('div');
   section.className = 'card';
   section.style.overflow = 'hidden';
 
   const title = document.createElement('div');
   title.style.cssText = 'padding:0.75rem 1rem;border-bottom:1px solid var(--border);font-weight:600;font-size:0.875rem';
-  title.textContent = 'By category';
+  title.textContent = nameKey === 'categoryName' ? 'By category' : 'By label';
   section.appendChild(title);
 
-  const sorted = [...byCategory].sort((a, b) => a.total - b.total);
+  const sorted = [...items].sort((a, b) => a.total - b.total);
   for (const b of sorted) {
     const row = document.createElement('div');
     row.className = 'list-row';
     row.innerHTML = `
-      <span style="flex:1">${escHtml(b.categoryName ?? '(uncategorized)')}</span>
+      <span style="flex:1">${escHtml(b[nameKey] ?? fallback)}</span>
       <span style="color:var(--text-muted);font-size:0.8rem;margin-right:1rem">${b.count} transaction${b.count !== 1 ? 's' : ''}</span>
       <span class="${b.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600">${fmt(b.total, currency)}</span>
     `;

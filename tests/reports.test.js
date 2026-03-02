@@ -3,8 +3,8 @@ import assert from 'node:assert/strict';
 import { monthlyReport, yearlyReport, customRangeReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
-function makeData(txs = [], cats = []) {
-  return { ...emptyData(), transactions: txs, categories: cats };
+function makeData(txs = [], cats = [], lbls = []) {
+  return { ...emptyData(), transactions: txs, categories: cats, labels: lbls };
 }
 
 function makeTx(overrides = {}) {
@@ -112,6 +112,24 @@ test('customRangeReport: boundary dates are inclusive', () => {
   ];
   const r = customRangeReport(makeData(txs), '2026-01-01', '2026-01-31');
   assert.equal(r.transactions.length, 2);
+});
+
+test('monthlyReport: byLabel breakdown', () => {
+  const lbls = [{ id: 'lbl-1', name: 'work' }];
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -30, labelIds: ['lbl-1'] }),
+    makeTx({ date: '2026-01-20', amountInDefault: -20, labelIds: ['lbl-1'] }),
+    makeTx({ date: '2026-01-25', amountInDefault: -5, labelIds: [] }),
+  ];
+  const r = monthlyReport(makeData(txs, [], lbls), 2026, 1);
+  const workGroup = r.byLabel.find(b => b.labelId === 'lbl-1');
+  assert.ok(workGroup);
+  assert.equal(workGroup.total, -50);
+  assert.equal(workGroup.labelName, 'work');
+  assert.equal(workGroup.count, 2);
+  const noLabel = r.byLabel.find(b => b.labelId === null);
+  assert.ok(noLabel);
+  assert.equal(noLabel.total, -5);
 });
 
 test('report transactions are sorted by date', () => {

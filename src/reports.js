@@ -1,6 +1,6 @@
-import { expandAndFilter, groupByCategory } from './filters.js';
+import { expandAndFilter, groupByCategory, groupByLabel } from './filters.js';
 
-function summarise(transactions, categories) {
+function summarise(transactions, categories, labels) {
   let income = 0;
   let expenses = 0;
   for (const tx of transactions) {
@@ -13,7 +13,13 @@ function summarise(transactions, categories) {
     total: g.total,
     count: g.transactions.length,
   }));
-  return { income, expenses, net: income + expenses, byCategory, transactions };
+  const byLabel = [...groupByLabel(transactions, labels)].map(([id, g]) => ({
+    labelId: id,
+    labelName: g.label ? g.label.name : null,
+    total: g.total,
+    count: g.transactions.length,
+  }));
+  return { income, expenses, net: income + expenses, byCategory, byLabel, transactions };
 }
 
 export function monthlyReport(data, year, month) {
@@ -22,7 +28,7 @@ export function monthlyReport(data, year, month) {
   const txs = expandAndFilter(data.transactions, { windowEnd: end }).filter(
     tx => tx.date >= start.toISOString().slice(0, 10) && tx.date <= end.toISOString().slice(0, 10),
   );
-  return summarise(txs, data.categories);
+  return summarise(txs, data.categories, data.labels);
 }
 
 export function yearlyReport(data, year) {
@@ -36,9 +42,9 @@ export function yearlyReport(data, year) {
   const txs = expandAndFilter(data.transactions, { windowEnd: end }).filter(
     tx => tx.date.startsWith(String(year)),
   );
-  const summary = summarise(txs, data.categories);
+  const summary = summarise(txs, data.categories, data.labels);
 
-  return { months, byCategory: summary.byCategory, total: { income: summary.income, expenses: summary.expenses, net: summary.net } };
+  return { months, byCategory: summary.byCategory, byLabel: summary.byLabel, total: { income: summary.income, expenses: summary.expenses, net: summary.net } };
 }
 
 export function customRangeReport(data, startDate, endDate) {
@@ -46,5 +52,5 @@ export function customRangeReport(data, startDate, endDate) {
   const txs = expandAndFilter(data.transactions, { windowEnd: end }).filter(
     tx => tx.date >= startDate && tx.date <= endDate,
   );
-  return summarise(txs, data.categories);
+  return summarise(txs, data.categories, data.labels);
 }
