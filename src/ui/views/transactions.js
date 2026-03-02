@@ -632,6 +632,7 @@ function openTxModal(tx, data) {
       toast('Transaction added', 'success');
     }
     close();
+    _page = 0;
     refresh();
   });
 
@@ -656,6 +657,7 @@ function confirmDeleteTx(tx) {
     deleteTransaction(tx.id);
     toast('Transaction deleted', 'success');
     close();
+    _page = 0;
     refresh();
   });
 }
