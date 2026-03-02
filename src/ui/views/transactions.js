@@ -1,4 +1,4 @@
-import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk } from '../../store.js';
+import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData } from '../../store.js';
 import { expandAndFilter, groupByCategory, groupByLabel } from '../../filters.js';
 import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
@@ -29,6 +29,7 @@ function refresh() {
     <h1>Transactions</h1>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button class="btn btn-secondary" id="import-csv-btn">Import CSV</button>
+      <button class="btn btn-secondary" id="export-btn">Export JSON</button>
       <button class="btn btn-primary" id="add-tx-btn">+ Add</button>
     </div>
   `;
@@ -87,7 +88,45 @@ function refresh() {
   list.className = 'list';
 
   if (txs.length === 0) {
-    list.innerHTML = '<div class="list-empty">No transactions yet. Add one or import a CSV.</div>';
+    const emptyCard = document.createElement('div');
+    emptyCard.className = 'card';
+    emptyCard.style.cssText = 'padding:2rem;text-align:center;margin-bottom:1.5rem';
+    emptyCard.innerHTML = `
+      <p style="font-weight:600;margin-bottom:0.5rem">No transactions yet</p>
+      <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem">Import a CSV file to get started, or load a full JSON backup.</p>
+      <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
+        <label class="btn btn-primary" style="cursor:pointer">
+          Import CSV
+          <input type="file" id="empty-csv-input" accept=".csv,text/csv" style="display:none">
+        </label>
+        <label class="btn btn-secondary" style="cursor:pointer">
+          Load JSON backup
+          <input type="file" id="empty-json-input" accept=".json" style="display:none">
+        </label>
+      </div>
+    `;
+    emptyCard.querySelector('#empty-csv-input').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (file) handleCsvFile(file, getData());
+      e.target.value = '';
+    });
+    emptyCard.querySelector('#empty-json-input').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = evt => {
+        try {
+          loadData(evt.target.result);
+          toast('Data loaded successfully', 'success');
+          refresh();
+        } catch (err) {
+          toast(`Load failed: ${err.message}`, 'error');
+        }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+    _container.appendChild(emptyCard);
   } else if (_viewMode === 'flat') {
     renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data);
   } else if (_viewMode === 'by-category') {
@@ -106,7 +145,17 @@ function refresh() {
   _container.appendChild(list);
 
   _container.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
-  _container.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(data));
+  _container.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
+  _container.querySelector('#export-btn').addEventListener('click', () => {
+    const json = exportData();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
 }
 
 function renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data) {
@@ -456,6 +505,22 @@ function confirmDeleteTx(tx) {
     close();
     refresh();
   });
+}
+
+
+function handleCsvFile(file, data) {
+  const reader = new FileReader();
+  reader.onload = evt => {
+    try {
+      const { categories, labels, transactions } = importTransactions(evt.target.result, data);
+      importBulk(categories, labels, transactions);
+      toast(`Imported ${transactions.length} transaction(s)`, 'success');
+      refresh();
+    } catch (err) {
+      toast(err.message, 'error');
+    }
+  };
+  reader.readAsText(file);
 }
 
 function openCsvImport(data) {
