@@ -59,7 +59,7 @@ test('monthlyReport: expands recurrences within month only', () => {
 });
 
 test('monthlyReport: byCategory breakdown', () => {
-  const cats = [{ id: 'cat-1', name: 'Food', color: '#f00' }];
+  const cats = [{ id: 'cat-1', name: 'Food', icon: '🏷️' }];
   const txs = [
     makeTx({ date: '2026-01-10', amountInDefault: -40, categoryId: 'cat-1' }),
     makeTx({ date: '2026-01-20', amountInDefault: -60, categoryId: 'cat-1' }),

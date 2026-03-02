@@ -56,7 +56,7 @@ test('importTransactions: creates new category when not in data', () => {
 
 test('importTransactions: reuses existing category by name', () => {
   const data = emptyData();
-  data.categories.push({ id: 'existing-id', name: 'Food', color: '#f00' });
+  data.categories.push({ id: 'existing-id', name: 'Food', icon: '🏷️' });
   const csv = 'date,amount,currency,category,description\n2026-01-01,-10,USD,Food,Lunch';
   const result = importTransactions(csv, data);
   assert.equal(result.categories.length, 0);

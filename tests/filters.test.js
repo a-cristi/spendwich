@@ -100,7 +100,7 @@ test('expandAndFilter result is sorted by date ascending', () => {
 // --- groupByCategory ---
 
 test('groupByCategory produces correct totals', () => {
-  const cats = [{ id: 'cat-1', name: 'Food', color: '#f00' }];
+  const cats = [{ id: 'cat-1', name: 'Food', icon: '🏷️' }];
   const txs = [
     makeTx({ categoryId: 'cat-1', amountInDefault: -10 }),
     makeTx({ categoryId: 'cat-1', amountInDefault: -20 }),
