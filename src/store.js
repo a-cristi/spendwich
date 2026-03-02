@@ -12,8 +12,9 @@ export function getData() {
 
 export function loadData(raw) {
   const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  validate(parsed);
-  _data = migrate(parsed);
+  const migrated = migrate(parsed);
+  validate(migrated);
+  _data = migrated;
 }
 
 export function exportData() {
