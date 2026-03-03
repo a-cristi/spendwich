@@ -75,7 +75,7 @@
 
 ## Exchange rates
 
-- Fetch from the Frankfurter API (free, no auth) based on transaction date
+- Fetch from the Frankfurter API (free, no auth) based on transaction date. Base URL: `https://api.frankfurter.dev/v1/` (the old `api.frankfurter.app` domain is dead as of early 2026)
 - Degrade gracefully if offline or API unavailable — fall back to manual entry
 - Never block the user from saving a transaction due to exchange rate unavailability
 - Cache fetched rates in a module-level `Map` for the lifetime of the page. Key format: `"<FROM>-<TO>-<DATE>"`
