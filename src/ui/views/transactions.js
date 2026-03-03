@@ -437,16 +437,9 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const amountStr = formatAmount(tx.amount, tx.currency);
   const amountCls = tx.amount >= 0 ? 'amount-income' : 'amount-expense';
 
-  let primaryText;
-  if (tx.description) {
-    primaryText = escHtml(tx.description);
-  } else if (cat) {
-    primaryText = escHtml(cat.name);
-  } else if (catDeleted) {
-    primaryText = '(deleted category)';
-  } else {
-    primaryText = '—';
-  }
+  const primaryHtml = tx.description
+    ? `<div class="tx-primary">${escHtml(tx.description)}</div>`
+    : '';
 
   const catBadge = cat
     ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>`
@@ -458,7 +451,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     <div class="tx-row-content">
       <span class="tx-date">${escHtml(formatTxDate(tx.date))}</span>
       <div class="tx-info">
-        <div class="tx-primary">${primaryText}</div>
+        ${primaryHtml}
         <div class="tx-meta">
           ${catBadge}
           ${lblPills}
