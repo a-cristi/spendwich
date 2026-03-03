@@ -138,28 +138,33 @@ function refresh() {
     });
   }
   const dateArea = document.createElement('div');
-  dateArea.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:1rem';
+  dateArea.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:1rem';
   dateArea.appendChild(dateTabs);
   if (_dateMode !== 'all') dateArea.appendChild(periodRow);
-  _container.appendChild(dateArea);
 
   const filterBar = document.createElement('div');
-  filterBar.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem';
+  filterBar.className = 'filter-bar';
   filterBar.innerHTML = `
-    <div style="display:flex;gap:0.5rem;align-items:center">
-      <select id="filter-cat" style="flex:1;min-width:0">
-        <option value="">All categories</option>
-        ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
-      </select>
-      <div class="seg-group" style="flex-shrink:0">
-        <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
-        <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
-        <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
-      </div>
+    <select id="filter-cat">
+      <option value="">All categories</option>
+      ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
+    </select>
+    <div class="label-search-wrapper">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
     </div>
-    <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
+    <div class="seg-group filter-bar-toggle">
+      <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
+      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
+      <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
+    </div>
   `;
-  _container.appendChild(filterBar);
+
+  const controlsCard = document.createElement('div');
+  controlsCard.className = 'controls-card';
+  controlsCard.appendChild(dateArea);
+  controlsCard.appendChild(filterBar);
+  _container.appendChild(controlsCard);
 
   filterBar.querySelector('#filter-cat').addEventListener('change', e => {
     _filterCategoryId = e.target.value || null;

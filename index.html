@@ -338,6 +338,47 @@
       min-width: 0;
     }
 
+    /* Filter toolbar */
+    .filter-bar {
+      display: grid;
+      grid-template-columns: 200px 1fr auto;
+      grid-template-areas: "cat label toggle";
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0;
+    }
+    #filter-cat              { grid-area: cat; }
+    .label-search-wrapper    { grid-area: label; }
+    .filter-bar-toggle       { grid-area: toggle; }
+
+    /* Controls card — groups date + filter as one panel */
+    .controls-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 0.875rem 1rem;
+      margin-bottom: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    /* Label filter search icon */
+    .label-search-wrapper {
+      position: relative;
+    }
+    .label-search-wrapper .search-icon {
+      position: absolute;
+      left: 0.625rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    .label-search-wrapper #filter-label {
+      padding-left: 2rem;
+    }
+
     /* Responsive */
     @media (max-width: 600px) {
       nav { padding: 0 0.75rem; }
@@ -347,6 +388,13 @@
       .summary-cards { grid-template-columns: 1fr; }
 
       dialog { width: 100vw; border-radius: var(--radius) var(--radius) 0 0; position: fixed; bottom: 0; margin: 0; }
+
+      .filter-bar {
+        grid-template-columns: 1fr auto;
+        grid-template-areas: "cat toggle" "label label";
+      }
+
+      .controls-card { padding: 0.75rem; }
     }
   </style>
 </head>
