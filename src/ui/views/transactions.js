@@ -61,8 +61,8 @@ function refresh() {
   header.innerHTML = `
     <h1>Transactions</h1>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
-      <button class="btn btn-secondary" id="import-csv-btn">Import CSV</button>
-      <button class="btn btn-secondary" id="export-btn">Export JSON</button>
+      <button class="btn btn-sm btn-secondary" id="import-csv-btn">Import CSV</button>
+      <button class="btn btn-sm btn-secondary" id="export-btn">Export JSON</button>
       <button class="btn btn-primary" id="add-tx-btn">+ Add</button>
     </div>
   `;
@@ -70,7 +70,6 @@ function refresh() {
 
   const dateTabs = document.createElement('div');
   dateTabs.className = 'seg-group';
-  dateTabs.style.cssText = 'margin-bottom:0.5rem';
   dateTabs.innerHTML = `
     <button class="btn btn-sm ${_dateMode === 'month'  ? 'btn-primary' : 'btn-secondary'}" data-dm="month">Month</button>
     <button class="btn btn-sm ${_dateMode === 'year'   ? 'btn-primary' : 'btn-secondary'}" data-dm="year">Year</button>
@@ -80,10 +79,9 @@ function refresh() {
   dateTabs.querySelectorAll('[data-dm]').forEach(btn =>
     btn.addEventListener('click', () => { _dateMode = btn.dataset.dm; _page = 0; refresh(); })
   );
-  _container.appendChild(dateTabs);
 
   const periodRow = document.createElement('div');
-  periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1rem';
+  periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap';
 
   if (_dateMode === 'month') {
     periodRow.innerHTML = `
@@ -139,21 +137,27 @@ function refresh() {
       dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
     });
   }
-  _container.appendChild(periodRow);
+  const dateArea = document.createElement('div');
+  dateArea.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;margin-bottom:1rem';
+  dateArea.appendChild(dateTabs);
+  if (_dateMode !== 'all') dateArea.appendChild(periodRow);
+  _container.appendChild(dateArea);
 
   const filterBar = document.createElement('div');
-  filterBar.style.cssText = 'display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;align-items:center';
+  filterBar.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;margin-bottom:1rem';
   filterBar.innerHTML = `
-    <select id="filter-cat" style="flex:0 1 180px">
-      <option value="">All categories</option>
-      ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
-    </select>
-    <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)" style="flex:0 1 180px">
-    <div class="seg-group" style="margin-left:auto">
-      <button class="btn btn-sm ${_viewMode === 'flat' ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
-      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
-      <button class="btn btn-sm ${_viewMode === 'by-label' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
+    <div style="display:flex;gap:0.5rem;align-items:center">
+      <select id="filter-cat" style="flex:1;min-width:0">
+        <option value="">All categories</option>
+        ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
+      </select>
+      <div class="seg-group" style="flex-shrink:0">
+        <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
+        <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
+        <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
+      </div>
     </div>
+    <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
   `;
   _container.appendChild(filterBar);
 
