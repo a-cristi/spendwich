@@ -329,9 +329,19 @@
       font-size: 0.95rem;
     }
 
+    /* Nav links inner wrapper — takes remaining space, scrolls on mobile */
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      flex: 1;
+      min-width: 0;
+    }
+
     /* Responsive */
     @media (max-width: 600px) {
-      nav { padding: 0 0.75rem; overflow-x: auto; }
+      nav { padding: 0 0.75rem; }
+      .nav-links { overflow-x: auto; }
       main { padding: 1rem 0.75rem; }
 
       .summary-cards { grid-template-columns: 1fr; }
@@ -343,11 +353,13 @@
 <body>
   <nav>
     <a class="brand" href="#transactions">spendwich</a>
-    <a href="#transactions">Transactions</a>
-    <a href="#categories">Categories</a>
-    <a href="#labels">Labels</a>
-    <a href="#reports">Reports</a>
-    <a href="#settings">Settings</a>
+    <div class="nav-links">
+      <a href="#transactions">Transactions</a>
+      <a href="#categories">Categories</a>
+      <a href="#labels">Labels</a>
+      <a href="#reports">Reports</a>
+      <a href="#settings">Settings</a>
+    </div>
   </nav>
 
   <main id="app"></main>
