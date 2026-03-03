@@ -10,7 +10,7 @@ export async function fetchRate(fromCurrency, toCurrency, date) {
   const timeout = setTimeout(() => controller.abort(), 5000);
 
   try {
-    const url = `https://api.frankfurter.app/${date}?from=${fromCurrency}&to=${toCurrency}`;
+    const url = `https://api.frankfurter.dev/v1/${date}?from=${fromCurrency}&to=${toCurrency}`;
     const res = await fetch(url, { signal: controller.signal });
     if (!res.ok) return null;
     const json = await res.json();
