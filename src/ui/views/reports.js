@@ -164,7 +164,7 @@ function renderSummaryReport(report, currency, data) {
     </div>
     <div class="summary-card summary-card-expense">
       <div class="label">Expenses</div>
-      <div class="value amount-expense">${fmt(report.expenses, currency)}</div>
+      <div class="value amount-expense">${fmt(Math.abs(report.expenses), currency)}</div>
     </div>
     <div class="summary-card ${report.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
       <div class="label">Net</div>
@@ -216,7 +216,7 @@ function renderYearlyReport(report, currency, data) {
     </div>
     <div class="summary-card summary-card-expense">
       <div class="label">Total expenses</div>
-      <div class="value amount-expense">${fmt(report.total.expenses, currency)}</div>
+      <div class="value amount-expense">${fmt(Math.abs(report.total.expenses), currency)}</div>
     </div>
     <div class="summary-card ${report.total.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
       <div class="label">Net</div>

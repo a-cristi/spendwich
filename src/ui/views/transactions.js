@@ -148,7 +148,7 @@ function refresh() {
       <option value="">All categories</option>
       ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
     </select>
-    <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Label filter (glob ok)" style="flex:0 1 180px">
+    <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)" style="flex:0 1 180px">
     <div class="seg-group" style="margin-left:auto">
       <button class="btn btn-sm ${_viewMode === 'flat' ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
       <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
@@ -388,7 +388,6 @@ function crossGroupByCategory(transactions, categories) {
 function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const row = document.createElement('div');
   row.className = 'list-row';
-  row.style.flexWrap = 'wrap';
 
   const cat = tx.categoryId ? catMap.get(tx.categoryId) : null;
   const catDeleted = tx.categoryId && !cat;
@@ -403,18 +402,20 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const amountCls = tx.amount >= 0 ? 'amount-income' : 'amount-expense';
 
   row.innerHTML = `
-    <span style="color:var(--text-muted);font-size:0.8rem;min-width:90px">${escHtml(formatTxDate(tx.date))}</span>
-    <span style="flex:1;min-width:120px">
-      <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
-        ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>` : ''}
-        ${catDeleted ? '<span class="badge badge-deleted">(deleted category)</span>' : ''}
-        ${lblPills}
-        ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
-      </div>
-      ${tx.description ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">${escHtml(tx.description)}</div>` : ''}
-    </span>
-    <span class="${amountCls}" style="font-weight:600;min-width:80px;text-align:right">${amountStr}</span>
-    <div style="display:flex;gap:0.25rem">
+    <div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem">
+      <span style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap">${escHtml(formatTxDate(tx.date))}</span>
+      <span style="flex:1;min-width:100px">
+        <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
+          ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>` : ''}
+          ${catDeleted ? '<span class="badge badge-deleted">(deleted category)</span>' : ''}
+          ${lblPills}
+          ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
+        </div>
+        ${tx.description ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">${escHtml(tx.description)}</div>` : ''}
+      </span>
+      <span class="${amountCls}" style="font-weight:600;white-space:nowrap;text-align:right">${amountStr}</span>
+    </div>
+    <div style="display:flex;gap:0.25rem;flex-shrink:0;align-self:flex-start;padding-top:2px">
       <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
       <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
     </div>
