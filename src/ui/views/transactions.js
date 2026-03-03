@@ -210,16 +210,43 @@ function refresh() {
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
   const { defaultCurrency } = data.settings;
 
+  if (txs.length > 0) {
+    const income   = txs.reduce((s, t) => t.amountInDefault > 0 ? s + t.amountInDefault : s, 0);
+    const expenses = txs.reduce((s, t) => t.amountInDefault < 0 ? s + t.amountInDefault : s, 0);
+    const net = income + expenses;
+    const netCls = net >= 0 ? 'amount-income' : 'amount-expense';
+    const netSign = net >= 0 ? '+' : '-';
+
+    const summaryBar = document.createElement('div');
+    summaryBar.className = 'summary-bar';
+    summaryBar.innerHTML = `
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">Income</span>
+        <span class="summary-bar-value amount-income">+${escHtml(formatAmount(income, defaultCurrency))}</span>
+      </div>
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">Expenses</span>
+        <span class="summary-bar-value amount-expense">-${escHtml(formatAmount(Math.abs(expenses), defaultCurrency))}</span>
+      </div>
+      <div class="summary-bar-item">
+        <span class="summary-bar-label">Net</span>
+        <span class="summary-bar-value ${netCls}">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span>
+      </div>
+    `;
+    _container.appendChild(summaryBar);
+  }
+
   const list = document.createElement('div');
   list.className = 'list';
 
   if (txs.length === 0 && data.transactions.length === 0) {
     const emptyCard = document.createElement('div');
     emptyCard.className = 'card';
-    emptyCard.style.cssText = 'padding:2rem;text-align:center;margin-bottom:1.5rem';
+    emptyCard.style.cssText = 'padding:3rem 2rem;text-align:center;margin-bottom:1.5rem';
     emptyCard.innerHTML = `
-      <p style="font-weight:600;margin-bottom:0.5rem">No transactions yet</p>
-      <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.5rem">Import a CSV file to get started, or load a full JSON backup.</p>
+      <div style="font-size:2.5rem;margin-bottom:1rem">🥪</div>
+      <p style="font-family:var(--font-serif);font-size:1.1rem;font-weight:400;margin-bottom:0.5rem">No transactions yet</p>
+      <p style="color:var(--text-muted);font-size:0.875rem;margin-bottom:1.75rem;max-width:320px;margin-left:auto;margin-right:auto">Import a CSV file to get started, or load a full JSON backup to restore your data.</p>
       <div style="display:flex;gap:0.75rem;justify-content:center;flex-wrap:wrap">
         <label class="btn btn-primary" style="cursor:pointer">
           Import CSV
@@ -255,7 +282,7 @@ function refresh() {
     _container.appendChild(emptyCard);
   } else if (txs.length === 0) {
     const empty = document.createElement('p');
-    empty.style.cssText = 'color:var(--text-muted);padding:1.5rem 0;text-align:center';
+    empty.className = 'list-empty';
     empty.textContent = 'No transactions in this period.';
     _container.appendChild(empty);
   } else if (_viewMode === 'flat') {
@@ -410,21 +437,37 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const amountStr = formatAmount(tx.amount, tx.currency);
   const amountCls = tx.amount >= 0 ? 'amount-income' : 'amount-expense';
 
+  let primaryText;
+  if (tx.description) {
+    primaryText = escHtml(tx.description);
+  } else if (cat) {
+    primaryText = escHtml(cat.name);
+  } else if (catDeleted) {
+    primaryText = '(deleted category)';
+  } else {
+    primaryText = '—';
+  }
+
+  const catBadge = cat
+    ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>`
+    : catDeleted
+      ? `<span class="badge badge-deleted">(deleted category)</span>`
+      : '';
+
   row.innerHTML = `
-    <div style="flex:1;min-width:0;display:flex;flex-wrap:wrap;align-items:center;gap:0.5rem">
-      <span style="color:var(--text-muted);font-size:0.8rem;white-space:nowrap">${escHtml(formatTxDate(tx.date))}</span>
-      <span style="flex:1;min-width:100px">
-        <div style="display:flex;flex-wrap:wrap;gap:0.25rem;align-items:center">
-          ${cat ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>` : ''}
-          ${catDeleted ? '<span class="badge badge-deleted">(deleted category)</span>' : ''}
+    <div class="tx-row-content">
+      <span class="tx-date">${escHtml(formatTxDate(tx.date))}</span>
+      <div class="tx-info">
+        <div class="tx-primary">${primaryText}</div>
+        <div class="tx-meta">
+          ${catBadge}
           ${lblPills}
           ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
         </div>
-        ${tx.description ? `<div style="font-size:0.78rem;color:var(--text-muted);margin-top:0.2rem">${escHtml(tx.description)}</div>` : ''}
-      </span>
-      <span class="${amountCls}" style="font-weight:600;white-space:nowrap;text-align:right">${amountStr}</span>
+      </div>
+      <span class="${amountCls} tx-amount">${amountStr}</span>
     </div>
-    <div style="display:flex;gap:0.25rem;flex-shrink:0;align-self:flex-start;padding-top:2px">
+    <div class="tx-actions">
       <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
       <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
     </div>
