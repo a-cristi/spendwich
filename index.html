@@ -477,9 +477,10 @@
       padding-top: 2px;
     }
 
-    /* Bottom nav (mobile only) */
+    /* Bottom nav (mobile only) — override generic nav { top:0 } to prevent full-height stretch */
     .bottom-nav {
       display: none;
+      top: auto;
     }
 
     /* Responsive */
@@ -507,6 +508,7 @@
       .bottom-nav {
         display: flex;
         position: fixed;
+        top: auto;
         bottom: 0; left: 0; right: 0;
         background: var(--surface);
         border-top: 1px solid var(--border);
