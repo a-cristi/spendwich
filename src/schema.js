@@ -1,5 +1,19 @@
 export const CURRENT_VERSION = 2;
 
+function uuid() {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  // crypto.getRandomValues is NOT restricted to secure contexts — use it as a
+  // proper fallback for plain HTTP on LAN where randomUUID() is unavailable
+  const b = new Uint8Array(16);
+  crypto.getRandomValues(b);
+  b[6] = (b[6] & 0x0f) | 0x40; // version 4
+  b[8] = (b[8] & 0x3f) | 0x80; // variant
+  const h = Array.from(b, x => x.toString(16).padStart(2, '0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+}
+
 export function emptyData() {
   return {
     version: CURRENT_VERSION,
@@ -11,11 +25,11 @@ export function emptyData() {
 }
 
 export function makeCategory(name, icon = '🏷️') {
-  return { id: crypto.randomUUID(), name, icon };
+  return { id: uuid(), name, icon };
 }
 
 export function makeLabel(name) {
-  return { id: crypto.randomUUID(), name };
+  return { id: uuid(), name };
 }
 
 export function makeTransaction(fields) {
@@ -31,7 +45,7 @@ export function makeTransaction(fields) {
     recurrence = null,
   } = fields;
   return {
-    id: fields.id ?? crypto.randomUUID(),
+    id: fields.id ?? uuid(),
     date,
     amount,
     currency,
