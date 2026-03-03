@@ -53,6 +53,9 @@
 - The `<nav>` is `position: sticky` — never give it any `overflow` value other than `visible`. CSS spec forces both axes to `auto` when you set one, turning the sticky nav into a scroll container; on Firefox Android (APZ) and iOS Safari this intercepts touch events on content below the nav. Route links live inside `<div class="nav-links">` (which carries `overflow-x: auto` on mobile); the `<nav>` itself stays overflow-free
 - Transaction list row layout: the data columns (date + description/badges + amount) are wrapped in a `flex:1;min-width:0` inner div; the action buttons div gets `flex-shrink:0` so it never wraps to a second line on narrow viewports. Never put `flex-wrap:wrap` directly on `.list-row` — it allows the action buttons to detach from their row
 - Reports summary cards: always display the Expenses value as `Math.abs(report.expenses)` — the card label and red colour already communicate expense polarity. NET keeps its sign (positive/negative is meaningful there)
+- Controls card pattern: the date area + filter bar in the Transactions view are wrapped in `.controls-card` (white surface, `border:1px solid var(--border)`, `border-radius:var(--radius)`, `padding:0.875rem 1rem`). This creates a "two-card" visual rhythm — controls card above, list card below. Any new filter/controls area should follow this pattern
+- Filter bar CSS Grid: `.filter-bar` uses `grid-template-areas: "cat label toggle"` on desktop (`200px 1fr auto`) and `"cat toggle" / "label label"` on mobile (≤600px). The `label` grid area is assigned to `.label-search-wrapper` (the search-icon wrapper div), not to `#filter-label` directly — the wrapper is the grid child
+- Never use `justify-content:space-between` on a full-width flex row when child items are narrow. On a 960px container this creates hundreds of pixels of dead space. Use `justify-content:flex-start` with an explicit `gap` instead
 
 ## Data
 
