@@ -51,6 +51,8 @@
 - `openTxModal` accepts an optional `saveOverride(fields)` callback. When provided it replaces the default `addTransaction`/`updateTransaction` call while keeping toast/close/refresh unchanged. Used by the recurring scope dialog to route saves to `overrideOccurrence` or `splitSeries`
 - Category icon: a single emoji stored as `cat.icon` (default `'🏷️'`). Shown in category list rows, transaction badges, group headers, modal category selector, and reports breakdown. The emoji picker in the category modal is a button grid of `EMOJI_SET` (~50 curated finance emoji); clicking highlights the selected button via border color and updates `selectedIcon`
 - The `<nav>` is `position: sticky` — never give it any `overflow` value other than `visible`. CSS spec forces both axes to `auto` when you set one, turning the sticky nav into a scroll container; on Firefox Android (APZ) and iOS Safari this intercepts touch events on content below the nav. Route links live inside `<div class="nav-links">` (which carries `overflow-x: auto` on mobile); the `<nav>` itself stays overflow-free
+- Transaction list row layout: the data columns (date + description/badges + amount) are wrapped in a `flex:1;min-width:0` inner div; the action buttons div gets `flex-shrink:0` so it never wraps to a second line on narrow viewports. Never put `flex-wrap:wrap` directly on `.list-row` — it allows the action buttons to detach from their row
+- Reports summary cards: always display the Expenses value as `Math.abs(report.expenses)` — the card label and red colour already communicate expense polarity. NET keeps its sign (positive/negative is meaningful there)
 
 ## Data
 
