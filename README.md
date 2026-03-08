@@ -2,6 +2,8 @@
 
 No cloud. No nonsense. Just your money, in your browser.
 
+**[Try it →](https://a-cristi.github.io/spendwich/)**
+
 > Vibecoded with Claude.
 
 ## Features
