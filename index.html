@@ -356,17 +356,17 @@
       min-width: 0;
     }
 
-    /* Transactions two-pane layout */
-    .tx-layout {
+    /* Shared two-pane layout (Transactions + Reports) */
+    .view-layout {
       display: grid;
       grid-template-columns: 220px 1fr;
       gap: 1.5rem;
       align-items: start;
     }
-    .tx-main { min-width: 0; }
+    .view-main { min-width: 0; }
 
     /* Sidebar */
-    .tx-sidebar {
+    .view-sidebar {
       position: sticky;
       top: 4.5rem;
       background: var(--surface);
@@ -375,12 +375,12 @@
       box-shadow: var(--shadow);
       overflow: hidden;
     }
-    .tx-sidebar-section {
+    .view-sidebar-section {
       padding: 0.875rem 1rem;
       border-bottom: 1px solid var(--border);
     }
-    .tx-sidebar-section:last-child { border-bottom: none; }
-    .tx-sidebar-label {
+    .view-sidebar-section:last-child { border-bottom: none; }
+    .view-sidebar-label {
       display: block;
       font-size: 0.65rem;
       font-weight: 700;
@@ -389,13 +389,13 @@
       color: var(--text-muted);
       margin-bottom: 0.5rem;
     }
-    .tx-sidebar-mode-nav {
+    .view-mode-nav {
       display: flex;
       flex-direction: column;
       gap: 0.125rem;
       margin-bottom: 0.75rem;
     }
-    .tx-sidebar-mode-btn {
+    .view-mode-btn {
       background: none;
       border: none;
       border-radius: var(--radius-sm);
@@ -408,13 +408,13 @@
       cursor: pointer;
       transition: background 0.12s;
     }
-    .tx-sidebar-mode-btn:hover { background: var(--surface-hover); }
-    .tx-sidebar-mode-btn.active {
+    .view-mode-btn:hover { background: var(--surface-hover); }
+    .view-mode-btn.active {
       background: var(--primary-light);
       color: var(--primary);
       font-weight: 600;
     }
-    .tx-sidebar-mode-select { display: none; width: auto; min-width: 80px; }
+    .view-mode-select { display: none; width: auto; min-width: 80px; }
     .tx-sidebar-filter-area {
       display: flex;
       flex-direction: column;
@@ -423,7 +423,7 @@
     .tx-sidebar-filter-area .label-search-wrapper { width: 100%; }
     .tx-sidebar-filter-area .seg-group { width: 100%; }
     .tx-sidebar-filter-area .seg-group .btn { flex: 1; justify-content: center; }
-    .tx-sidebar-section .btn-sm {
+    .view-sidebar-section .btn-sm {
       padding-top: 0.5rem;
       padding-bottom: 0.5rem;
     }
@@ -539,9 +539,9 @@
 
       dialog { width: 100vw; border-radius: var(--radius) var(--radius) 0 0; position: fixed; bottom: 0; margin: 0; }
 
-      .tx-layout { display: block; }
+      .view-layout { display: block; }
 
-      .tx-sidebar {
+      .view-sidebar {
         position: static;
         overflow: visible;
         margin-bottom: 1rem;
@@ -550,11 +550,11 @@
         gap: 0.75rem;
         padding: 0.75rem;
       }
-      .tx-sidebar-section { padding: 0; border: none; }
-      .tx-sidebar-label { display: none; }
-      .tx-sidebar-mode-nav { display: none; }
-      .tx-sidebar-mode-select { display: block; }
-      .tx-sidebar-date-row {
+      .view-sidebar-section { padding: 0; border: none; }
+      .view-sidebar-label { display: none; }
+      .view-mode-nav { display: none; }
+      .view-mode-select { display: block; }
+      .view-date-row {
         display: flex;
         align-items: center;
         gap: 0.5rem;

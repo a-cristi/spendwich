@@ -57,13 +57,13 @@ function refresh() {
   _container.innerHTML = '';
 
   const layout = document.createElement('div');
-  layout.className = 'tx-layout';
+  layout.className = 'view-layout';
   _container.appendChild(layout);
 
   layout.appendChild(buildSidebar(data));
 
   const main = document.createElement('div');
-  main.className = 'tx-main';
+  main.className = 'view-main';
   layout.appendChild(main);
 
   const header = document.createElement('div');
@@ -209,24 +209,24 @@ function refresh() {
 
 function buildSidebar(data) {
   const sidebar = document.createElement('div');
-  sidebar.className = 'tx-sidebar';
+  sidebar.className = 'view-sidebar';
 
   // --- Section 1: Period ---
   const periodSect = document.createElement('div');
-  periodSect.className = 'tx-sidebar-section';
+  periodSect.className = 'view-sidebar-section';
 
   const periodLabel = document.createElement('span');
-  periodLabel.className = 'tx-sidebar-label';
+  periodLabel.className = 'view-sidebar-label';
   periodLabel.textContent = 'Period';
   periodSect.appendChild(periodLabel);
 
   // Desktop: vertical nav buttons (hidden on mobile)
   const modeNav = document.createElement('div');
-  modeNav.className = 'tx-sidebar-mode-nav';
+  modeNav.className = 'view-mode-nav';
   const dateModes = [['month','Month'],['year','Year'],['custom','Custom'],['all','All time']];
   for (const [dm, label] of dateModes) {
     const btn = document.createElement('button');
-    btn.className = 'tx-sidebar-mode-btn' + (_dateMode === dm ? ' active' : '');
+    btn.className = 'view-mode-btn' + (_dateMode === dm ? ' active' : '');
     btn.textContent = label;
     btn.addEventListener('click', () => { _dateMode = dm; _page = 0; refresh(); });
     modeNav.appendChild(btn);
@@ -235,11 +235,11 @@ function buildSidebar(data) {
 
   // Date row: on mobile becomes flex row [mode select] [period nav]
   const dateRow = document.createElement('div');
-  dateRow.className = 'tx-sidebar-date-row';
+  dateRow.className = 'view-date-row';
 
   // Mobile: select for date mode (hidden on desktop via CSS)
   const modeSelect = document.createElement('select');
-  modeSelect.className = 'tx-sidebar-mode-select';
+  modeSelect.className = 'view-mode-select';
   for (const [dm, label] of dateModes) {
     const opt = document.createElement('option');
     opt.value = dm;
@@ -323,10 +323,10 @@ function buildSidebar(data) {
 
   // --- Section 2: Filters + View ---
   const filterSect = document.createElement('div');
-  filterSect.className = 'tx-sidebar-section';
+  filterSect.className = 'view-sidebar-section';
 
   const filterLabel = document.createElement('span');
-  filterLabel.className = 'tx-sidebar-label';
+  filterLabel.className = 'view-sidebar-label';
   filterLabel.textContent = 'Filters';
   filterSect.appendChild(filterLabel);
 

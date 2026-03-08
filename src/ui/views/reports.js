@@ -21,94 +21,21 @@ function refresh() {
   _chartInstances = [];
   _container.innerHTML = '';
 
+  const layout = document.createElement('div');
+  layout.className = 'view-layout';
+  _container.appendChild(layout);
+
+  layout.appendChild(buildReportsSidebar());
+
+  const main = document.createElement('div');
+  main.className = 'view-main';
+  layout.appendChild(main);
+
   const header = document.createElement('div');
   header.className = 'page-header';
   header.innerHTML = '<h1>Reports</h1>';
-  _container.appendChild(header);
+  main.appendChild(header);
 
-  // Mode tabs
-  const tabs = document.createElement('div');
-  tabs.className = 'seg-group';
-  tabs.style.cssText = 'margin-bottom:1.5rem';
-  tabs.innerHTML = `
-    <button class="btn btn-sm ${_mode === 'monthly' ? 'btn-primary' : 'btn-secondary'}" data-mode="monthly">Monthly</button>
-    <button class="btn btn-sm ${_mode === 'yearly' ? 'btn-primary' : 'btn-secondary'}" data-mode="yearly">Yearly</button>
-    <button class="btn btn-sm ${_mode === 'custom' ? 'btn-primary' : 'btn-secondary'}" data-mode="custom">Custom range</button>
-  `;
-  tabs.querySelectorAll('[data-mode]').forEach(btn => {
-    btn.addEventListener('click', () => { _mode = btn.dataset.mode; refresh(); });
-  });
-  _container.appendChild(tabs);
-
-  // Period selector
-  const periodRow = document.createElement('div');
-  periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap;margin-bottom:1.5rem';
-
-  if (_mode === 'monthly') {
-    periodRow.innerHTML = `
-      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-      <select id="sel-month" style="width:140px">
-        ${months().map((m, i) => `<option value="${i+1}" ${_month === i+1 ? 'selected' : ''}>${m}</option>`).join('')}
-      </select>
-      <select id="sel-year" style="width:90px">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
-    `;
-    periodRow.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; refresh(); });
-    periodRow.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
-    periodRow.querySelector('#prev-period').addEventListener('click', () => {
-      if (_month === 1) { _month = 12; _year--; } else _month--;
-      refresh();
-    });
-    periodRow.querySelector('#next-period').addEventListener('click', () => {
-      if (_month === 12) { _month = 1; _year++; } else _month++;
-      refresh();
-    });
-  } else if (_mode === 'yearly') {
-    periodRow.innerHTML = `
-      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-      <select id="sel-year" style="width:90px">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
-    `;
-    periodRow.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
-    periodRow.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
-    periodRow.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
-  } else {
-    periodRow.innerHTML = `
-      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        From <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="width:145px">
-      </label>
-      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        To <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="width:145px">
-      </label>
-      <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
-    `;
-    periodRow.querySelector('#apply-range').addEventListener('click', () => {
-      _customStart = periodRow.querySelector('#range-start').value;
-      _customEnd = periodRow.querySelector('#range-end').value;
-      refresh();
-    });
-  }
-
-  _container.appendChild(periodRow);
-
-  if (_mode === 'custom') {
-    flatpickr(periodRow.querySelector('#range-start'), {
-      dateFormat: 'Y-m-d',
-      locale: { firstDayOfWeek: 1 },
-      defaultDate: _customStart || null,
-    });
-    flatpickr(periodRow.querySelector('#range-end'), {
-      dateFormat: 'Y-m-d',
-      locale: { firstDayOfWeek: 1 },
-      defaultDate: _customEnd || null,
-    });
-  }
-
-  // Compute report
   const data = getData();
   let report;
   try {
@@ -118,7 +45,10 @@ function refresh() {
       report = yearlyReport(data, _year);
     } else {
       if (!_customStart || !_customEnd) {
-        _container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'Select a date range and click Apply.' }));
+        main.appendChild(Object.assign(document.createElement('p'), {
+          className: 'placeholder',
+          textContent: 'Select a date range and click Apply.',
+        }));
         return;
       }
       report = customRangeReport(data, _customStart, _customEnd);
@@ -127,34 +57,156 @@ function refresh() {
     const errEl = document.createElement('p');
     errEl.style.color = 'var(--expense)';
     errEl.textContent = e.message;
-    _container.appendChild(errEl);
+    main.appendChild(errEl);
     return;
   }
 
   const { defaultCurrency } = data.settings;
-
-  // Breakdown toggle
-  const breakdownRow = document.createElement('div');
-  breakdownRow.className = 'seg-group';
-  breakdownRow.style.cssText = 'margin-bottom:1.5rem';
-  breakdownRow.innerHTML = `
-    <button class="btn btn-sm ${_breakdown === 'category' ? 'btn-primary' : 'btn-secondary'}" data-bd="category">By category</button>
-    <button class="btn btn-sm ${_breakdown === 'label' ? 'btn-primary' : 'btn-secondary'}" data-bd="label">By label</button>
-  `;
-  breakdownRow.querySelectorAll('[data-bd]').forEach(btn => {
-    btn.addEventListener('click', () => { _breakdown = btn.dataset.bd; refresh(); });
-  });
-  _container.appendChild(breakdownRow);
-
   if (_mode === 'yearly') {
-    renderYearlyReport(report, defaultCurrency, data);
+    renderYearlyReport(report, defaultCurrency, data, main);
   } else {
-    renderSummaryReport(report, defaultCurrency, data);
+    renderSummaryReport(report, defaultCurrency, data, main);
   }
 }
 
-function renderSummaryReport(report, currency, data) {
-  // Summary cards
+function buildReportsSidebar() {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'view-sidebar';
+
+  // --- Section 1: Period ---
+  const periodSect = document.createElement('div');
+  periodSect.className = 'view-sidebar-section';
+
+  const periodLabel = document.createElement('span');
+  periodLabel.className = 'view-sidebar-label';
+  periodLabel.textContent = 'Period';
+  periodSect.appendChild(periodLabel);
+
+  const modeNav = document.createElement('div');
+  modeNav.className = 'view-mode-nav';
+  const reportModes = [['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom range']];
+  for (const [rm, label] of reportModes) {
+    const btn = document.createElement('button');
+    btn.className = 'view-mode-btn' + (_mode === rm ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { _mode = rm; refresh(); });
+    modeNav.appendChild(btn);
+  }
+  periodSect.appendChild(modeNav);
+
+  const modeSelect = document.createElement('select');
+  modeSelect.className = 'view-mode-select';
+  for (const [rm, label] of reportModes) {
+    const opt = document.createElement('option');
+    opt.value = rm; opt.textContent = label; opt.selected = _mode === rm;
+    modeSelect.appendChild(opt);
+  }
+  modeSelect.addEventListener('change', e => { _mode = e.target.value; refresh(); });
+  periodSect.appendChild(modeSelect);
+
+  const dateRow = document.createElement('div');
+  dateRow.className = 'view-date-row';
+  const periodNav = document.createElement('div');
+
+  if (_mode === 'monthly') {
+    periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.375rem';
+    periodNav.innerHTML = `
+      <div style="display:flex;align-items:center;gap:0.5rem">
+        <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+        <select id="sel-month" style="flex:1;min-width:0">
+          ${months().map((m, i) => `<option value="${i + 1}" ${_month === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm btn-secondary" id="next-period">›</button>
+      </div>
+      <select id="sel-year">
+        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+      </select>`;
+    periodNav.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; refresh(); });
+    periodNav.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
+    periodNav.querySelector('#prev-period').addEventListener('click', () => {
+      if (_month === 1) { _month = 12; _year--; } else _month--;
+      refresh();
+    });
+    periodNav.querySelector('#next-period').addEventListener('click', () => {
+      if (_month === 12) { _month = 1; _year++; } else _month++;
+      refresh();
+    });
+  } else if (_mode === 'yearly') {
+    periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+    periodNav.innerHTML = `
+      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+      <select id="sel-year" style="flex:1">
+        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+      </select>
+      <button class="btn btn-sm btn-secondary" id="next-period">›</button>`;
+    periodNav.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
+    periodNav.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
+    periodNav.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
+  } else {
+    periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;width:100%';
+    periodNav.innerHTML = `
+      <label style="font-size:0.875rem">From
+        <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
+      </label>
+      <label style="font-size:0.875rem">To
+        <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
+      </label>
+      <button class="btn btn-sm btn-primary" id="apply-range" style="width:100%">Apply</button>`;
+    periodNav.querySelector('#apply-range').addEventListener('click', () => {
+      _customStart = periodNav.querySelector('#range-start').value;
+      _customEnd = periodNav.querySelector('#range-end').value;
+      refresh();
+    });
+    flatpickr(periodNav.querySelector('#range-start'), {
+      dateFormat: 'Y-m-d',
+      locale: { firstDayOfWeek: 1 },
+      defaultDate: _customStart || null,
+    });
+    flatpickr(periodNav.querySelector('#range-end'), {
+      dateFormat: 'Y-m-d',
+      locale: { firstDayOfWeek: 1 },
+      defaultDate: _customEnd || null,
+    });
+  }
+
+  dateRow.appendChild(periodNav);
+  periodSect.appendChild(dateRow);
+  sidebar.appendChild(periodSect);
+
+  // --- Section 2: View ---
+  const viewSect = document.createElement('div');
+  viewSect.className = 'view-sidebar-section';
+
+  const viewLabel = document.createElement('span');
+  viewLabel.className = 'view-sidebar-label';
+  viewLabel.textContent = 'View';
+  viewSect.appendChild(viewLabel);
+
+  const bdGroup = document.createElement('div');
+  bdGroup.className = 'seg-group';
+  bdGroup.style.width = '100%';
+
+  const bdCat = document.createElement('button');
+  bdCat.className = 'btn btn-sm ' + (_breakdown === 'category' ? 'btn-primary' : 'btn-secondary');
+  bdCat.style.cssText = 'flex:1;justify-content:center';
+  bdCat.textContent = 'By category';
+  bdCat.addEventListener('click', () => { _breakdown = 'category'; refresh(); });
+
+  const bdLbl = document.createElement('button');
+  bdLbl.className = 'btn btn-sm ' + (_breakdown === 'label' ? 'btn-primary' : 'btn-secondary');
+  bdLbl.style.cssText = 'flex:1;justify-content:center';
+  bdLbl.textContent = 'By label';
+  bdLbl.addEventListener('click', () => { _breakdown = 'label'; refresh(); });
+
+  bdGroup.appendChild(bdCat);
+  bdGroup.appendChild(bdLbl);
+  viewSect.appendChild(bdGroup);
+  sidebar.appendChild(viewSect);
+
+  return sidebar;
+}
+
+function renderSummaryReport(report, currency, data, container) {
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
   cards.innerHTML = `
@@ -171,7 +223,7 @@ function renderSummaryReport(report, currency, data) {
       <div class="value ${report.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.net, currency)}</div>
     </div>
   `;
-  _container.appendChild(cards);
+  container.appendChild(cards);
 
   const isCat = _breakdown === 'category';
   const items = isCat ? report.byCategory : report.byLabel;
@@ -179,13 +231,12 @@ function renderSummaryReport(report, currency, data) {
   const fallback = isCat ? '(uncategorized)' : '(no label)';
   const catsByName = isCat ? new Map(data.categories.map(c => [c.name, c])) : null;
 
-  // Pie chart
   if (items.some(b => b.total !== 0)) {
     const chartWrap = document.createElement('div');
     chartWrap.className = 'card';
     chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
     chartWrap.innerHTML = '<canvas></canvas>';
-    _container.appendChild(chartWrap);
+    container.appendChild(chartWrap);
     _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
       type: 'pie',
       data: buildPieChartData(items, nameKey, fallback, catsByName),
@@ -197,16 +248,14 @@ function renderSummaryReport(report, currency, data) {
     }));
   }
 
-  // Breakdown table
   if (items.length > 0) {
-    renderBreakdownTable(items, nameKey, fallback, currency);
+    renderBreakdownTable(items, nameKey, fallback, currency, container);
   } else {
-    _container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'No transactions in this period.' }));
+    container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'No transactions in this period.' }));
   }
 }
 
-function renderYearlyReport(report, currency, data) {
-  // Totals
+function renderYearlyReport(report, currency, data, container) {
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
   cards.innerHTML = `
@@ -223,14 +272,13 @@ function renderYearlyReport(report, currency, data) {
       <div class="value ${report.total.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.total.net, currency)}</div>
     </div>
   `;
-  _container.appendChild(cards);
+  container.appendChild(cards);
 
-  // Monthly chart
   const chartWrap = document.createElement('div');
   chartWrap.className = 'card';
   chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
   chartWrap.innerHTML = '<canvas height="120"></canvas>';
-  _container.appendChild(chartWrap);
+  container.appendChild(chartWrap);
 
   _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
     type: 'bar',
@@ -260,7 +308,6 @@ function renderYearlyReport(report, currency, data) {
     },
   }));
 
-  // Breakdown pie + table
   const isCat = _breakdown === 'category';
   const items = isCat ? report.byCategory : report.byLabel;
   const nameKey = isCat ? 'categoryName' : 'labelName';
@@ -272,7 +319,7 @@ function renderYearlyReport(report, currency, data) {
     pieWrap.className = 'card';
     pieWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
     pieWrap.innerHTML = '<canvas></canvas>';
-    _container.appendChild(pieWrap);
+    container.appendChild(pieWrap);
     _chartInstances.push(new Chart(pieWrap.querySelector('canvas').getContext('2d'), {
       type: 'pie',
       data: buildPieChartData(items, nameKey, fallback, catsByName),
@@ -285,7 +332,7 @@ function renderYearlyReport(report, currency, data) {
   }
 
   if (items.length > 0) {
-    renderBreakdownTable(items, nameKey, fallback, currency);
+    renderBreakdownTable(items, nameKey, fallback, currency, container);
   }
 }
 
@@ -320,7 +367,7 @@ function buildPieChartData(items, nameKey, fallback, catsByName) {
   };
 }
 
-function renderBreakdownTable(items, nameKey, fallback, currency) {
+function renderBreakdownTable(items, nameKey, fallback, currency, container) {
   const section = document.createElement('div');
   section.className = 'card';
   section.style.overflow = 'hidden';
@@ -349,7 +396,7 @@ function renderBreakdownTable(items, nameKey, fallback, currency) {
     section.appendChild(row);
   }
 
-  _container.appendChild(section);
+  container.appendChild(section);
 }
 
 function fmt(amount, currency) {
@@ -370,4 +417,3 @@ function yearRange() {
   for (let y = now - 10; y <= now + 2; y++) years.push(y);
   return years;
 }
-
