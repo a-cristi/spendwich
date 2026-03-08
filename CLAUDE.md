@@ -12,11 +12,14 @@
 ## Design tokens
 
 - `--primary: #5055d8` (warm indigo)
-- `--bg: #f4f3ef` (off-white)
-- `--surface: #ffffff`
-- Income amounts: `#15803d` (green)
-- Expense amounts: `#b91c1c` (red)
-- Category badges: `background:#e0e7ff; color:#3730a3` (blue). Label badges: `background:#ede9fe; color:#5b21b6` (purple). Apply consistently in both flat list and tree views. Null groups (uncategorized / no label) use plain muted text, no badge.
+- `--bg: #f2f0ea` (warm off-white)
+- `--surface: #fffefb` · `--surface-hover: #faf8f2` · `--border: #e5e2d9`
+- `--text: #1c1917` · `--text-muted: #78716c` · `--radius: 10px`
+- `--font-serif: 'Fraunces', Georgia, serif` — brand/page headings only. Never for numbers (causes optical-sizing drift at different character counts)
+- `--font-sans: 'Plus Jakarta Sans', system-ui, sans-serif` — all UI, body, and numeric displays
+- Income amounts: `#15803d` (green) · Expense amounts: `#b91c1c` (red)
+- Category badges: `background:#e0e7ff; color:#3730a3` (blue). Label badges: `background:#ede9fe; color:#5b21b6` (purple). Null groups use plain muted text, no badge.
+- All monetary displays use `font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums`
 
 ## Dependencies
 
@@ -54,12 +57,7 @@
 - Two `<nav>` elements coexist: top nav (`nav:not(.bottom-nav)`) and bottom nav (`nav.bottom-nav`). All top-nav CSS uses `nav:not(.bottom-nav)` selectors to prevent `position:sticky; top:0` and link padding/background from leaking into the bottom nav. The bottom nav is `display:none` on desktop and `position:fixed; bottom:0` on mobile via `@media (max-width:600px)`. It uses scroll-reveal: starts at `transform:translateY(100%)` and gains `.nav-visible` (translate to 0) on the first `scroll` event or after a 400ms fallback timeout (for short pages that cannot scroll). `.bottom-nav-item` uses `flex:1; flex-direction:column; align-items:center` for icon+label tabs.
 - Transaction list row layout: the data columns (date + description/badges + amount) are wrapped in a `flex:1;min-width:0` inner div; the action buttons div gets `flex-shrink:0` so it never wraps to a second line on narrow viewports. Never put `flex-wrap:wrap` directly on `.list-row` — it allows the action buttons to detach from their row
 - Reports summary cards: always display the Expenses value as `Math.abs(report.expenses)` — the card label and red colour already communicate expense polarity. NET keeps its sign (positive/negative is meaningful there)
-- Shared two-pane layout: both Transactions and Reports use `.view-layout` CSS Grid (`grid-template-columns: 220px 1fr`) with a `.view-sidebar` on the left and `.view-main` on the right. The sidebar is `position: sticky; top: 4.5rem` and contains sections separated by `border-bottom`. On mobile (≤600px) `.view-layout` switches to `display: block` and `.view-sidebar` becomes a flat card above the content. Shared sidebar CSS uses `.view-*` class names; view-specific extras use their own prefixes (`.tx-sidebar-filter-*` for Transactions).
-- Sidebar mode nav: vertical nav buttons use `.view-mode-btn` (active highlighted) on desktop. On mobile a `<select class="view-mode-select">` replaces the buttons (hidden on desktop via `display:none`). The period nav lives in `.view-date-row`. Month mode uses two `<select>` elements in a flex row — month name (`flex:2`) + year (`flex:1`) — **never** `<input type="month">` which renders as a plain text box in Firefox/Safari. Year mode uses `[‹ year ›]` single flex row. All time mode shows no period nav.
-- Reports modes: Monthly / Yearly / Custom range / All time. `allTimeReport(data)` in `src/reports.js` — expands all transactions up to today, returns same shape as `monthlyReport`, rendered by `renderSummaryReport`.
-- Page header layout: `.page-header` (h1 + action buttons) is appended to `_container` **before** `.view-layout`, making it full-width above the sidebar+main grid. This ensures the sidebar card top aligns visually with the first main content card. Never put the h1 inside `.view-main`.
-- Transactions sidebar — Filter/View section: `.tx-sidebar-filter-area` is `display:flex; flex-direction:column; gap:0.5rem` on desktop (full-width selects fit naturally in 188px content area). On mobile it switches to a CSS Grid with `grid-template-areas: "cat toggle" "label label"` so category + view toggle share the first row and label search spans the full second row. Grid-area classes: `.tx-sidebar-filter-cat`, `.tx-sidebar-filter-toggle`, `.tx-sidebar-filter-label`.
-- Reports sidebar: 2 sections — Period (Monthly/Yearly/Custom range/All time mode nav + period nav) and View (By category / By label toggle). Custom range shows From/To Flatpickr inputs + Apply button (no `appendTo` needed — not inside a `<dialog>`). The `renderSummaryReport`, `renderYearlyReport`, and `renderBreakdownTable` helpers accept a `container` param (the `.view-main` div) instead of appending to `_container` directly.
+- Never use `<input type="month">` for month pickers — renders as a plain text box in Firefox and Safari. Use two `<select>` elements (month name + year) in a flex row instead.
 - Never use `justify-content:space-between` on a full-width flex row when child items are narrow. On a 960px container this creates hundreds of pixels of dead space. Use `justify-content:flex-start` with an explicit `gap` instead
 
 ## Data
