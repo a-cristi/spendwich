@@ -96,6 +96,9 @@ function buildReportsSidebar() {
   }
   periodSect.appendChild(modeNav);
 
+  const dateRow = document.createElement('div');
+  dateRow.className = 'view-date-row';
+
   const modeSelect = document.createElement('select');
   modeSelect.className = 'view-mode-select';
   for (const [rm, label] of reportModes) {
@@ -104,28 +107,26 @@ function buildReportsSidebar() {
     modeSelect.appendChild(opt);
   }
   modeSelect.addEventListener('change', e => { _mode = e.target.value; refresh(); });
-  periodSect.appendChild(modeSelect);
-
-  const dateRow = document.createElement('div');
-  dateRow.className = 'view-date-row';
+  dateRow.appendChild(modeSelect);
 
   if (_mode !== 'all') {
     const periodNav = document.createElement('div');
 
     if (_mode === 'monthly') {
+      periodNav.style.flex = '1';
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
       const monthRow = document.createElement('div');
       monthRow.style.cssText = 'display:flex;gap:0.5rem';
       const monthSel = document.createElement('select');
-      monthSel.style.flex = '2';
+      monthSel.style.cssText = 'flex:2;min-width:0';
       for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
         monthSel.appendChild(opt);
       }
       const yearSel = document.createElement('select');
-      yearSel.style.flex = '1';
+      yearSel.style.cssText = 'flex:1;min-width:0';
       for (const y of yearRange()) {
         const opt = document.createElement('option');
         opt.value = y; opt.textContent = y; opt.selected = y === _year;
@@ -138,7 +139,7 @@ function buildReportsSidebar() {
       monthRow.appendChild(yearSel);
       periodNav.appendChild(monthRow);
     } else if (_mode === 'yearly') {
-      periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+      periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem;flex:1';
       periodNav.innerHTML = `
         <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
         <select id="sel-year" style="flex:1">
