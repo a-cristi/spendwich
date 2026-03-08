@@ -2,7 +2,7 @@
 
 A personal finance tracker that runs entirely in your browser — no account, no server, no database. Your data stays on your device as a plain JSON file you can read, edit, and back up yourself.
 
-> Entirely vibecoded — grown from a barebones README for personal use by someone who had never used LLMs extensively until now.
+> Vibecoded with Claude.
 
 ## Features
 
