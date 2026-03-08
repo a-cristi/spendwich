@@ -215,23 +215,25 @@ function buildReportsSidebar() {
 }
 
 function renderSummaryReport(report, currency, data, container) {
-  const cards = document.createElement('div');
-  cards.className = 'summary-cards';
-  cards.innerHTML = `
-    <div class="summary-card summary-card-income">
-      <div class="label">Income</div>
-      <div class="value amount-income">${fmt(report.income, currency)}</div>
+  const netCls = report.net >= 0 ? 'amount-income' : 'amount-expense';
+  const netSign = report.net >= 0 ? '+' : '-';
+  const bar = document.createElement('div');
+  bar.className = 'summary-bar';
+  bar.innerHTML = `
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Income</span>
+      <span class="summary-bar-value amount-income">+${escHtml(fmt(report.income, currency))}</span>
     </div>
-    <div class="summary-card summary-card-expense">
-      <div class="label">Expenses</div>
-      <div class="value amount-expense">${fmt(Math.abs(report.expenses), currency)}</div>
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Expenses</span>
+      <span class="summary-bar-value amount-expense">-${escHtml(fmt(Math.abs(report.expenses), currency))}</span>
     </div>
-    <div class="summary-card ${report.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
-      <div class="label">Net</div>
-      <div class="value ${report.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.net, currency)}</div>
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Net</span>
+      <span class="summary-bar-value ${netCls}">${netSign}${escHtml(fmt(Math.abs(report.net), currency))}</span>
     </div>
   `;
-  container.appendChild(cards);
+  container.appendChild(bar);
 
   const isCat = _breakdown === 'category';
   const items = isCat ? report.byCategory : report.byLabel;
@@ -264,23 +266,25 @@ function renderSummaryReport(report, currency, data, container) {
 }
 
 function renderYearlyReport(report, currency, data, container) {
-  const cards = document.createElement('div');
-  cards.className = 'summary-cards';
-  cards.innerHTML = `
-    <div class="summary-card summary-card-income">
-      <div class="label">Total income</div>
-      <div class="value amount-income">${fmt(report.total.income, currency)}</div>
+  const totalNetCls = report.total.net >= 0 ? 'amount-income' : 'amount-expense';
+  const totalNetSign = report.total.net >= 0 ? '+' : '-';
+  const totalBar = document.createElement('div');
+  totalBar.className = 'summary-bar';
+  totalBar.innerHTML = `
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Income</span>
+      <span class="summary-bar-value amount-income">+${escHtml(fmt(report.total.income, currency))}</span>
     </div>
-    <div class="summary-card summary-card-expense">
-      <div class="label">Total expenses</div>
-      <div class="value amount-expense">${fmt(Math.abs(report.total.expenses), currency)}</div>
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Expenses</span>
+      <span class="summary-bar-value amount-expense">-${escHtml(fmt(Math.abs(report.total.expenses), currency))}</span>
     </div>
-    <div class="summary-card ${report.total.net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg'}">
-      <div class="label">Net</div>
-      <div class="value ${report.total.net >= 0 ? 'amount-income' : 'amount-expense'}">${fmt(report.total.net, currency)}</div>
+    <div class="summary-bar-item">
+      <span class="summary-bar-label">Net</span>
+      <span class="summary-bar-value ${totalNetCls}">${totalNetSign}${escHtml(fmt(Math.abs(report.total.net), currency))}</span>
     </div>
   `;
-  container.appendChild(cards);
+  container.appendChild(totalBar);
 
   const chartWrap = document.createElement('div');
   chartWrap.className = 'card';
