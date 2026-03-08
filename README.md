@@ -1,54 +1,77 @@
 # spendwich
 
-A personal expense tracker that runs entirely in your browser — no account, no server, no nonsense.
+A personal finance tracker that runs entirely in your browser — no account, no server, no database. Your data stays on your device as a plain JSON file you can read, edit, and back up yourself.
+
+> Entirely vibecoded — grown from a barebones README for personal use by someone who had never used LLMs extensively until now.
 
 ## Features
 
 ### Transactions
 
-Track income and expenses across user-defined categories. Each transaction has:
+- Add income and expenses with a date, amount, category, description, and optional labels
+- Inline expense/income toggle — type a negative number and it flips automatically
+- Edit or delete any transaction at any time
 
-- a category
-- one or more labels (optional)
-- a description (optional)
-- a date
-- an amount
+### Recurring transactions
 
-Transactions can be edited or deleted at any time.
+- Mark any transaction as recurring: daily, weekly, monthly, or yearly
+- Occurrences are generated at runtime — the source entry stays clean and human-readable
+- Edit with scope: *only this occurrence*, *this and all future*, or *all occurrences*
+- Month-end clamping: if a recurrence falls on a non-existent date (e.g. the 31st in February), it lands on the last valid day of that month
 
-### Categories & Labels
+### Categories & labels
 
-Organize your spending however makes sense to you. Both categories and labels are fully user-defined. Labels are shared across all transactions. When you delete a category or label, you can choose to reassign existing transactions or keep them as-is — they just won't be available for new ones.
+- Fully user-defined — name them whatever makes sense to you
+- Categories carry an emoji icon chosen from a curated picker
+- Labels are free-form tags; a transaction can have any number of them
+- Deleting a category or label preserves existing references — they show as *(deleted)* rather than silently disappearing
 
 ### Multi-currency
 
-Set a default currency for all transactions. When adding a transaction in a different currency, spendwich suggests an exchange rate based on the transaction date. You can override it at any time, or enter one manually if no data is available.
+Set a default currency and record transactions in any other currency. Exchange rates are fetched automatically from [Frankfurter](https://www.frankfurter.dev/) based on the transaction date — override manually at any time, or enter a rate directly if you're offline.
 
-### Recurring Transactions
+### Filtering & views
 
-Mark any transaction as recurring — for example, a monthly subscription. spendwich automatically shows it on the right dates. If a recurrence falls on a day that doesn't exist in a given month (e.g. the 31st in February), it falls on the last valid day instead.
-
-### Filtering
-
-Filter transactions by category, label, or both. Filtering supports:
-
-- **Flat view** — all matching transactions in a list
-- **Hierarchical view** — totals broken down by `category -> label` or `label -> category`, with the ability to drill down
-
-Label filtering supports wildcards. For example, `*-hotel` matches `London-hotel`, `Paris-hotel`, and so on.
+- Filter by category, label (with wildcard support — `*-hotel` matches `London-hotel`, `Paris-hotel`, etc.), or both
+- Three transaction views: **Flat list**, **By category**, **By label**
+- Date range modes: **Month**, **Year**, **Custom range**, **All time**
 
 ### Reports
 
-View monthly and yearly summaries with a breakdown by category and charts. Filter by income, expenses, or both. Use the default monthly/yearly views or define a custom date range.
+- Monthly, yearly, custom range, and all-time summaries
+- Income / Expenses / Net summary cards
+- Breakdown by category or by label, with pie and bar charts
+- Yearly view includes a month-by-month bar chart
 
-### CSV Import
+### Import & export
 
-Import transactions from a CSV file. If the file can't be parsed, you'll get a clear error message explaining why.
+- **CSV import** — order-independent column headers; clear per-row error messages on failure
+- **JSON export / import** — full backup and restore in a human-readable, directly-editable format
 
-## Your Data
+## Your data
 
-Your data is stored as a plain JSON file that you own. It's human-readable and can be opened or edited in any text editor. You can import and export it at any time.
+Everything lives in a single JSON file that you own. Open it in any text editor, version-control it, share it — it's yours. No proprietary format, no cloud dependency.
 
-## Out of Scope
+## Running it
 
-- Setting budgets
+No build step, no install required. Serve the files any way you like:
+
+```bash
+python -m http.server
+# or
+npx serve .
+```
+
+Then open `http://localhost:8000`. Or just open `index.html` directly — it works on `file://` too.
+
+## Development
+
+```bash
+# Run tests (requires Node 20+)
+node --test tests/*.test.js
+```
+
+- Pure logic lives in `src/` — no DOM dependencies, fully unit-testable
+- UI code lives in `src/ui/` — not covered by automated tests
+- No TypeScript, no bundler, no transpilation — plain ES modules throughout
+- All conventions, design tokens, and architectural decisions are documented in `CLAUDE.md`
