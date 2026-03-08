@@ -1,6 +1,6 @@
 # 🥪 spendwich
 
-A personal finance tracker that runs entirely in your browser — no account, no server, no database. Your data stays on your device as a plain JSON file you can read, edit, and back up yourself.
+No cloud. No nonsense. Just your money, in your browser.
 
 > Vibecoded with Claude.
 
@@ -50,11 +50,11 @@ Set a default currency and record transactions in any other currency. Exchange r
 
 ## Your data
 
-Everything lives in a single JSON file that you own. Open it in any text editor, version-control it, share it — it's yours. No proprietary format, no cloud dependency.
+Everything lives in a single JSON file. Open it in any text editor, version-control it, share it. It's just a file — you own it completely.
 
 ## Running it
 
-No build step, no install required. Serve the files any way you like:
+Zero setup. Serve the files any way you like:
 
 ```bash
 python -m http.server
