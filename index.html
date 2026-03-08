@@ -356,35 +356,76 @@
       min-width: 0;
     }
 
-    .controls-card .btn-sm {
-      padding-top: 0.5rem;
-      padding-bottom: 0.5rem;
-    }
-
-    /* Filter toolbar */
-    .filter-bar {
+    /* Transactions two-pane layout */
+    .tx-layout {
       display: grid;
-      grid-template-columns: 200px minmax(120px, 240px) 1fr auto;
-      grid-template-areas: "cat label . toggle";
-      align-items: center;
-      gap: 0.5rem;
-      margin-bottom: 0;
+      grid-template-columns: 220px 1fr;
+      gap: 1.5rem;
+      align-items: start;
     }
-    #filter-cat              { grid-area: cat; }
-    .label-search-wrapper    { grid-area: label; }
-    .filter-bar-toggle       { grid-area: toggle; }
+    .tx-main { min-width: 0; }
 
-    /* Controls card — groups date + filter as one panel */
-    .controls-card {
+    /* Sidebar */
+    .tx-sidebar {
+      position: sticky;
+      top: 4.5rem;
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .tx-sidebar-section {
       padding: 0.875rem 1rem;
-      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tx-sidebar-section:last-child { border-bottom: none; }
+    .tx-sidebar-label {
+      display: block;
+      font-size: 0.65rem;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 0.5rem;
+    }
+    .tx-sidebar-mode-nav {
       display: flex;
       flex-direction: column;
-      gap: 0.75rem;
-      box-shadow: var(--shadow);
+      gap: 0.125rem;
+      margin-bottom: 0.75rem;
+    }
+    .tx-sidebar-mode-btn {
+      background: none;
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 0.4rem 0.5rem;
+      width: 100%;
+      text-align: left;
+      font-family: var(--font-sans);
+      font-size: 0.875rem;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.12s;
+    }
+    .tx-sidebar-mode-btn:hover { background: var(--surface-hover); }
+    .tx-sidebar-mode-btn.active {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+    .tx-sidebar-mode-select { display: none; width: auto; min-width: 80px; }
+    .tx-sidebar-filter-area {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .tx-sidebar-filter-area .label-search-wrapper { width: 100%; }
+    .tx-sidebar-filter-area .seg-group { width: 100%; }
+    .tx-sidebar-filter-area .seg-group .btn { flex: 1; justify-content: center; }
+    .tx-sidebar-section .btn-sm {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
     }
 
     /* Label filter search icon */
@@ -498,12 +539,37 @@
 
       dialog { width: 100vw; border-radius: var(--radius) var(--radius) 0 0; position: fixed; bottom: 0; margin: 0; }
 
-      .filter-bar {
+      .tx-layout { display: block; }
+
+      .tx-sidebar {
+        position: static;
+        overflow: visible;
+        margin-bottom: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        padding: 0.75rem;
+      }
+      .tx-sidebar-section { padding: 0; border: none; }
+      .tx-sidebar-label { display: none; }
+      .tx-sidebar-mode-nav { display: none; }
+      .tx-sidebar-mode-select { display: block; }
+      .tx-sidebar-date-row {
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+      .tx-sidebar-filter-area {
+        display: grid;
         grid-template-columns: 1fr auto;
         grid-template-areas: "cat toggle" "label label";
+        gap: 0.5rem;
+        align-items: center;
       }
-
-      .controls-card { padding: 0.75rem; }
+      .tx-sidebar-filter-cat    { grid-area: cat; }
+      .tx-sidebar-filter-toggle { grid-area: toggle; }
+      .tx-sidebar-filter-label  { grid-area: label; }
 
       .summary-bar { gap: 0.5rem; }
 

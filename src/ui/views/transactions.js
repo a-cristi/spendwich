@@ -56,6 +56,16 @@ function refresh() {
 
   _container.innerHTML = '';
 
+  const layout = document.createElement('div');
+  layout.className = 'tx-layout';
+  _container.appendChild(layout);
+
+  layout.appendChild(buildSidebar(data));
+
+  const main = document.createElement('div');
+  main.className = 'tx-main';
+  layout.appendChild(main);
+
   const header = document.createElement('div');
   header.className = 'page-header';
   header.innerHTML = `
@@ -66,128 +76,7 @@ function refresh() {
       <button class="btn btn-primary" id="add-tx-btn">+ Add</button>
     </div>
   `;
-  _container.appendChild(header);
-
-  const dateTabs = document.createElement('div');
-  dateTabs.className = 'seg-group';
-  dateTabs.innerHTML = `
-    <button class="btn btn-sm ${_dateMode === 'month'  ? 'btn-primary' : 'btn-secondary'}" data-dm="month">Month</button>
-    <button class="btn btn-sm ${_dateMode === 'year'   ? 'btn-primary' : 'btn-secondary'}" data-dm="year">Year</button>
-    <button class="btn btn-sm ${_dateMode === 'custom' ? 'btn-primary' : 'btn-secondary'}" data-dm="custom">Custom</button>
-    <button class="btn btn-sm ${_dateMode === 'all'    ? 'btn-primary' : 'btn-secondary'}" data-dm="all">All time</button>
-  `;
-  dateTabs.querySelectorAll('[data-dm]').forEach(btn =>
-    btn.addEventListener('click', () => { _dateMode = btn.dataset.dm; _page = 0; refresh(); })
-  );
-
-  const periodRow = document.createElement('div');
-  periodRow.style.cssText = 'display:flex;align-items:center;gap:0.75rem;flex-wrap:wrap';
-
-  if (_dateMode === 'month') {
-    periodRow.innerHTML = `
-      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-      <select id="sel-month" style="width:140px">
-        ${months().map((m, i) => `<option value="${i + 1}" ${_month === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}
-      </select>
-      <select id="sel-year" style="width:90px">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
-    `;
-    periodRow.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; _page = 0; refresh(); });
-    periodRow.querySelector('#sel-year').addEventListener('change',  e => { _year  = +e.target.value; _page = 0; refresh(); });
-    periodRow.querySelector('#prev-period').addEventListener('click', () => {
-      if (_month === 1) { _month = 12; _year--; } else _month--;
-      _page = 0; refresh();
-    });
-    periodRow.querySelector('#next-period').addEventListener('click', () => {
-      if (_month === 12) { _month = 1; _year++; } else _month++;
-      _page = 0; refresh();
-    });
-  } else if (_dateMode === 'year') {
-    periodRow.innerHTML = `
-      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-      <select id="sel-year" style="width:90px">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-sm btn-secondary" id="next-period">›</button>
-    `;
-    periodRow.querySelector('#sel-year').addEventListener('change',  e => { _year = +e.target.value; _page = 0; refresh(); });
-    periodRow.querySelector('#prev-period').addEventListener('click', () => { _year--; _page = 0; refresh(); });
-    periodRow.querySelector('#next-period').addEventListener('click', () => { _year++; _page = 0; refresh(); });
-  } else if (_dateMode === 'custom') {
-    periodRow.innerHTML = `
-      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        From <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="width:130px">
-      </label>
-      <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.875rem">
-        To <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="width:130px">
-      </label>
-      <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
-    `;
-    periodRow.querySelector('#apply-range').addEventListener('click', () => {
-      _customStart = periodRow.querySelector('#range-start').value;
-      _customEnd   = periodRow.querySelector('#range-end').value;
-      _page = 0; refresh();
-    });
-    flatpickr(periodRow.querySelector('#range-start'), {
-      dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
-    });
-    flatpickr(periodRow.querySelector('#range-end'), {
-      dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
-    });
-  }
-  const dateArea = document.createElement('div');
-  dateArea.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:1rem';
-  dateArea.appendChild(dateTabs);
-  if (_dateMode !== 'all') dateArea.appendChild(periodRow);
-
-  const filterBar = document.createElement('div');
-  filterBar.className = 'filter-bar';
-  filterBar.innerHTML = `
-    <select id="filter-cat">
-      <option value="">All categories</option>
-      ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
-    </select>
-    <div class="label-search-wrapper">
-      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
-    </div>
-    <div class="seg-group filter-bar-toggle">
-      <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
-      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
-      <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
-    </div>
-  `;
-
-  const controlsCard = document.createElement('div');
-  controlsCard.className = 'controls-card';
-  controlsCard.appendChild(dateArea);
-  controlsCard.appendChild(filterBar);
-  _container.appendChild(controlsCard);
-
-  filterBar.querySelector('#filter-cat').addEventListener('change', e => {
-    _filterCategoryId = e.target.value || null;
-    _page = 0;
-    refresh();
-  });
-
-  filterBar.querySelector('#filter-label').addEventListener('input', e => {
-    const pos = e.target.selectionStart;
-    _filterLabel = e.target.value;
-    _page = 0;
-    refresh();
-    const newInput = _container.querySelector('#filter-label');
-    if (newInput) { newInput.focus(); newInput.setSelectionRange(pos, pos); }
-  });
-
-  filterBar.querySelectorAll('[data-mode]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _viewMode = btn.dataset.mode;
-      _page = 0;
-      refresh();
-    });
-  });
+  main.appendChild(header);
 
   const range = getDateRange();
   const windowEnd = range.end
@@ -204,7 +93,7 @@ function refresh() {
       if (range.end   && tx.date > range.end)   return false;
       return true;
     })
-    .reverse(); // newest first
+    .reverse();
 
   const catMap = new Map(data.categories.map(c => [c.id, c]));
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
@@ -233,7 +122,7 @@ function refresh() {
         <span class="summary-bar-value ${netCls}">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span>
       </div>
     `;
-    _container.appendChild(summaryBar);
+    main.appendChild(summaryBar);
   }
 
   const list = document.createElement('div');
@@ -279,12 +168,12 @@ function refresh() {
       reader.readAsText(file);
       e.target.value = '';
     });
-    _container.appendChild(emptyCard);
+    main.appendChild(emptyCard);
   } else if (txs.length === 0) {
     const empty = document.createElement('p');
     empty.className = 'list-empty';
     empty.textContent = 'No transactions in this period.';
-    _container.appendChild(empty);
+    main.appendChild(empty);
   } else if (_viewMode === 'flat') {
     const pageSlice = txs.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE);
     renderFlatList(list, pageSlice, catMap, lblMap, defaultCurrency, data);
@@ -299,14 +188,14 @@ function refresh() {
     const note = document.createElement('p');
     note.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem';
     note.textContent = 'Transactions with multiple labels appear in each group — totals may overlap.';
-    _container.appendChild(note);
+    main.appendChild(note);
   }
 
-  _container.appendChild(list);
+  main.appendChild(list);
 
-  _container.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
-  _container.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
-  _container.querySelector('#export-btn').addEventListener('click', () => {
+  main.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
+  main.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
+  main.querySelector('#export-btn').addEventListener('click', () => {
     const json = exportData();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -316,6 +205,176 @@ function refresh() {
     a.click();
     URL.revokeObjectURL(url);
   });
+}
+
+function buildSidebar(data) {
+  const sidebar = document.createElement('div');
+  sidebar.className = 'tx-sidebar';
+
+  // --- Section 1: Period ---
+  const periodSect = document.createElement('div');
+  periodSect.className = 'tx-sidebar-section';
+
+  const periodLabel = document.createElement('span');
+  periodLabel.className = 'tx-sidebar-label';
+  periodLabel.textContent = 'Period';
+  periodSect.appendChild(periodLabel);
+
+  // Desktop: vertical nav buttons (hidden on mobile)
+  const modeNav = document.createElement('div');
+  modeNav.className = 'tx-sidebar-mode-nav';
+  const dateModes = [['month','Month'],['year','Year'],['custom','Custom'],['all','All time']];
+  for (const [dm, label] of dateModes) {
+    const btn = document.createElement('button');
+    btn.className = 'tx-sidebar-mode-btn' + (_dateMode === dm ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { _dateMode = dm; _page = 0; refresh(); });
+    modeNav.appendChild(btn);
+  }
+  periodSect.appendChild(modeNav);
+
+  // Date row: on mobile becomes flex row [mode select] [period nav]
+  const dateRow = document.createElement('div');
+  dateRow.className = 'tx-sidebar-date-row';
+
+  // Mobile: select for date mode (hidden on desktop via CSS)
+  const modeSelect = document.createElement('select');
+  modeSelect.className = 'tx-sidebar-mode-select';
+  for (const [dm, label] of dateModes) {
+    const opt = document.createElement('option');
+    opt.value = dm;
+    opt.textContent = label;
+    opt.selected = _dateMode === dm;
+    modeSelect.appendChild(opt);
+  }
+  modeSelect.addEventListener('change', e => { _dateMode = e.target.value; _page = 0; refresh(); });
+  dateRow.appendChild(modeSelect);
+
+  // Period nav (same for desktop and mobile, rendered when mode !== 'all')
+  if (_dateMode !== 'all') {
+    const periodNav = document.createElement('div');
+
+    if (_dateMode === 'month') {
+      periodNav.className = 'tx-period-nav';
+      periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.375rem';
+      periodNav.innerHTML = `
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+          <select id="sel-month" style="flex:1;min-width:0">
+            ${months().map((m, i) => `<option value="${i + 1}" ${_month === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}
+          </select>
+          <button class="btn btn-sm btn-secondary" id="next-period">›</button>
+        </div>
+        <select id="sel-year">
+          ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+      `;
+      periodNav.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; _page = 0; refresh(); });
+      periodNav.querySelector('#sel-year').addEventListener('change',  e => { _year  = +e.target.value; _page = 0; refresh(); });
+      periodNav.querySelector('#prev-period').addEventListener('click', () => {
+        if (_month === 1) { _month = 12; _year--; } else _month--;
+        _page = 0; refresh();
+      });
+      periodNav.querySelector('#next-period').addEventListener('click', () => {
+        if (_month === 12) { _month = 1; _year++; } else _month++;
+        _page = 0; refresh();
+      });
+    } else if (_dateMode === 'year') {
+      periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+      periodNav.innerHTML = `
+        <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+        <select id="sel-year" style="flex:1">
+          ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm btn-secondary" id="next-period">›</button>
+      `;
+      periodNav.querySelector('#sel-year').addEventListener('change',  e => { _year = +e.target.value; _page = 0; refresh(); });
+      periodNav.querySelector('#prev-period').addEventListener('click', () => { _year--; _page = 0; refresh(); });
+      periodNav.querySelector('#next-period').addEventListener('click', () => { _year++; _page = 0; refresh(); });
+    } else if (_dateMode === 'custom') {
+      periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;width:100%';
+      periodNav.innerHTML = `
+        <label style="font-size:0.875rem">From
+          <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="margin-top:0.2rem">
+        </label>
+        <label style="font-size:0.875rem">To
+          <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="margin-top:0.2rem">
+        </label>
+        <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
+      `;
+      periodNav.querySelector('#apply-range').addEventListener('click', () => {
+        _customStart = periodNav.querySelector('#range-start').value;
+        _customEnd   = periodNav.querySelector('#range-end').value;
+        _page = 0; refresh();
+      });
+      flatpickr(periodNav.querySelector('#range-start'), {
+        dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
+      });
+      flatpickr(periodNav.querySelector('#range-end'), {
+        dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
+      });
+    }
+
+    dateRow.appendChild(periodNav);
+  }
+
+  periodSect.appendChild(dateRow);
+  sidebar.appendChild(periodSect);
+
+  // --- Section 2: Filters + View ---
+  const filterSect = document.createElement('div');
+  filterSect.className = 'tx-sidebar-section';
+
+  const filterLabel = document.createElement('span');
+  filterLabel.className = 'tx-sidebar-label';
+  filterLabel.textContent = 'Filters';
+  filterSect.appendChild(filterLabel);
+
+  const filterArea = document.createElement('div');
+  filterArea.className = 'tx-sidebar-filter-area';
+  filterArea.innerHTML = `
+    <select id="filter-cat" class="tx-sidebar-filter-cat">
+      <option value="">All categories</option>
+      ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
+    </select>
+    <div class="label-search-wrapper tx-sidebar-filter-label">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
+    </div>
+    <div class="seg-group tx-sidebar-filter-toggle">
+      <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
+      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
+      <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
+    </div>
+  `;
+  filterSect.appendChild(filterArea);
+
+  filterArea.querySelector('#filter-cat').addEventListener('change', e => {
+    _filterCategoryId = e.target.value || null;
+    _page = 0;
+    refresh();
+  });
+
+  filterArea.querySelector('#filter-label').addEventListener('input', e => {
+    const pos = e.target.selectionStart;
+    _filterLabel = e.target.value;
+    _page = 0;
+    refresh();
+    const newInput = _container.querySelector('#filter-label');
+    if (newInput) { newInput.focus(); newInput.setSelectionRange(pos, pos); }
+  });
+
+  filterArea.querySelectorAll('[data-mode]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _viewMode = btn.dataset.mode;
+      _page = 0;
+      refresh();
+    });
+  });
+
+  sidebar.appendChild(filterSect);
+
+  return sidebar;
 }
 
 function renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data) {
