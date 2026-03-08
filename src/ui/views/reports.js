@@ -21,6 +21,11 @@ function refresh() {
   _chartInstances = [];
   _container.innerHTML = '';
 
+  const header = document.createElement('div');
+  header.className = 'page-header';
+  header.innerHTML = '<h1>Reports</h1>';
+  _container.appendChild(header);
+
   const layout = document.createElement('div');
   layout.className = 'view-layout';
   _container.appendChild(layout);
@@ -30,11 +35,6 @@ function refresh() {
   const main = document.createElement('div');
   main.className = 'view-main';
   layout.appendChild(main);
-
-  const header = document.createElement('div');
-  header.className = 'page-header';
-  header.innerHTML = '<h1>Reports</h1>';
-  main.appendChild(header);
 
   const data = getData();
   let report;
@@ -109,28 +109,17 @@ function buildReportsSidebar() {
   const periodNav = document.createElement('div');
 
   if (_mode === 'monthly') {
-    periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.375rem';
-    periodNav.innerHTML = `
-      <div style="display:flex;align-items:center;gap:0.5rem">
-        <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-        <select id="sel-month" style="flex:1;min-width:0">
-          ${months().map((m, i) => `<option value="${i + 1}" ${_month === i + 1 ? 'selected' : ''}>${m}</option>`).join('')}
-        </select>
-        <button class="btn btn-sm btn-secondary" id="next-period">›</button>
-      </div>
-      <select id="sel-year">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>`;
-    periodNav.querySelector('#sel-month').addEventListener('change', e => { _month = +e.target.value; refresh(); });
-    periodNav.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
-    periodNav.querySelector('#prev-period').addEventListener('click', () => {
-      if (_month === 1) { _month = 12; _year--; } else _month--;
+    const monthInput = document.createElement('input');
+    monthInput.type = 'month';
+    monthInput.value = `${_year}-${String(_month).padStart(2, '0')}`;
+    monthInput.style.cssText = 'width:100%';
+    monthInput.addEventListener('change', e => {
+      if (!e.target.value) return;
+      const [y, m] = e.target.value.split('-');
+      _year = +y; _month = +m;
       refresh();
     });
-    periodNav.querySelector('#next-period').addEventListener('click', () => {
-      if (_month === 12) { _month = 1; _year++; } else _month++;
-      refresh();
-    });
+    periodNav.appendChild(monthInput);
   } else if (_mode === 'yearly') {
     periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
     periodNav.innerHTML = `
