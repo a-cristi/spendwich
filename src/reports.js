@@ -54,3 +54,8 @@ export function customRangeReport(data, startDate, endDate) {
   );
   return summarise(txs, data.categories, data.labels);
 }
+
+export function allTimeReport(data) {
+  const txs = expandAndFilter(data.transactions, { windowEnd: new Date() });
+  return summarise(txs, data.categories, data.labels);
+}

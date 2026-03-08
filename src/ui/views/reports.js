@@ -1,9 +1,9 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport } from '../../reports.js';
 import { escHtml } from '../utils.js';
 
 let _container = null;
-let _mode = 'monthly'; // monthly | yearly | custom
+let _mode = 'monthly'; // monthly | yearly | custom | all
 let _breakdown = 'category'; // category | label
 let _year = new Date().getFullYear();
 let _month = new Date().getMonth() + 1;
@@ -43,6 +43,8 @@ function refresh() {
       report = monthlyReport(data, _year, _month);
     } else if (_mode === 'yearly') {
       report = yearlyReport(data, _year);
+    } else if (_mode === 'all') {
+      report = allTimeReport(data);
     } else {
       if (!_customStart || !_customEnd) {
         main.appendChild(Object.assign(document.createElement('p'), {
@@ -84,7 +86,7 @@ function buildReportsSidebar() {
 
   const modeNav = document.createElement('div');
   modeNav.className = 'view-mode-nav';
-  const reportModes = [['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom range']];
+  const reportModes = [['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom range'], ['all', 'All time']];
   for (const [rm, label] of reportModes) {
     const btn = document.createElement('button');
     btn.className = 'view-mode-btn' + (_mode === rm ? ' active' : '');
@@ -106,59 +108,75 @@ function buildReportsSidebar() {
 
   const dateRow = document.createElement('div');
   dateRow.className = 'view-date-row';
-  const periodNav = document.createElement('div');
 
-  if (_mode === 'monthly') {
-    const monthInput = document.createElement('input');
-    monthInput.type = 'month';
-    monthInput.value = `${_year}-${String(_month).padStart(2, '0')}`;
-    monthInput.style.cssText = 'width:100%';
-    monthInput.addEventListener('change', e => {
-      if (!e.target.value) return;
-      const [y, m] = e.target.value.split('-');
-      _year = +y; _month = +m;
-      refresh();
-    });
-    periodNav.appendChild(monthInput);
-  } else if (_mode === 'yearly') {
-    periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
-    periodNav.innerHTML = `
-      <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
-      <select id="sel-year" style="flex:1">
-        ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
-      </select>
-      <button class="btn btn-sm btn-secondary" id="next-period">›</button>`;
-    periodNav.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
-    periodNav.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
-    periodNav.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
-  } else {
-    periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;width:100%';
-    periodNav.innerHTML = `
-      <label style="font-size:0.875rem">From
-        <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
-      </label>
-      <label style="font-size:0.875rem">To
-        <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
-      </label>
-      <button class="btn btn-sm btn-primary" id="apply-range" style="width:100%">Apply</button>`;
-    periodNav.querySelector('#apply-range').addEventListener('click', () => {
-      _customStart = periodNav.querySelector('#range-start').value;
-      _customEnd = periodNav.querySelector('#range-end').value;
-      refresh();
-    });
-    flatpickr(periodNav.querySelector('#range-start'), {
-      dateFormat: 'Y-m-d',
-      locale: { firstDayOfWeek: 1 },
-      defaultDate: _customStart || null,
-    });
-    flatpickr(periodNav.querySelector('#range-end'), {
-      dateFormat: 'Y-m-d',
-      locale: { firstDayOfWeek: 1 },
-      defaultDate: _customEnd || null,
-    });
+  if (_mode !== 'all') {
+    const periodNav = document.createElement('div');
+
+    if (_mode === 'monthly') {
+      const MONTHS = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+      const monthRow = document.createElement('div');
+      monthRow.style.cssText = 'display:flex;gap:0.5rem';
+      const monthSel = document.createElement('select');
+      monthSel.style.flex = '2';
+      for (let i = 1; i <= 12; i++) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
+        monthSel.appendChild(opt);
+      }
+      const yearSel = document.createElement('select');
+      yearSel.style.flex = '1';
+      for (const y of yearRange()) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y; opt.selected = y === _year;
+        yearSel.appendChild(opt);
+      }
+      function onMonthYearChange() { _month = +monthSel.value; _year = +yearSel.value; refresh(); }
+      monthSel.addEventListener('change', onMonthYearChange);
+      yearSel.addEventListener('change', onMonthYearChange);
+      monthRow.appendChild(monthSel);
+      monthRow.appendChild(yearSel);
+      periodNav.appendChild(monthRow);
+    } else if (_mode === 'yearly') {
+      periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+      periodNav.innerHTML = `
+        <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
+        <select id="sel-year" style="flex:1">
+          ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+        </select>
+        <button class="btn btn-sm btn-secondary" id="next-period">›</button>`;
+      periodNav.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
+      periodNav.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
+      periodNav.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
+    } else {
+      periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;width:100%';
+      periodNav.innerHTML = `
+        <label style="font-size:0.875rem">From
+          <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
+        </label>
+        <label style="font-size:0.875rem">To
+          <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="display:block;margin-top:0.2rem;width:100%">
+        </label>
+        <button class="btn btn-sm btn-primary" id="apply-range" style="width:100%">Apply</button>`;
+      periodNav.querySelector('#apply-range').addEventListener('click', () => {
+        _customStart = periodNav.querySelector('#range-start').value;
+        _customEnd = periodNav.querySelector('#range-end').value;
+        refresh();
+      });
+      flatpickr(periodNav.querySelector('#range-start'), {
+        dateFormat: 'Y-m-d',
+        locale: { firstDayOfWeek: 1 },
+        defaultDate: _customStart || null,
+      });
+      flatpickr(periodNav.querySelector('#range-end'), {
+        dateFormat: 'Y-m-d',
+        locale: { firstDayOfWeek: 1 },
+        defaultDate: _customEnd || null,
+      });
+    }
+
+    dateRow.appendChild(periodNav);
   }
-
-  dateRow.appendChild(periodNav);
   periodSect.appendChild(dateRow);
   sidebar.appendChild(periodSect);
 

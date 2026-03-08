@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -130,6 +130,18 @@ test('monthlyReport: byLabel breakdown', () => {
   const noLabel = r.byLabel.find(b => b.labelId === null);
   assert.ok(noLabel);
   assert.equal(noLabel.total, -5);
+});
+
+test('allTimeReport: returns all transactions regardless of date', () => {
+  const txs = [
+    makeTx({ date: '2020-01-01', amountInDefault: 500 }),
+    makeTx({ date: '2025-12-31', amountInDefault: -200 }),
+  ];
+  const r = allTimeReport(makeData(txs));
+  assert.strictEqual(r.income, 500);
+  assert.strictEqual(r.expenses, -200);
+  assert.strictEqual(r.net, 300);
+  assert.strictEqual(r.transactions.length, 2);
 });
 
 test('report transactions are sorted by date', () => {

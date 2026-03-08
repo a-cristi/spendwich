@@ -255,17 +255,30 @@ function buildSidebar(data) {
     const periodNav = document.createElement('div');
 
     if (_dateMode === 'month') {
-      const monthInput = document.createElement('input');
-      monthInput.type = 'month';
-      monthInput.value = `${_year}-${String(_month).padStart(2, '0')}`;
-      monthInput.style.cssText = 'width:100%';
-      monthInput.addEventListener('change', e => {
-        if (!e.target.value) return;
-        const [y, m] = e.target.value.split('-');
-        _year = +y; _month = +m;
-        _page = 0; refresh();
-      });
-      periodNav.appendChild(monthInput);
+      const MONTHS = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+      const monthRow = document.createElement('div');
+      monthRow.style.cssText = 'display:flex;gap:0.5rem';
+      const monthSel = document.createElement('select');
+      monthSel.style.flex = '2';
+      for (let i = 1; i <= 12; i++) {
+        const opt = document.createElement('option');
+        opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
+        monthSel.appendChild(opt);
+      }
+      const yearSel = document.createElement('select');
+      yearSel.style.flex = '1';
+      for (const y of yearRange()) {
+        const opt = document.createElement('option');
+        opt.value = y; opt.textContent = y; opt.selected = y === _year;
+        yearSel.appendChild(opt);
+      }
+      function onMonthYearChange() { _month = +monthSel.value; _year = +yearSel.value; _page = 0; refresh(); }
+      monthSel.addEventListener('change', onMonthYearChange);
+      yearSel.addEventListener('change', onMonthYearChange);
+      monthRow.appendChild(monthSel);
+      monthRow.appendChild(yearSel);
+      periodNav.appendChild(monthRow);
     } else if (_dateMode === 'year') {
       periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
       periodNav.innerHTML = `
