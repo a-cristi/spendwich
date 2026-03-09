@@ -1,4 +1,5 @@
 import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData, deleteOccurrenceAt, truncateSeries, overrideOccurrence, splitSeries } from '../../store.js';
+import { confirmLoadIfConnected } from '../remotestorage.js';
 import { expandAndFilter, groupByCategory, groupByLabel } from '../../filters.js';
 import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
@@ -157,13 +158,16 @@ function refresh() {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = evt => {
-        try {
-          loadData(evt.target.result);
-          toast('Data loaded successfully', 'success');
-          refresh();
-        } catch (err) {
-          toast(`Load failed: ${err.message}`, 'error');
-        }
+        const raw = evt.target.result;
+        confirmLoadIfConnected(raw, () => {
+          try {
+            loadData(raw);
+            toast('Data loaded successfully', 'success');
+            refresh();
+          } catch (err) {
+            toast(`Load failed: ${err.message}`, 'error');
+          }
+        });
       };
       reader.readAsText(file);
       e.target.value = '';
