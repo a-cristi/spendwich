@@ -52,7 +52,9 @@ Set a default currency and record transactions in any other currency. Exchange r
 
 ## Your data
 
-Everything lives in a single JSON file. Open it in any text editor, version-control it, share it. It's just a file — you own it completely.
+Everything lives in a single JSON file — open it in any text editor, version-control it, share it. It's just a file; you own it completely.
+
+To sync across devices, connect a [remoteStorage](https://remotestorage.io/) account in Settings (free providers: [5apps](https://5apps.com/storage), self-hosted). Your data goes directly between your devices and your storage account — nothing passes through any server we control.
 
 ## Running it
 
