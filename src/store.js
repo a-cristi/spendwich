@@ -3,8 +3,13 @@ import { nextOccurrenceAfter } from './recurrence.js';
 
 let _data = emptyData();
 
+const _changeListeners = [];
+export function onDataChange(fn) { _changeListeners.push(fn); }
+function _notifyChange() { _changeListeners.forEach(fn => fn()); }
+
 export function _reset() {
   _data = emptyData();
+  // deliberately does NOT call _notifyChange — test isolation only
 }
 
 export function getData() {
@@ -16,6 +21,7 @@ export function loadData(raw) {
   const migrated = migrate(parsed);
   validate(migrated);
   _data = migrated;
+  _notifyChange();
 }
 
 export function exportData() {
@@ -25,6 +31,7 @@ export function exportData() {
 export function addCategory(name, icon) {
   const cat = makeCategory(name, icon);
   _data.categories.push(cat);
+  _notifyChange();
   return cat;
 }
 
@@ -32,17 +39,20 @@ export function updateCategory(id, fields) {
   const cat = _data.categories.find(c => c.id === id);
   if (!cat) throw new Error(`Category not found: ${id}`);
   Object.assign(cat, fields);
+  _notifyChange();
 }
 
 export function deleteCategory(id) {
   const idx = _data.categories.findIndex(c => c.id === id);
   if (idx === -1) throw new Error(`Category not found: ${id}`);
   _data.categories.splice(idx, 1);
+  _notifyChange();
 }
 
 export function addLabel(name) {
   const lbl = makeLabel(name);
   _data.labels.push(lbl);
+  _notifyChange();
   return lbl;
 }
 
@@ -50,17 +60,20 @@ export function updateLabel(id, fields) {
   const lbl = _data.labels.find(l => l.id === id);
   if (!lbl) throw new Error(`Label not found: ${id}`);
   Object.assign(lbl, fields);
+  _notifyChange();
 }
 
 export function deleteLabel(id) {
   const idx = _data.labels.findIndex(l => l.id === id);
   if (idx === -1) throw new Error(`Label not found: ${id}`);
   _data.labels.splice(idx, 1);
+  _notifyChange();
 }
 
 export function addTransaction(fields) {
   const tx = makeTransaction(fields);
   _data.transactions.push(tx);
+  _notifyChange();
   return tx;
 }
 
@@ -68,12 +81,14 @@ export function updateTransaction(id, fields) {
   const tx = _data.transactions.find(t => t.id === id);
   if (!tx) throw new Error(`Transaction not found: ${id}`);
   Object.assign(tx, fields);
+  _notifyChange();
 }
 
 export function deleteTransaction(id) {
   const idx = _data.transactions.findIndex(t => t.id === id);
   if (idx === -1) throw new Error(`Transaction not found: ${id}`);
   _data.transactions.splice(idx, 1);
+  _notifyChange();
 }
 
 function dayBefore(dateStr) {
@@ -109,6 +124,7 @@ export function truncateSeries(sourceId, fromDate) {
     deleteTransaction(sourceId);
   } else {
     src.recurrence = { ...src.recurrence, endDate: dayBefore(fromDate) };
+    _notifyChange();
   }
 }
 
@@ -158,8 +174,10 @@ export function importBulk(categories, labels, transactions) {
   for (const tx of transactions) {
     _data.transactions.push(makeTransaction(tx));
   }
+  _notifyChange();
 }
 
 export function updateSettings(fields) {
   Object.assign(_data.settings, fields);
+  _notifyChange();
 }
