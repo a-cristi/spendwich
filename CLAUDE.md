@@ -25,6 +25,14 @@
 
 - Before adding any new library, present a short **pros / cons list** and wait for permission. Factors to weigh: bundle size, number of transitive dependencies, API stability, whether a native browser API covers the same ground.
 - Always pin CDN resources to an exact version and include a matching SRI `integrity` attribute (`sha256-…`) with `crossorigin="anonymous"`. Fetch the hash from `https://data.jsdelivr.com/v1/package/npm/<pkg>@<version>/flat` when adding or upgrading.
+- **remotestoragejs 1.2.3** — cross-device sync via the remoteStorage protocol (users connect their own provider — 5apps, self-hosted). Requires serving over HTTP/HTTPS; `file://` degrades gracefully (widget shows a plain note, app still works).
+  JS: `https://cdn.jsdelivr.net/npm/remotestoragejs@1.2.3/release/remotestorage.js`
+  `integrity="sha256-/4uJ0AZ6NHWmI2/jfMfdsj9Q6XBDl5nGIE1fdCycJLs=" crossorigin="anonymous"`
+- **remotestorage-widget 1.8.0** — connect/disconnect UI for remoteStorage.
+  JS: `https://cdn.jsdelivr.net/npm/remotestorage-widget@1.8.0/build/widget.js`
+  `integrity="sha256-FebjQgYGNnXIT8ypAqLnVjMJaVugEEK+164mWGejRCk=" crossorigin="anonymous"`
+  CSS: `https://cdn.jsdelivr.net/npm/remotestorage-widget@1.8.0/src/assets/styles.css`
+  `integrity="sha256-SlXfOMpgWFj02iydOetsbjzTVcWGlK7NgCt/UMZDHSk=" crossorigin="anonymous"`
 - **Chart.js 4.4.9** — `https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.js`
   `integrity="sha256-3jFXc0VLYHa2OZC/oFzlFVo39xmSyH17tfmi6mmGl+8=" crossorigin="anonymous"`
 - **Flatpickr 4.6.13** — date picker (week starts Monday, keyboard-navigable, clear close UX)
@@ -49,6 +57,8 @@
 - `expandAndFilter` matches `labelPattern` against **label names** (not IDs). Always pass `labels: data.labels` in the options object when a labelPattern may be used
 - `groupByLabel`: a transaction with N labels appears in all N groups. Totals can overlap and will not sum to the overall total — each label shows the full cost of everything tagged with it. The by-label view displays a visible note warning users about this overlap
 - Import/export split: CSV import and Export JSON live in the Transactions header (quick access, contextually a transaction operation). Full JSON import/export (backup/restore) also lives in Settings. The Transactions empty state shows prominent import CTAs for first-time users
+- Cross-device sync lives in `src/ui/remotestorage.js`. Integration pattern: `store.onDataChange(fn)` fires after every mutation; the remoteStorage module subscribes and calls `storeFile()` immediately (no debounce — remoteStorage.js handles network batching internally). `_syncing` flag prevents `loadData() → _notifyChange() → saveToRemote()` loop. `_paused` flag brackets the async currency-migration batch (`pauseAutosave()` / `resumeAutosave()`). Before calling the refresh callback on a remote change, check `document.querySelector('dialog[open]')` and skip if a modal is open — data is already updated in memory and the view will reflect it on next navigation. JSON import while connected shows a confirmation modal via `confirmLoadIfConnected(raw, onConfirm)` before overwriting remote data. CSV import (`importBulk`) appends, so no confirmation needed.
+- `initRemoteStorage(navigate)` must be called before the first `navigate()` call in `router.js` — if `navigate()` runs first, `_rs` is still `null` when the Settings view renders and `attachWidget()` incorrectly shows the `file://` note even on localhost
 - When `refresh()` destroys and recreates the DOM while a text input has focus, capture `selectionStart` before calling `refresh()` and restore focus + cursor to the new input after — see the `#filter-label` handler in `src/ui/views/transactions.js`
 - Transaction modal: Expense/Income segmented toggle defaults to Expense for new transactions; the amount field always shows an absolute value. Typing a negative number auto-flips the toggle and strips the sign. On save, the sign is applied: `isExpense ? -Math.abs(absAmt) : Math.abs(absAmt)`. The active Expense button uses `.btn-expense` (red) and the active Income button uses `.btn-income` (green) — never use `.btn-primary` for this toggle
 - `openTxModal` accepts an optional `saveOverride(fields)` callback. When provided it replaces the default `addTransaction`/`updateTransaction` call while keeping toast/close/refresh unchanged. Used by the recurring scope dialog to route saves to `overrideOccurrence` or `splitSeries`
