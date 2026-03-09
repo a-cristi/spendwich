@@ -28,7 +28,7 @@ export function init(container) {
     render(container);
   }
 
+  initRemoteStorage(navigate);
   window.addEventListener('hashchange', navigate);
   navigate();
-  initRemoteStorage(navigate);
 }
