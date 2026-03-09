@@ -28,7 +28,7 @@ export function init(container) {
     render(container);
   }
 
-  initRemoteStorage(navigate);
+  initRemoteStorage(() => { if (location.hash !== '#settings') navigate(); });
   window.addEventListener('hashchange', navigate);
   navigate();
 }
