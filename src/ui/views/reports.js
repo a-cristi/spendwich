@@ -10,6 +10,7 @@ let _month = new Date().getMonth() + 1;
 let _customStart = '';
 let _customEnd = '';
 let _chartInstances = [];
+let _fpInstances = [];
 
 export function render(container) {
   _container = container;
@@ -19,6 +20,8 @@ export function render(container) {
 function refresh() {
   _chartInstances.forEach(c => c.destroy());
   _chartInstances = [];
+  _fpInstances.forEach(fp => fp.destroy());
+  _fpInstances = [];
   _container.innerHTML = '';
 
   const header = document.createElement('div');
@@ -164,16 +167,16 @@ function buildReportsSidebar() {
         _customEnd = periodNav.querySelector('#range-end').value;
         refresh();
       });
-      flatpickr(periodNav.querySelector('#range-start'), {
+      _fpInstances.push(flatpickr(periodNav.querySelector('#range-start'), {
         dateFormat: 'Y-m-d',
         locale: { firstDayOfWeek: 1 },
         defaultDate: _customStart || null,
-      });
-      flatpickr(periodNav.querySelector('#range-end'), {
+      }));
+      _fpInstances.push(flatpickr(periodNav.querySelector('#range-end'), {
         dateFormat: 'Y-m-d',
         locale: { firstDayOfWeek: 1 },
         defaultDate: _customEnd || null,
-      });
+      }));
     }
 
     dateRow.appendChild(periodNav);

@@ -15,7 +15,7 @@ export async function fetchRate(fromCurrency, toCurrency, date) {
     if (!res.ok) return null;
     const json = await res.json();
     const rate = json.rates?.[toCurrency];
-    if (typeof rate !== 'number') return null;
+    if (typeof rate !== 'number' || rate <= 0) return null;
     _cache.set(key, rate);
     return rate;
   } catch {

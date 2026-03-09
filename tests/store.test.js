@@ -136,6 +136,54 @@ test('loadData replaces state with imported data', async () => {
   assert.equal(d.settings.defaultCurrency, 'EUR');
 });
 
+test('updateSettings updates defaultCurrency', () => {
+  store.updateSettings({ defaultCurrency: 'EUR' });
+  assert.equal(store.getData().settings.defaultCurrency, 'EUR');
+});
+
+test('updateSettings merges fields — other settings preserved', () => {
+  store.updateSettings({ defaultCurrency: 'GBP' });
+  store.updateSettings({ defaultCurrency: 'JPY' });
+  assert.equal(store.getData().settings.defaultCurrency, 'JPY');
+});
+
+test('onDataChange listener is called on addCategory', () => {
+  let count = 0;
+  store.onDataChange(() => count++);
+  store.addCategory('Food', '🍔');
+  assert.equal(count, 1);
+});
+
+test('onDataChange listener is called on addTransaction and updateTransaction', () => {
+  let count = 0;
+  store.onDataChange(() => count++);
+  const tx = store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD' });
+  store.updateTransaction(tx.id, { amount: -20 });
+  assert.equal(count, 2);
+});
+
+test('importBulk does not duplicate labels by id', () => {
+  const lbl = store.addLabel('work');
+  store.importBulk([], [{ id: lbl.id, name: 'work-duplicate' }], []);
+  assert.equal(store.getData().labels.length, 1);
+  assert.equal(store.getData().labels[0].name, 'work');
+});
+
+test('loadData migrates v1 data: adds icon, removes color', () => {
+  const v1 = JSON.stringify({
+    version: 1,
+    settings: { defaultCurrency: 'USD' },
+    categories: [{ id: 'cat-1', name: 'Food', color: '#ff0000' }],
+    labels: [],
+    transactions: [],
+  });
+  store.loadData(v1);
+  const d = store.getData();
+  assert.equal(d.version, 2);
+  assert.equal(d.categories[0].icon, '🏷️');
+  assert.equal(Object.prototype.hasOwnProperty.call(d.categories[0], 'color'), false);
+});
+
 // --- Recurring scope operations ---
 
 function makeRecurringTx(overrides = {}) {

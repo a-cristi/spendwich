@@ -20,6 +20,7 @@ const ICON_EDIT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" s
 const ICON_DEL  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
 
 let _container = null;
+let _fpInstances = [];
 let _viewMode = 'flat'; // flat | by-category | by-label
 let _filterCategoryId = null;
 let _filterLabel = '';
@@ -53,6 +54,8 @@ function getDateRange() {
 }
 
 function refresh() {
+  _fpInstances.forEach(fp => fp.destroy());
+  _fpInstances = [];
   const data = getData();
 
   _container.innerHTML = '';
@@ -311,12 +314,12 @@ function buildSidebar(data) {
         _customEnd   = periodNav.querySelector('#range-end').value;
         _page = 0; refresh();
       });
-      flatpickr(periodNav.querySelector('#range-start'), {
+      _fpInstances.push(flatpickr(periodNav.querySelector('#range-start'), {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
-      });
-      flatpickr(periodNav.querySelector('#range-end'), {
+      }));
+      _fpInstances.push(flatpickr(periodNav.querySelector('#range-end'), {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
-      });
+      }));
     }
 
     dateRow.appendChild(periodNav);
