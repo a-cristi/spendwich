@@ -5,9 +5,10 @@ import { openModal } from './modal.js';
 let _rs = null;
 let _client = null;
 let _refreshFn = null;
-let _syncing = false;      // guard: prevents loadData → _notifyChange → saveToRemote loop
-let _paused = false;       // paused during currency migration batch
+let _syncing = false;        // guard: prevents loadData → _notifyChange → saveToRemote loop
+let _paused = false;         // paused during currency migration batch
 let _pendingRefresh = false; // refresh deferred to next sync-done to avoid mid-sync widget recreate
+let _widgetContainer = null; // tracked so onSyncDone can recreate the widget in-place
 
 export function initRemoteStorage(refreshFn) {
   _refreshFn = refreshFn;
@@ -93,7 +94,11 @@ function onSyncDone() {
   if (_pendingRefresh) {
     _pendingRefresh = false;
     if (!document.querySelector('dialog[open]')) _refreshFn();
+    return;
   }
+  // No remote changes, but widget may be stuck in "Synchronizing".
+  // Recreate it so it reads current (idle) RS state → shows "Connected".
+  if (_widgetContainer?.isConnected) _doAttachWidget();
 }
 
 async function saveToRemote() {
@@ -138,15 +143,21 @@ export function confirmLoadIfConnected(raw, onConfirm) {
   footer.querySelector('#rs-continue').addEventListener('click', () => { close(); onConfirm(); });
 }
 
-export function attachWidget(container) {
-  container.innerHTML = '';
+function _doAttachWidget() {
+  if (!_widgetContainer) return;
+  _widgetContainer.innerHTML = '';
   if (!_rs) {
     const note = document.createElement('p');
     note.style.cssText = 'color:var(--text-muted);font-size:0.875rem';
     note.innerHTML = 'Sync is not available when running from <code>file://</code>. Serve the app via a local HTTP server or open from GitHub Pages to enable it.';
-    container.appendChild(note);
+    _widgetContainer.appendChild(note);
     return;
   }
   const widget = new Widget(_rs);
-  widget.attach(container);
+  widget.attach(_widgetContainer);
+}
+
+export function attachWidget(container) {
+  _widgetContainer = container;
+  _doAttachWidget();
 }
