@@ -5,8 +5,9 @@ import { openModal } from './modal.js';
 let _rs = null;
 let _client = null;
 let _refreshFn = null;
-let _syncing = false;   // guard: prevents loadData → _notifyChange → saveToRemote loop
-let _paused = false;    // paused during currency migration batch
+let _syncing = false;      // guard: prevents loadData → _notifyChange → saveToRemote loop
+let _paused = false;       // paused during currency migration batch
+let _pendingRefresh = false; // refresh deferred to next sync-done to avoid mid-sync widget recreate
 
 export function initRemoteStorage(refreshFn) {
   _refreshFn = refreshFn;
@@ -20,6 +21,7 @@ export function initRemoteStorage(refreshFn) {
   _rs.on('ready', onReady);
   _rs.on('connected', onConnected);
   _rs.on('disconnected', onDisconnected);
+  _rs.on('sync-done', onSyncDone);
   _client.on('change', onRemoteChange);
 
   onDataChange(scheduleAutosave);
@@ -84,7 +86,14 @@ async function onRemoteChange(event) {
   _syncing = true;
   try { loadData(raw); } catch { /* ignore */ }
   _syncing = false;
-  if (!document.querySelector('dialog[open]')) _refreshFn();
+  if (!document.querySelector('dialog[open]')) _pendingRefresh = true;
+}
+
+function onSyncDone() {
+  if (_pendingRefresh) {
+    _pendingRefresh = false;
+    if (!document.querySelector('dialog[open]')) _refreshFn();
+  }
 }
 
 async function saveToRemote() {
