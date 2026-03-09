@@ -9,6 +9,7 @@ let _syncing = false;        // guard: prevents loadData → _notifyChange → s
 let _paused = false;         // paused during currency migration batch
 let _pendingRefresh = false; // refresh deferred to next sync-done to avoid mid-sync widget recreate
 let _widgetContainer = null; // tracked so onSyncDone can recreate the widget in-place
+let _hasConnected = false;   // true after first successful connect; suppresses reconnect conflict dialog
 
 export function initRemoteStorage(refreshFn) {
   _refreshFn = refreshFn;
@@ -40,6 +41,11 @@ async function onReady() {
 
 async function onConnected() {
   toast('Storage connected', 'success');
+  if (_hasConnected) {
+    await saveToRemote();
+    return;
+  }
+  _hasConnected = true;
   const raw = await fetchRemote();
   const local = getData();
   const localHasData = local.transactions.length > 0 || local.categories.length > 0;

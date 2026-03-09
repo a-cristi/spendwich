@@ -53,6 +53,7 @@ function refresh() {
 
     const btn = card.querySelector('#save-currency');
     btn.disabled = true;
+    let paused = false;
     try {
       const txs = getData().transactions;
 
@@ -84,6 +85,7 @@ function refresh() {
 
       // Phase 3: commit currency change + successful recalculations
       // Pause remote autosave for the batch — resume once when all done
+      paused = true;
       pauseAutosave();
       updateSettings({ defaultCurrency: val });
       for (const { id, exchangeRate, amountInDefault } of succeeded) {
@@ -100,11 +102,11 @@ function refresh() {
           }
         }
       }
-      resumeAutosave();
 
       toast('Default currency updated', 'success');
       refresh();
     } finally {
+      if (paused) resumeAutosave();
       btn.disabled = false;
       btn.textContent = 'Save';
     }
