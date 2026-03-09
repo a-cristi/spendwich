@@ -4,6 +4,7 @@ import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { escHtml } from '../utils.js';
+import { attachWidget, confirmLoadIfConnected, pauseAutosave, resumeAutosave } from '../remotestorage.js';
 
 let _container = null;
 
@@ -82,6 +83,8 @@ function refresh() {
       }
 
       // Phase 3: commit currency change + successful recalculations
+      // Pause remote autosave for the batch — resume once when all done
+      pauseAutosave();
       updateSettings({ defaultCurrency: val });
       for (const { id, exchangeRate, amountInDefault } of succeeded) {
         updateTransaction(id, { exchangeRate, amountInDefault });
@@ -97,6 +100,7 @@ function refresh() {
           }
         }
       }
+      resumeAutosave();
 
       toast('Default currency updated', 'success');
       refresh();
@@ -105,6 +109,25 @@ function refresh() {
       btn.textContent = 'Save';
     }
   });
+
+  card.appendChild(document.createElement('hr'));
+  card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
+
+  // Sync
+  const syncSection = document.createElement('div');
+  syncSection.style.marginBottom = '1.5rem';
+  const syncTitle = document.createElement('p');
+  syncTitle.style.cssText = 'font-weight:600;margin-bottom:0.5rem';
+  syncTitle.textContent = 'Sync';
+  const syncDesc = document.createElement('p');
+  syncDesc.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem';
+  syncDesc.textContent = 'Connect a remoteStorage account (5apps, self-hosted) to sync your data across devices.';
+  const widgetContainer = document.createElement('div');
+  syncSection.appendChild(syncTitle);
+  syncSection.appendChild(syncDesc);
+  syncSection.appendChild(widgetContainer);
+  card.appendChild(syncSection);
+  attachWidget(widgetContainer);
 
   card.appendChild(document.createElement('hr'));
   card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
@@ -148,13 +171,16 @@ function refresh() {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = evt => {
-      try {
-        loadData(evt.target.result);
-        toast('Data imported successfully', 'success');
-        refresh();
-      } catch (err) {
-        toast(`Import failed: ${err.message}`, 'error');
-      }
+      const raw = evt.target.result;
+      confirmLoadIfConnected(raw, () => {
+        try {
+          loadData(raw);
+          toast('Data imported successfully', 'success');
+          refresh();
+        } catch (err) {
+          toast(`Import failed: ${err.message}`, 'error');
+        }
+      });
     };
     reader.readAsText(file);
     e.target.value = '';
