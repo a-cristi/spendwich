@@ -3,6 +3,7 @@ import { render as renderCategories } from './views/categories.js';
 import { render as renderLabels } from './views/labels.js';
 import { render as renderReports } from './views/reports.js';
 import { render as renderSettings } from './views/settings.js';
+import { initRemoteStorage } from './remotestorage.js';
 
 const ROUTES = {
   '#transactions': renderTransactions,
@@ -29,4 +30,5 @@ export function init(container) {
 
   window.addEventListener('hashchange', navigate);
   navigate();
+  initRemoteStorage(navigate);
 }
