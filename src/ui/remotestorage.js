@@ -1,4 +1,5 @@
 import { getData, loadData, exportData, onDataChange } from '../store.js';
+import { isSameData } from '../sync.js';
 import { toast } from './toast.js';
 import { openModal } from './modal.js';
 
@@ -53,20 +54,13 @@ function _rawHasData(raw) {
   } catch { return false; }
 }
 
-function _isSameData(a, b) {
-  if (!a || !b) return false;
-  try {
-    return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
-  } catch { return false; }
-}
-
 // Shared handler for both onReady (redirect OAuth) and onConnected (popup OAuth).
 // Compares localStorage vs remote and takes the appropriate action.
 async function _handleFirstSync(raw) {
   const localRaw = localStorage.getItem(_LS_KEY);
   const localHasData = _rawHasData(localRaw);
 
-  if (raw && localHasData && !_isSameData(localRaw, raw)) {
+  if (raw && localHasData && !isSameData(localRaw, raw)) {
     _showFirstConnectConflict(localRaw, raw);
   } else if (raw) {
     _syncing = true;
