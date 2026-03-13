@@ -1,9 +1,12 @@
 import { getData } from '../../store.js';
 import { monthlyReport, yearlyReport, customRangeReport, allTimeReport } from '../../reports.js';
 import { escHtml } from '../utils.js';
+import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
 let _mode = 'monthly'; // monthly | yearly | custom | all
+
+onThemeChange(() => { if (_container) refresh(); });
 let _breakdown = 'category'; // category | label
 let _year = new Date().getFullYear();
 let _month = new Date().getMonth() + 1;
@@ -250,13 +253,14 @@ function renderSummaryReport(report, currency, data, container) {
     chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
     chartWrap.innerHTML = '<canvas></canvas>';
     container.appendChild(chartWrap);
+    const pieLabelColor = isDark() ? '#9896b8' : '#78716c';
     _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
       type: 'pie',
       data: buildPieChartData(items, nameKey, fallback, catsByName),
       options: {
         responsive: true,
         aspectRatio: 2.5,
-        plugins: { legend: { display: true, position: 'right' } },
+        plugins: { legend: { display: true, position: 'right', labels: { color: pieLabelColor } } },
       },
     }));
   }
@@ -295,6 +299,13 @@ function renderYearlyReport(report, currency, data, container) {
   chartWrap.innerHTML = '<canvas height="120"></canvas>';
   container.appendChild(chartWrap);
 
+  const dark = isDark();
+  const incomeColor  = dark ? '#4ade80' : '#15803d88';
+  const incomeEdge   = dark ? '#4ade80' : '#15803d';
+  const expenseColor = dark ? '#f87171' : '#b91c1c88';
+  const expenseEdge  = dark ? '#f87171' : '#b91c1c';
+  const gridColor    = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
+  const labelColor   = dark ? '#9896b8' : '#78716c';
   _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
     type: 'bar',
     data: {
@@ -303,23 +314,26 @@ function renderYearlyReport(report, currency, data, container) {
         {
           label: 'Income',
           data: report.months.map(m => m.income),
-          backgroundColor: '#15803d88',
-          borderColor: '#15803d',
+          backgroundColor: incomeColor,
+          borderColor: incomeEdge,
           borderWidth: 1,
         },
         {
           label: 'Expenses',
           data: report.months.map(m => Math.abs(m.expenses)),
-          backgroundColor: '#b91c1c88',
-          borderColor: '#b91c1c',
+          backgroundColor: expenseColor,
+          borderColor: expenseEdge,
           borderWidth: 1,
         },
       ],
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: true } },
-      scales: { y: { beginAtZero: true } },
+      plugins: { legend: { display: true, labels: { color: labelColor } } },
+      scales: {
+        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: labelColor } },
+        x: { grid: { color: gridColor }, ticks: { color: labelColor } },
+      },
     },
   }));
 
@@ -335,13 +349,14 @@ function renderYearlyReport(report, currency, data, container) {
     pieWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
     pieWrap.innerHTML = '<canvas></canvas>';
     container.appendChild(pieWrap);
+    const pieLabelColorY = isDark() ? '#9896b8' : '#78716c';
     _chartInstances.push(new Chart(pieWrap.querySelector('canvas').getContext('2d'), {
       type: 'pie',
       data: buildPieChartData(items, nameKey, fallback, catsByName),
       options: {
         responsive: true,
         aspectRatio: 2.5,
-        plugins: { legend: { display: true, position: 'right' } },
+        plugins: { legend: { display: true, position: 'right', labels: { color: pieLabelColorY } } },
       },
     }));
   }
@@ -351,22 +366,20 @@ function renderYearlyReport(report, currency, data, container) {
   }
 }
 
-const PIE_COLORS = [
-  '#6366f1', // indigo  — matches --primary
-  '#0d9488', // teal
-  '#f59e0b', // amber
-  '#db2777', // pink
-  '#16a34a', // green
-  '#9333ea', // purple
-  '#ea580c', // orange
-  '#2563eb', // blue
-  '#ca8a04', // yellow-dark
-  '#dc2626', // red
-  '#0891b2', // cyan
-  '#be185d', // rose
+const PIE_COLORS_LIGHT = [
+  '#6366f1', '#0d9488', '#f59e0b', '#db2777', '#16a34a', '#9333ea',
+  '#ea580c', '#2563eb', '#ca8a04', '#dc2626', '#0891b2', '#be185d',
+];
+const PIE_COLORS_DARK = [
+  '#a5b4fc', '#2dd4bf', '#fcd34d', '#f472b6', '#4ade80', '#c084fc',
+  '#fdba74', '#60a5fa', '#fde047', '#f87171', '#22d3ee', '#fb7185',
 ];
 
 function buildPieChartData(items, nameKey, fallback, catsByName) {
+  const dark = isDark();
+  const colors = dark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
+  const labelColor = dark ? '#9896b8' : '#78716c';
+  const borderColor = dark ? '#1d1c2b' : '#fff';
   const sorted = [...items].filter(b => b.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
   return {
     labels: sorted.map(b => {
@@ -376,7 +389,8 @@ function buildPieChartData(items, nameKey, fallback, catsByName) {
     }),
     datasets: [{
       data: sorted.map(b => Math.abs(b.total)),
-      backgroundColor: sorted.map((_, i) => PIE_COLORS[i % PIE_COLORS.length]),
+      backgroundColor: sorted.map((_, i) => colors[i % colors.length]),
+      borderColor,
       borderWidth: 1,
     }],
   };

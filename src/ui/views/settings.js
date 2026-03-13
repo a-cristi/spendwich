@@ -5,6 +5,7 @@ import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { escHtml } from '../utils.js';
 import { attachWidget, confirmLoadIfConnected, pauseAutosave, resumeAutosave } from '../remotestorage.js';
+import { getThemePref, setTheme } from '../theme.js';
 
 let _container = null;
 
@@ -28,6 +29,32 @@ function refresh() {
   card.className = 'card';
   card.style.padding = '1.5rem';
   _container.appendChild(card);
+
+  // Appearance
+  const appearanceSection = document.createElement('div');
+  appearanceSection.style.marginBottom = '1.5rem';
+  const appearanceTitle = document.createElement('p');
+  appearanceTitle.style.cssText = 'font-weight:600;margin-bottom:0.5rem';
+  appearanceTitle.textContent = 'Appearance';
+  const themeGroup = document.createElement('div');
+  themeGroup.className = 'seg-group';
+  const currentPref = getThemePref();
+  for (const [pref, label] of [['light', 'Light'], ['auto', 'Auto'], ['dark', 'Dark']]) {
+    const btn = document.createElement('button');
+    btn.className = 'btn btn-sm ' + (currentPref === pref ? 'btn-primary' : 'btn-secondary');
+    btn.textContent = label;
+    btn.addEventListener('click', () => {
+      setTheme(pref);
+      refresh();
+    });
+    themeGroup.appendChild(btn);
+  }
+  appearanceSection.appendChild(appearanceTitle);
+  appearanceSection.appendChild(themeGroup);
+  card.appendChild(appearanceSection);
+
+  card.appendChild(document.createElement('hr'));
+  card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
 
   // Currency setting
   const currGroup = document.createElement('div');

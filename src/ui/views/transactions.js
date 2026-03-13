@@ -406,8 +406,8 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
       : isNull
         ? `<span style="font-size:0.875rem;color:var(--text-muted)">${escHtml(groupName)}</span>`
         : isCatGroup
-          ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${catIcon} ${escHtml(groupName)}</span>`
-          : `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(groupName)}</span>`;
+          ? `<span class="badge badge-category">${catIcon} ${escHtml(groupName)}</span>`
+          : `<span class="badge badge-label">${escHtml(groupName)}</span>`;
 
     const groupHeader = document.createElement('div');
     groupHeader.style.cssText = 'padding:0.6rem 1rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none';
@@ -432,8 +432,8 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
         : sub.isNull
           ? `<span style="font-size:0.875rem;color:var(--text-muted)">${escHtml(sub.name)}</span>`
           : isCatGroup
-            ? `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(sub.name)}</span>`
-            : `<span class="badge" style="background:#e0e7ff;color:#3730a3">${escHtml(sub.name)}</span>`;
+            ? `<span class="badge badge-label">${escHtml(sub.name)}</span>`
+            : `<span class="badge badge-category">${escHtml(sub.name)}</span>`;
 
       subRow.innerHTML = `
         <span style="flex:1">${subBadge}</span>
@@ -496,7 +496,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
   const lblPills = tx.labelIds.map(id => {
     const lbl = lblMap.get(id);
     return lbl
-      ? `<span class="badge" style="background:#ede9fe;color:#5b21b6">${escHtml(lbl.name)}</span>`
+      ? `<span class="badge badge-label">${escHtml(lbl.name)}</span>`
       : `<span class="badge badge-deleted">(deleted)</span>`;
   }).join('');
 
@@ -508,7 +508,7 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     : '';
 
   const catBadge = cat
-    ? `<span class="badge" style="background:#e0e7ff;color:#3730a3">${cat.icon ?? ''} ${escHtml(cat.name)}</span>`
+    ? `<span class="badge badge-category">${cat.icon ?? ''} ${escHtml(cat.name)}</span>`
     : catDeleted
       ? `<span class="badge badge-deleted">(deleted category)</span>`
       : '';
