@@ -18,8 +18,19 @@
 - `--font-serif: 'Fraunces', Georgia, serif` — brand/page headings only. Never for numbers (causes optical-sizing drift at different character counts)
 - `--font-sans: 'Plus Jakarta Sans', system-ui, sans-serif` — all UI, body, and numeric displays
 - Income amounts: `#15803d` (green) · Expense amounts: `#b91c1c` (red)
-- Category badges: `background:#e0e7ff; color:#3730a3` (blue). Label badges: `background:#ede9fe; color:#5b21b6` (purple). Null groups use plain muted text, no badge.
+- Category badges: use CSS class `.badge.badge-category` (never inline styles — dark-mode overrides live in `:root.dark .badge-category`). Label badges: `.badge.badge-label`. Null groups use plain muted text, no badge.
 - All monetary displays use `font-family: var(--font-sans); font-weight: 600; font-variant-numeric: tabular-nums`
+
+## Dark mode
+
+- Theme stored in `localStorage` key `spendwich-theme` (`'light'` | `'dark'` | `'auto'`). Default is `'auto'` (follows `prefers-color-scheme`).
+- Dark class is `.dark` on `<html>`. All dark token overrides live in `:root.dark { ... }` in `index.html`.
+- Dark token palette: `--bg:#16151f` · `--surface:#1d1c2b` · `--surface-hover:#252436` · `--border:#2d2b42` · `--text:#eeedf5` · `--text-muted:#9896b8` · `--primary:#818cf8`
+- Anti-FOUC: a tiny inline `<script>` in `<head>` reads `localStorage` and adds `.dark` to `<html>` before any CSS/content renders. Do not remove or move it.
+- Theme logic lives in `src/ui/theme.js` — `initTheme()`, `setTheme(pref)`, `getThemePref()`, `isDark()`, `onThemeChange(fn)`. Import from there; never duplicate.
+- `initTheme()` is called in `router.js` before `initRemoteStorage()`.
+- Reports (Chart.js): use `isDark()` at chart-build time to select light vs dark color arrays. Register `onThemeChange(() => refresh())` at module level so charts re-render on toggle.
+- The remoteStorage widget is a third-party iframe/element — its internal colors cannot be overridden and will remain light in dark mode. This is acceptable.
 
 ## Dependencies
 
