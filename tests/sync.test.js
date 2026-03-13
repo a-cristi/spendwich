@@ -96,3 +96,30 @@ test('normalizeForCompare: recurses into nested objects', () => {
   assert.deepEqual(Object.keys(result), ['a', 'b']);
   assert.deepEqual(Object.keys(result.b), ['a', 'z']);
 });
+
+test('normalizeForCompare: null passthrough (primitive path)', () => {
+  assert.equal(normalizeForCompare(null), null);
+});
+
+test('isSameData: empty string input → false', () => {
+  assert.equal(isSameData('', canonical), false);
+  assert.equal(isSameData(canonical, ''), false);
+});
+
+test('isSameData: categories array in different order → true', () => {
+  const other = JSON.parse(canonical);
+  other.categories = [
+    { id: 'cat-2', name: 'Transport', icon: '🚌' },
+    { id: 'cat-1', name: 'Food', icon: '🍔' },
+  ];
+  const canonical2 = JSON.stringify({ ...JSON.parse(canonical), categories: [{ id: 'cat-1', name: 'Food', icon: '🍔' }, { id: 'cat-2', name: 'Transport', icon: '🚌' }] });
+  assert.equal(isSameData(JSON.stringify(other), canonical2), true);
+});
+
+test('isSameData: transaction with reordered recurrence object keys → true', () => {
+  const withRec = JSON.parse(canonical);
+  withRec.transactions[0].recurrence = { frequency: 'monthly', interval: 1, endDate: null };
+  const reordered = JSON.parse(canonical);
+  reordered.transactions[0].recurrence = { endDate: null, interval: 1, frequency: 'monthly' };
+  assert.equal(isSameData(JSON.stringify(withRec), JSON.stringify(reordered)), true);
+});

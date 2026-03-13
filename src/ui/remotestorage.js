@@ -1,4 +1,4 @@
-import { getData, loadData, exportData, onDataChange } from '../store.js';
+import { loadData, exportData, onDataChange } from '../store.js';
 import { isSameData } from '../sync.js';
 import { toast } from './toast.js';
 import { openModal } from './modal.js';
@@ -50,7 +50,7 @@ function _rawHasData(raw) {
   if (!raw) return false;
   try {
     const d = JSON.parse(raw);
-    return d.transactions?.length > 0 || d.categories?.length > 0;
+    return d.transactions?.length > 0 || d.categories?.length > 0 || d.labels?.length > 0;
   } catch { return false; }
 }
 
@@ -62,14 +62,15 @@ async function _handleFirstSync(raw) {
 
   if (raw && localHasData && !isSameData(localRaw, raw)) {
     _showFirstConnectConflict(localRaw, raw);
-  } else if (raw) {
+  } else if (raw && !isSameData(localRaw, raw)) {
     _syncing = true;
     try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
     _syncing = false;
     _refreshFn();
-  } else if (localHasData) {
+  } else if (!raw && localHasData) {
     await saveToRemote();
   }
+  // raw && isSameData: data already loaded from localStorage; onSyncDone handles widget
 }
 
 async function onReady() {
