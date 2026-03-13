@@ -2,6 +2,8 @@ import { getData, loadData, exportData, onDataChange } from '../store.js';
 import { toast } from './toast.js';
 import { openModal } from './modal.js';
 
+const _LS_KEY = 'spendwich-data';
+
 let _rs = null;
 let _client = null;
 let _refreshFn = null;
@@ -14,6 +16,15 @@ let _readyConnected = false; // true when onReady found an existing connection (
 
 export function initRemoteStorage(refreshFn) {
   _refreshFn = refreshFn;
+
+  // Restore from localStorage on every load — works on file://, enables offline mode.
+  const saved = localStorage.getItem(_LS_KEY);
+  if (saved) { try { loadData(saved); } catch { /* invalid, ignore */ } }
+
+  // Mirror every store mutation to localStorage (not gated on _syncing — we always
+  // want localStorage in sync, including when loading remote data into the store).
+  onDataChange(_saveToLocalStorage);
+
   if (location.protocol === 'file:') return;
 
   _rs = new RemoteStorage({ logging: false });
@@ -30,16 +41,49 @@ export function initRemoteStorage(refreshFn) {
   onDataChange(scheduleAutosave);
 }
 
+function _saveToLocalStorage() {
+  localStorage.setItem(_LS_KEY, exportData());
+}
+
+function _rawHasData(raw) {
+  if (!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    return d.transactions?.length > 0 || d.categories?.length > 0;
+  } catch { return false; }
+}
+
+function _isSameData(a, b) {
+  if (!a || !b) return false;
+  try {
+    return JSON.stringify(JSON.parse(a)) === JSON.stringify(JSON.parse(b));
+  } catch { return false; }
+}
+
+// Shared handler for both onReady (redirect OAuth) and onConnected (popup OAuth).
+// Compares localStorage vs remote and takes the appropriate action.
+async function _handleFirstSync(raw) {
+  const localRaw = localStorage.getItem(_LS_KEY);
+  const localHasData = _rawHasData(localRaw);
+
+  if (raw && localHasData && !_isSameData(localRaw, raw)) {
+    _showFirstConnectConflict(localRaw, raw);
+  } else if (raw) {
+    _syncing = true;
+    try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
+    _syncing = false;
+    _refreshFn();
+  } else if (localHasData) {
+    await saveToRemote();
+  }
+}
+
 async function onReady() {
   if (!_rs.remote.connected) return;
-  _hasConnected = true;      // prevent onConnected from entering conflict-dialog logic
+  _hasConnected = true;      // prevent onConnected from entering first-sync logic
   _readyConnected = true;    // prevent onConnected from saving the (still-empty) store
   const raw = await fetchRemote();
-  if (!raw) return;
-  _syncing = true;
-  try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
-  _syncing = false;
-  _refreshFn();
+  await _handleFirstSync(raw);
 }
 
 async function onConnected() {
@@ -50,39 +94,7 @@ async function onConnected() {
   }
   _hasConnected = true;
   const raw = await fetchRemote();
-  const local = getData();
-  const localHasData = local.transactions.length > 0 || local.categories.length > 0;
-
-  if (raw && localHasData) {
-    const body = document.createElement('p');
-    body.style.fontSize = '0.9rem';
-    body.textContent = 'Your storage account already has data. Which version do you want to keep?';
-    const footer = document.createElement('div');
-    footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
-    footer.innerHTML = `
-      <button class="btn btn-secondary" id="rs-keep-local">Keep local</button>
-      <button class="btn btn-primary" id="rs-use-remote">Load remote</button>
-    `;
-    const { close } = openModal({ title: 'Sync conflict', body, footer });
-    footer.querySelector('#rs-keep-local').addEventListener('click', async () => {
-      close();
-      await saveToRemote();
-    });
-    footer.querySelector('#rs-use-remote').addEventListener('click', () => {
-      close();
-      _syncing = true;
-      try { loadData(raw); } catch { /* ignore */ }
-      _syncing = false;
-      if (!document.querySelector('dialog[open]')) _refreshFn();
-    });
-  } else if (raw) {
-    _syncing = true;
-    try { loadData(raw); } catch { /* ignore */ }
-    _syncing = false;
-    _refreshFn();
-  } else if (localHasData) {
-    await saveToRemote();
-  }
+  await _handleFirstSync(raw);
 }
 
 function onDisconnected() {
@@ -127,6 +139,34 @@ async function fetchRemote() {
 function scheduleAutosave() {
   if (_syncing || _paused) return;
   saveToRemote();
+}
+
+function _showFirstConnectConflict(localRaw, remoteRaw) {
+  const body = document.createElement('p');
+  body.style.fontSize = '0.9rem';
+  body.textContent = 'Your storage account already has data. Which version do you want to keep?';
+  const footer = document.createElement('div');
+  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
+  footer.innerHTML = `
+    <button class="btn btn-secondary" id="rs-keep-local">Keep local</button>
+    <button class="btn btn-primary" id="rs-use-remote">Load remote</button>
+  `;
+  const { close } = openModal({ title: 'Sync conflict', body, footer });
+  footer.querySelector('#rs-keep-local').addEventListener('click', async () => {
+    close();
+    _syncing = true;
+    try { loadData(localRaw); } catch { /* ignore */ }
+    _syncing = false;
+    await saveToRemote();
+    if (!document.querySelector('dialog[open]')) _refreshFn();
+  });
+  footer.querySelector('#rs-use-remote').addEventListener('click', () => {
+    close();
+    _syncing = true;
+    try { loadData(remoteRaw); } catch { /* ignore */ }
+    _syncing = false;
+    if (!document.querySelector('dialog[open]')) _refreshFn();
+  });
 }
 
 // Pause autosave during currency migration (long async batch).
