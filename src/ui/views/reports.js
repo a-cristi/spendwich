@@ -4,7 +4,7 @@ import { escHtml } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
-let _reportType = 'summary'; // summary | cashflow | compare
+let _reportType = 'summary'; // summary | compare
 let _mode = 'monthly';       // monthly | yearly | custom | all  (period, summary only)
 
 onThemeChange(() => { if (_container) refresh(); });
@@ -15,7 +15,6 @@ let _year = new Date().getFullYear();
 let _month = new Date().getMonth() + 1;
 let _customStart = '';
 let _customEnd = '';
-let _cashFlowRange = 12; // 6 | 12 | 24
 
 const _now = new Date();
 const _thisYear = _now.getFullYear();
@@ -57,16 +56,6 @@ function refresh() {
 
   const data = getData();
   const { defaultCurrency } = data.settings;
-
-  if (_reportType === 'cashflow') {
-    const today = new Date();
-    const to = today.toISOString().slice(0, 10);
-    const fromDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - (_cashFlowRange - 1), 1));
-    const from = fromDate.toISOString().slice(0, 10);
-    const cfData = cashFlowReport(data, from, to);
-    renderCashFlowReport(cfData, defaultCurrency, main);
-    return;
-  }
 
   if (_reportType === 'compare') {
     const rA = monthlyReport(data, _compareA.year, _compareA.month);
@@ -121,52 +110,27 @@ function buildReportsSidebar() {
   reportLabel.textContent = 'Report';
   reportSect.appendChild(reportLabel);
 
-  const reportTypeNav = document.createElement('div');
-  reportTypeNav.className = 'view-mode-nav';
-  for (const [rt, label] of [['summary', 'Summary'], ['cashflow', 'Cash Flow'], ['compare', 'Compare']]) {
+  const reportGroup = document.createElement('div');
+  reportGroup.className = 'seg-group';
+  reportGroup.style.width = '100%';
+  for (const [rt, label] of [['summary', 'Summary'], ['compare', 'Compare']]) {
     const btn = document.createElement('button');
-    btn.className = 'view-mode-btn' + (_reportType === rt ? ' active' : '');
+    btn.className = 'btn btn-sm ' + (_reportType === rt ? 'btn-primary' : 'btn-secondary');
+    btn.style.cssText = 'flex:1;justify-content:center';
     btn.textContent = label;
     btn.addEventListener('click', () => { _reportType = rt; refresh(); });
-    reportTypeNav.appendChild(btn);
+    reportGroup.appendChild(btn);
   }
-  reportSect.appendChild(reportTypeNav);
+  reportSect.appendChild(reportGroup);
 
-  const reportTypeRow = document.createElement('div');
-  reportTypeRow.className = 'view-date-row';
-
-  const reportTypeSelect = document.createElement('select');
-  reportTypeSelect.className = 'view-mode-select';
-  for (const [rt, label] of [['summary', 'Summary'], ['cashflow', 'Cash Flow'], ['compare', 'Compare']]) {
-    const opt = document.createElement('option');
-    opt.value = rt; opt.textContent = label; opt.selected = _reportType === rt;
-    reportTypeSelect.appendChild(opt);
-  }
-  reportTypeSelect.addEventListener('change', e => { _reportType = e.target.value; refresh(); });
-  reportTypeRow.appendChild(reportTypeSelect);
-
-  if (_reportType === 'cashflow') {
-    const rangeGroup = document.createElement('div');
-    rangeGroup.className = 'seg-group';
-    rangeGroup.style.cssText = 'width:100%;margin-top:0.5rem';
-    for (const [val, label] of [[6, '6 mo'], [12, '12 mo'], [24, '24 mo']]) {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-sm ' + (_cashFlowRange === val ? 'btn-primary' : 'btn-secondary');
-      btn.style.cssText = 'flex:1;justify-content:center';
-      btn.textContent = label;
-      btn.addEventListener('click', () => { _cashFlowRange = val; refresh(); });
-      rangeGroup.appendChild(btn);
-    }
-    reportTypeRow.appendChild(rangeGroup);
-  } else if (_reportType === 'compare') {
+  if (_reportType === 'compare') {
     const compareNav = document.createElement('div');
-    compareNav.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem;width:100%;margin-top:0.5rem';
+    compareNav.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem;width:100%;margin-top:0.75rem';
     compareNav.appendChild(buildMonthPicker('Period A', _compareA, v => { _compareA = v; refresh(); }));
     compareNav.appendChild(buildMonthPicker('Period B', _compareB, v => { _compareB = v; refresh(); }));
-    reportTypeRow.appendChild(compareNav);
+    reportSect.appendChild(compareNav);
   }
 
-  reportSect.appendChild(reportTypeRow);
   sidebar.appendChild(reportSect);
 
   if (_reportType !== 'summary') return sidebar;
@@ -394,6 +358,25 @@ function renderSummaryReport(report, currency, data, container) {
   `;
   container.appendChild(bar);
 
+  // Cash flow chart for multi-month periods
+  if (_mode === 'custom' && _customStart && _customEnd && _customStart.slice(0, 7) !== _customEnd.slice(0, 7)) {
+    const cfRaw = cashFlowReport(data, _customStart, _customEnd);
+    if (cfRaw.length > 1) {
+      const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
+      const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+      renderCashFlowChart(cfData, cfLabels, currency, container);
+    }
+  } else if (_mode === 'all' && report.transactions.length > 0) {
+    const from = report.transactions[0].date.slice(0, 7) + '-01';
+    const to = new Date().toISOString().slice(0, 10);
+    const cfRaw = cashFlowReport(data, from, to);
+    if (cfRaw.length > 1) {
+      const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
+      const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+      renderCashFlowChart(cfData, cfLabels, currency, container);
+    }
+  }
+
   const isCat = _breakdown === 'category';
   const rawItems = isCat ? report.byCategory : report.byLabel;
   const items = filterItems(rawItems);
@@ -448,49 +431,13 @@ function renderYearlyReport(report, currency, data, container) {
   `;
   container.appendChild(totalBar);
 
-  const chartWrap = document.createElement('div');
-  chartWrap.className = 'card';
-  chartWrap.style.cssText = 'padding:1.25rem;margin-bottom:1.5rem';
-  chartWrap.innerHTML = '<canvas height="120"></canvas>';
-  container.appendChild(chartWrap);
-
-  const dark = isDark();
-  const incomeColor  = dark ? '#4ade80' : '#15803d88';
-  const incomeEdge   = dark ? '#4ade80' : '#15803d';
-  const expenseColor = dark ? '#f87171' : '#b91c1c88';
-  const expenseEdge  = dark ? '#f87171' : '#b91c1c';
-  const gridColor    = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
-  const labelColor   = dark ? '#9896b8' : '#78716c';
-  _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
-    type: 'bar',
-    data: {
-      labels: months(),
-      datasets: [
-        {
-          label: 'Income',
-          data: report.months.map(m => m.income),
-          backgroundColor: incomeColor,
-          borderColor: incomeEdge,
-          borderWidth: 1,
-        },
-        {
-          label: 'Expenses',
-          data: report.months.map(m => Math.abs(m.expenses)),
-          backgroundColor: expenseColor,
-          borderColor: expenseEdge,
-          borderWidth: 1,
-        },
-      ],
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: true, labels: { color: labelColor } } },
-      scales: {
-        y: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: labelColor } },
-        x: { grid: { color: gridColor }, ticks: { color: labelColor } },
-      },
-    },
+  let cum = 0;
+  const cfData = report.months.map(m => ({
+    income: m.income,
+    expenses: m.expenses,
+    cumulative: (cum += m.net),
   }));
+  renderCashFlowChart(cfData, months(), currency, container);
 
   const isCat = _breakdown === 'category';
   const rawItems = isCat ? report.byCategory : report.byLabel;
@@ -555,35 +502,8 @@ function renderPctToggle(container, income) {
   container.appendChild(row);
 }
 
-function renderCashFlowReport(cfData, currency, container) {
-  if (cfData.length === 0) {
-    container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'No data available.' }));
-    return;
-  }
-
-  const totalIncome = cfData.reduce((s, m) => s + m.income, 0);
-  const totalExpenses = cfData.reduce((s, m) => s + m.expenses, 0);
-  const totalNet = totalIncome + totalExpenses;
-  const netCls = totalNet >= 0 ? 'amount-income' : 'amount-expense';
-  const netSign = totalNet >= 0 ? '+' : '-';
-
-  const bar = document.createElement('div');
-  bar.className = 'summary-bar';
-  bar.innerHTML = `
-    <div class="summary-bar-item">
-      <span class="summary-bar-label">Income</span>
-      <span class="summary-bar-value amount-income">+${escHtml(fmt(totalIncome, currency))}</span>
-    </div>
-    <div class="summary-bar-item">
-      <span class="summary-bar-label">Expenses</span>
-      <span class="summary-bar-value amount-expense">-${escHtml(fmt(Math.abs(totalExpenses), currency))}</span>
-    </div>
-    <div class="summary-bar-item">
-      <span class="summary-bar-label">Net</span>
-      <span class="summary-bar-value ${netCls}">${netSign}${escHtml(fmt(Math.abs(totalNet), currency))}</span>
-    </div>
-  `;
-  container.appendChild(bar);
+function renderCashFlowChart(cfData, labels, currency, container) {
+  if (cfData.length === 0) return;
 
   const chartWrap = document.createElement('div');
   chartWrap.className = 'card';
@@ -599,10 +519,6 @@ function renderCashFlowReport(cfData, currency, container) {
   const netLineColor = dark ? '#818cf8' : '#5055d8';
   const gridColor    = dark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
   const labelColor   = dark ? '#9896b8' : '#78716c';
-
-  const labels = cfData.map(m =>
-    new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' })
-  );
 
   _chartInstances.push(new Chart(chartWrap.querySelector('canvas').getContext('2d'), {
     type: 'bar',
