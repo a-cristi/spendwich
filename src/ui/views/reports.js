@@ -361,20 +361,16 @@ function renderSummaryReport(report, currency, data, container) {
   // Cash flow chart for multi-month periods
   if (_mode === 'custom' && _customStart && _customEnd && _customStart.slice(0, 7) !== _customEnd.slice(0, 7)) {
     const cfRaw = cashFlowReport(data, _customStart, _customEnd);
-    if (cfRaw.length > 1) {
-      const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
-      const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
-      renderCashFlowChart(cfData, cfLabels, currency, container);
-    }
+    const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
+    const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+    renderCashFlowChart(cfData, cfLabels, currency, container);
   } else if (_mode === 'all' && report.transactions.length > 0) {
     const from = report.transactions[0].date.slice(0, 7) + '-01';
     const to = new Date().toISOString().slice(0, 10);
     const cfRaw = cashFlowReport(data, from, to);
-    if (cfRaw.length > 1) {
-      const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
-      const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
-      renderCashFlowChart(cfData, cfLabels, currency, container);
-    }
+    const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
+    const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+    renderCashFlowChart(cfData, cfLabels, currency, container);
   }
 
   const isCat = _breakdown === 'category';
