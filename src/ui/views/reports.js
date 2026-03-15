@@ -4,7 +4,8 @@ import { escHtml } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
-let _mode = 'monthly'; // monthly | yearly | cashflow | compare | custom | all
+let _reportType = 'summary'; // summary | cashflow | compare
+let _mode = 'monthly';       // monthly | yearly | custom | all  (period, summary only)
 
 onThemeChange(() => { if (_container) refresh(); });
 let _breakdown = 'category'; // category | label
@@ -57,7 +58,7 @@ function refresh() {
   const data = getData();
   const { defaultCurrency } = data.settings;
 
-  if (_mode === 'cashflow') {
+  if (_reportType === 'cashflow') {
     const today = new Date();
     const to = today.toISOString().slice(0, 10);
     const fromDate = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth() - (_cashFlowRange - 1), 1));
@@ -67,7 +68,7 @@ function refresh() {
     return;
   }
 
-  if (_mode === 'compare') {
+  if (_reportType === 'compare') {
     const rA = monthlyReport(data, _compareA.year, _compareA.month);
     const rB = monthlyReport(data, _compareB.year, _compareB.month);
     renderCompareReport(rA, rB, _compareA, _compareB, defaultCurrency, data, main);
@@ -111,7 +112,66 @@ function buildReportsSidebar() {
   const sidebar = document.createElement('div');
   sidebar.className = 'view-sidebar';
 
-  // --- Section 1: Period ---
+  // --- Section 1: Report type ---
+  const reportSect = document.createElement('div');
+  reportSect.className = 'view-sidebar-section';
+
+  const reportLabel = document.createElement('span');
+  reportLabel.className = 'view-sidebar-label';
+  reportLabel.textContent = 'Report';
+  reportSect.appendChild(reportLabel);
+
+  const reportTypeNav = document.createElement('div');
+  reportTypeNav.className = 'view-mode-nav';
+  for (const [rt, label] of [['summary', 'Summary'], ['cashflow', 'Cash Flow'], ['compare', 'Compare']]) {
+    const btn = document.createElement('button');
+    btn.className = 'view-mode-btn' + (_reportType === rt ? ' active' : '');
+    btn.textContent = label;
+    btn.addEventListener('click', () => { _reportType = rt; refresh(); });
+    reportTypeNav.appendChild(btn);
+  }
+  reportSect.appendChild(reportTypeNav);
+
+  const reportTypeRow = document.createElement('div');
+  reportTypeRow.className = 'view-date-row';
+
+  const reportTypeSelect = document.createElement('select');
+  reportTypeSelect.className = 'view-mode-select';
+  for (const [rt, label] of [['summary', 'Summary'], ['cashflow', 'Cash Flow'], ['compare', 'Compare']]) {
+    const opt = document.createElement('option');
+    opt.value = rt; opt.textContent = label; opt.selected = _reportType === rt;
+    reportTypeSelect.appendChild(opt);
+  }
+  reportTypeSelect.addEventListener('change', e => { _reportType = e.target.value; refresh(); });
+  reportTypeRow.appendChild(reportTypeSelect);
+
+  if (_reportType === 'cashflow') {
+    const rangeGroup = document.createElement('div');
+    rangeGroup.className = 'seg-group';
+    rangeGroup.style.cssText = 'width:100%;margin-top:0.5rem';
+    for (const [val, label] of [[6, '6 mo'], [12, '12 mo'], [24, '24 mo']]) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-sm ' + (_cashFlowRange === val ? 'btn-primary' : 'btn-secondary');
+      btn.style.cssText = 'flex:1;justify-content:center';
+      btn.textContent = label;
+      btn.addEventListener('click', () => { _cashFlowRange = val; refresh(); });
+      rangeGroup.appendChild(btn);
+    }
+    reportTypeRow.appendChild(rangeGroup);
+  } else if (_reportType === 'compare') {
+    const compareNav = document.createElement('div');
+    compareNav.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem;width:100%;margin-top:0.5rem';
+    compareNav.appendChild(buildMonthPicker('Period A', _compareA, v => { _compareA = v; refresh(); }));
+    compareNav.appendChild(buildMonthPicker('Period B', _compareB, v => { _compareB = v; refresh(); }));
+    reportTypeRow.appendChild(compareNav);
+  }
+
+  reportSect.appendChild(reportTypeRow);
+  sidebar.appendChild(reportSect);
+
+  if (_reportType !== 'summary') return sidebar;
+
+  // --- Section 2: Period (summary only) ---
   const periodSect = document.createElement('div');
   periodSect.className = 'view-sidebar-section';
 
@@ -120,17 +180,10 @@ function buildReportsSidebar() {
   periodLabel.textContent = 'Period';
   periodSect.appendChild(periodLabel);
 
+  const periodModes = [['monthly', 'Monthly'], ['yearly', 'Yearly'], ['custom', 'Custom range'], ['all', 'All time']];
   const modeNav = document.createElement('div');
   modeNav.className = 'view-mode-nav';
-  const reportModes = [
-    ['monthly', 'Monthly'],
-    ['yearly', 'Yearly'],
-    ['cashflow', 'Cash Flow'],
-    ['compare', 'Compare'],
-    ['custom', 'Custom range'],
-    ['all', 'All time'],
-  ];
-  for (const [rm, label] of reportModes) {
+  for (const [rm, label] of periodModes) {
     const btn = document.createElement('button');
     btn.className = 'view-mode-btn' + (_mode === rm ? ' active' : '');
     btn.textContent = label;
@@ -144,7 +197,7 @@ function buildReportsSidebar() {
 
   const modeSelect = document.createElement('select');
   modeSelect.className = 'view-mode-select';
-  for (const [rm, label] of reportModes) {
+  for (const [rm, label] of periodModes) {
     const opt = document.createElement('option');
     opt.value = rm; opt.textContent = label; opt.selected = _mode === rm;
     modeSelect.appendChild(opt);
@@ -152,26 +205,7 @@ function buildReportsSidebar() {
   modeSelect.addEventListener('change', e => { _mode = e.target.value; refresh(); });
   dateRow.appendChild(modeSelect);
 
-  if (_mode === 'cashflow') {
-    const rangeGroup = document.createElement('div');
-    rangeGroup.className = 'seg-group';
-    rangeGroup.style.cssText = 'flex:1;margin-top:0.5rem';
-    for (const [val, label] of [[6, '6 mo'], [12, '12 mo'], [24, '24 mo']]) {
-      const btn = document.createElement('button');
-      btn.className = 'btn btn-sm ' + (_cashFlowRange === val ? 'btn-primary' : 'btn-secondary');
-      btn.style.cssText = 'flex:1;justify-content:center';
-      btn.textContent = label;
-      btn.addEventListener('click', () => { _cashFlowRange = val; refresh(); });
-      rangeGroup.appendChild(btn);
-    }
-    dateRow.appendChild(rangeGroup);
-  } else if (_mode === 'compare') {
-    const compareNav = document.createElement('div');
-    compareNav.style.cssText = 'display:flex;flex-direction:column;gap:0.75rem;width:100%;margin-top:0.5rem';
-    compareNav.appendChild(buildMonthPicker('Period A', _compareA, v => { _compareA = v; refresh(); }));
-    compareNav.appendChild(buildMonthPicker('Period B', _compareB, v => { _compareB = v; refresh(); }));
-    dateRow.appendChild(compareNav);
-  } else if (_mode !== 'all') {
+  if (_mode !== 'all') {
     const periodNav = document.createElement('div');
 
     if (_mode === 'monthly') {
@@ -243,59 +277,55 @@ function buildReportsSidebar() {
   periodSect.appendChild(dateRow);
   sidebar.appendChild(periodSect);
 
-  // --- Section 2: View (hidden for cashflow/compare modes) ---
-  if (_mode !== 'cashflow' && _mode !== 'compare') {
-    const viewSect = document.createElement('div');
-    viewSect.className = 'view-sidebar-section';
+  // --- Section 3: View (summary only) ---
+  const viewSect = document.createElement('div');
+  viewSect.className = 'view-sidebar-section';
 
-    const viewLabel = document.createElement('span');
-    viewLabel.className = 'view-sidebar-label';
-    viewLabel.textContent = 'View';
-    viewSect.appendChild(viewLabel);
+  const viewLabel = document.createElement('span');
+  viewLabel.className = 'view-sidebar-label';
+  viewLabel.textContent = 'View';
+  viewSect.appendChild(viewLabel);
 
-    const bdGroup = document.createElement('div');
-    bdGroup.className = 'seg-group';
-    bdGroup.style.width = '100%';
+  const bdGroup = document.createElement('div');
+  bdGroup.className = 'seg-group';
+  bdGroup.style.width = '100%';
 
-    const bdCat = document.createElement('button');
-    bdCat.className = 'btn btn-sm ' + (_breakdown === 'category' ? 'btn-primary' : 'btn-secondary');
-    bdCat.style.cssText = 'flex:1;justify-content:center';
-    bdCat.textContent = 'By category';
-    bdCat.addEventListener('click', () => { _breakdown = 'category'; refresh(); });
+  const bdCat = document.createElement('button');
+  bdCat.className = 'btn btn-sm ' + (_breakdown === 'category' ? 'btn-primary' : 'btn-secondary');
+  bdCat.style.cssText = 'flex:1;justify-content:center';
+  bdCat.textContent = 'By category';
+  bdCat.addEventListener('click', () => { _breakdown = 'category'; refresh(); });
 
-    const bdLbl = document.createElement('button');
-    bdLbl.className = 'btn btn-sm ' + (_breakdown === 'label' ? 'btn-primary' : 'btn-secondary');
-    bdLbl.style.cssText = 'flex:1;justify-content:center';
-    bdLbl.textContent = 'By label';
-    bdLbl.addEventListener('click', () => { _breakdown = 'label'; refresh(); });
+  const bdLbl = document.createElement('button');
+  bdLbl.className = 'btn btn-sm ' + (_breakdown === 'label' ? 'btn-primary' : 'btn-secondary');
+  bdLbl.style.cssText = 'flex:1;justify-content:center';
+  bdLbl.textContent = 'By label';
+  bdLbl.addEventListener('click', () => { _breakdown = 'label'; refresh(); });
 
-    bdGroup.appendChild(bdCat);
-    bdGroup.appendChild(bdLbl);
-    viewSect.appendChild(bdGroup);
+  bdGroup.appendChild(bdCat);
+  bdGroup.appendChild(bdLbl);
+  viewSect.appendChild(bdGroup);
 
-    // Expenses / Income tab toggle
-    const tabGroup = document.createElement('div');
-    tabGroup.className = 'seg-group';
-    tabGroup.style.cssText = 'width:100%;margin-top:0.5rem';
+  const tabGroup = document.createElement('div');
+  tabGroup.className = 'seg-group';
+  tabGroup.style.cssText = 'width:100%;margin-top:0.5rem';
 
-    const tabExp = document.createElement('button');
-    tabExp.className = 'btn btn-sm ' + (_breakdownTab === 'expenses' ? 'btn-primary' : 'btn-secondary');
-    tabExp.style.cssText = 'flex:1;justify-content:center';
-    tabExp.textContent = 'Expenses';
-    tabExp.addEventListener('click', () => { _breakdownTab = 'expenses'; _pctOfIncome = false; refresh(); });
+  const tabExp = document.createElement('button');
+  tabExp.className = 'btn btn-sm ' + (_breakdownTab === 'expenses' ? 'btn-primary' : 'btn-secondary');
+  tabExp.style.cssText = 'flex:1;justify-content:center';
+  tabExp.textContent = 'Expenses';
+  tabExp.addEventListener('click', () => { _breakdownTab = 'expenses'; _pctOfIncome = false; refresh(); });
 
-    const tabInc = document.createElement('button');
-    tabInc.className = 'btn btn-sm ' + (_breakdownTab === 'income' ? 'btn-primary' : 'btn-secondary');
-    tabInc.style.cssText = 'flex:1;justify-content:center';
-    tabInc.textContent = 'Income';
-    tabInc.addEventListener('click', () => { _breakdownTab = 'income'; _pctOfIncome = false; refresh(); });
+  const tabInc = document.createElement('button');
+  tabInc.className = 'btn btn-sm ' + (_breakdownTab === 'income' ? 'btn-primary' : 'btn-secondary');
+  tabInc.style.cssText = 'flex:1;justify-content:center';
+  tabInc.textContent = 'Income';
+  tabInc.addEventListener('click', () => { _breakdownTab = 'income'; _pctOfIncome = false; refresh(); });
 
-    tabGroup.appendChild(tabExp);
-    tabGroup.appendChild(tabInc);
-    viewSect.appendChild(tabGroup);
-
-    sidebar.appendChild(viewSect);
-  }
+  tabGroup.appendChild(tabExp);
+  tabGroup.appendChild(tabInc);
+  viewSect.appendChild(tabGroup);
+  sidebar.appendChild(viewSect);
 
   return sidebar;
 }
