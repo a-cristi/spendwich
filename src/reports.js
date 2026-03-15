@@ -59,3 +59,19 @@ export function allTimeReport(data) {
   const txs = expandAndFilter(data.transactions, { windowEnd: new Date() });
   return summarise(txs, data.categories, data.labels);
 }
+
+export function cashFlowReport(data, from, to) {
+  const results = [];
+  let cursor = new Date(from + 'T00:00:00Z');
+  const endDate = new Date(to + 'T00:00:00Z');
+  let cumulative = 0;
+  while (cursor <= endDate) {
+    const year = cursor.getUTCFullYear();
+    const month = cursor.getUTCMonth() + 1;
+    const r = monthlyReport(data, year, month);
+    cumulative += r.net;
+    results.push({ month: `${year}-${String(month).padStart(2, '0')}`, income: r.income, expenses: r.expenses, net: r.net, cumulative });
+    cursor = new Date(Date.UTC(year, month, 1));
+  }
+  return results;
+}

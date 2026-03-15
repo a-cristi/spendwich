@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -142,6 +142,40 @@ test('allTimeReport: returns all transactions regardless of date', () => {
   assert.strictEqual(r.expenses, -200);
   assert.strictEqual(r.net, 300);
   assert.strictEqual(r.transactions.length, 2);
+});
+
+test('cashFlowReport: empty data returns empty array', () => {
+  const r = cashFlowReport(makeData(), '2026-01-01', '2026-01-31');
+  assert.deepEqual(r, [{ month: '2026-01', income: 0, expenses: 0, net: 0, cumulative: 0 }]);
+});
+
+test('cashFlowReport: from > to returns empty array', () => {
+  const r = cashFlowReport(makeData(), '2026-02-01', '2026-01-01');
+  assert.deepEqual(r, []);
+});
+
+test('cashFlowReport: single month has correct values', () => {
+  const txs = [
+    makeTx({ date: '2026-03-10', amountInDefault: 1000 }),
+    makeTx({ date: '2026-03-20', amountInDefault: -400 }),
+  ];
+  const [entry] = cashFlowReport(makeData(txs), '2026-03-01', '2026-03-31');
+  assert.equal(entry.month, '2026-03');
+  assert.equal(entry.income, 1000);
+  assert.equal(entry.expenses, -400);
+  assert.equal(entry.net, 600);
+  assert.equal(entry.cumulative, 600);
+});
+
+test('cashFlowReport: cumulative accumulates across months', () => {
+  const txs = [
+    makeTx({ date: '2026-01-15', amountInDefault: -100 }),
+    makeTx({ date: '2026-02-15', amountInDefault: -200 }),
+  ];
+  const r = cashFlowReport(makeData(txs), '2026-01-01', '2026-02-28');
+  assert.equal(r.length, 2);
+  assert.equal(r[0].cumulative, -100);
+  assert.equal(r[1].cumulative, -300);
 });
 
 test('report transactions are sorted by date', () => {
