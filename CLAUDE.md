@@ -115,6 +115,7 @@
 - Transaction sign convention: negative amount = expense, positive = income. Do not use a separate type field
 - `amountInDefault` and `exchangeRate` are stored on every transaction and must be kept in sync when editing
 - Orphaned category/label references (from deleted entities) are preserved in the JSON and rendered with a `(deleted)` badge. Never strip or null-out references on delete
+- Category deletion with transactions: `confirmDeleteCategory` shows a richer modal with transaction count, a searchable category picker (`.tx-cat-picker` pattern) for reassignment, and label chips (`.tx-label-chip` pattern) for tagging. `reassignCategory(fromId, toCategoryId, addLabelIds)` in `store.js` handles the batch update — when `toCategoryId` is null, only labels are added (categoryId preserved as orphaned)
 - JSON schema version is stored as `data.version` (integer). `CURRENT_VERSION = 2`. Run `migrate()` on import. Warn but do not block if version is higher than `CURRENT_VERSION`
 - v1→v2 migration: `color` was removed from categories; `icon` (single emoji, default `'🏷️'`) was added
 - Virtual transactions produced by the recurrence expander carry `isVirtual: true` and a `sourceId` pointing to the parent. They must never be passed to store mutation functions
@@ -134,7 +135,7 @@
 
 - Parsed entirely in the browser (no server upload). RFC 4180 compliant (quoted fields, escaped quotes).
 - On failure, throw a specific human-readable error (e.g. `Row 4: unknown category "Food"`). Never a silent failure or generic "import failed".
-- Expected columns (header row required, order-independent): `date` (YYYY-MM-DD), `amount` (signed decimal), `currency`, `category`, `description`, `labels` (semicolon-separated, optional)
+- Expected columns (header row required, order-independent): `date` (any format parseable by `new Date()`, normalized to YYYY-MM-DD using local timezone), `amount` (signed decimal), `currency`, `category`, `description`, `labels` (semicolon-separated, optional)
 - `category` is required and must be non-empty after trimming — throw `Row N: category is required` for blank values. `labels` is the only optional column
 
 ## Code style
