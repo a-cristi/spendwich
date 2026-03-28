@@ -29,6 +29,10 @@ export function exportData() {
 }
 
 export function addCategory(name, icon) {
+  const norm = name.trim().toLowerCase();
+  if (_data.categories.some(c => c.name.toLowerCase() === norm)) {
+    throw new Error(`Category already exists: ${name}`);
+  }
   const cat = makeCategory(name, icon);
   _data.categories.push(cat);
   _notifyChange();
@@ -38,6 +42,12 @@ export function addCategory(name, icon) {
 export function updateCategory(id, fields) {
   const cat = _data.categories.find(c => c.id === id);
   if (!cat) throw new Error(`Category not found: ${id}`);
+  if (fields.name !== undefined) {
+    const norm = fields.name.trim().toLowerCase();
+    if (_data.categories.some(c => c.id !== id && c.name.toLowerCase() === norm)) {
+      throw new Error(`Category already exists: ${fields.name}`);
+    }
+  }
   Object.assign(cat, fields);
   _notifyChange();
 }
@@ -50,6 +60,10 @@ export function deleteCategory(id) {
 }
 
 export function addLabel(name) {
+  const norm = name.trim().toLowerCase();
+  if (_data.labels.some(l => l.name.toLowerCase() === norm)) {
+    throw new Error(`Label already exists: ${name}`);
+  }
   const lbl = makeLabel(name);
   _data.labels.push(lbl);
   _notifyChange();
@@ -59,6 +73,12 @@ export function addLabel(name) {
 export function updateLabel(id, fields) {
   const lbl = _data.labels.find(l => l.id === id);
   if (!lbl) throw new Error(`Label not found: ${id}`);
+  if (fields.name !== undefined) {
+    const norm = fields.name.trim().toLowerCase();
+    if (_data.labels.some(l => l.id !== id && l.name.toLowerCase() === norm)) {
+      throw new Error(`Label already exists: ${fields.name}`);
+    }
+  }
   Object.assign(lbl, fields);
   _notifyChange();
 }

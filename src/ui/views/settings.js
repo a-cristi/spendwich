@@ -287,6 +287,7 @@ function openCategoryModal(cat) {
     <div class="form-group">
       <label for="cat-name" class="tx-field-label">Name</label>
       <input type="text" id="cat-name" value="${escHtml(cat?.name ?? '')}" placeholder="e.g. Groceries" autocomplete="off">
+      <div class="field-error" id="cat-name-error"></div>
     </div>
     <div class="form-group">
       <span class="tx-field-label">Icon</span>
@@ -317,16 +318,23 @@ function openCategoryModal(cat) {
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.save-btn').addEventListener('click', () => {
     const name = body.querySelector('#cat-name').value.trim();
+    const errEl = body.querySelector('#cat-name-error');
+    errEl.textContent = '';
     if (!name) { body.querySelector('#cat-name').focus(); return; }
-    if (isEdit) {
-      updateCategory(cat.id, { name, icon: selectedIcon });
-      toast('Category updated', 'success');
-    } else {
-      addCategory(name, selectedIcon);
-      toast('Category added', 'success');
+    try {
+      if (isEdit) {
+        updateCategory(cat.id, { name, icon: selectedIcon });
+        toast('Category updated', 'success');
+      } else {
+        addCategory(name, selectedIcon);
+        toast('Category added', 'success');
+      }
+      close();
+      refresh();
+    } catch (e) {
+      errEl.textContent = e.message;
+      body.querySelector('#cat-name').focus();
     }
-    close();
-    refresh();
   });
 
   setTimeout(() => body.querySelector('#cat-name').focus(), 50);
@@ -397,6 +405,7 @@ function openLabelModal(lbl) {
     <div class="form-group">
       <label for="lbl-name" class="tx-field-label">Name</label>
       <input type="text" id="lbl-name" value="${escHtml(lbl?.name ?? '')}" placeholder="e.g. work-trip" autocomplete="off">
+      <div class="field-error" id="lbl-name-error"></div>
     </div>
   `;
 
@@ -410,16 +419,23 @@ function openLabelModal(lbl) {
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.save-btn').addEventListener('click', () => {
     const name = body.querySelector('#lbl-name').value.trim();
+    const errEl = body.querySelector('#lbl-name-error');
+    errEl.textContent = '';
     if (!name) { body.querySelector('#lbl-name').focus(); return; }
-    if (isEdit) {
-      updateLabel(lbl.id, { name });
-      toast('Label updated', 'success');
-    } else {
-      addLabel(name);
-      toast('Label added', 'success');
+    try {
+      if (isEdit) {
+        updateLabel(lbl.id, { name });
+        toast('Label updated', 'success');
+      } else {
+        addLabel(name);
+        toast('Label added', 'success');
+      }
+      close();
+      refresh();
+    } catch (e) {
+      errEl.textContent = e.message;
+      body.querySelector('#lbl-name').focus();
     }
-    close();
-    refresh();
   });
 
   setTimeout(() => body.querySelector('#lbl-name').focus(), 50);
