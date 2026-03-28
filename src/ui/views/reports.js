@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport } from '../../reports.js';
 import { escHtml } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -23,6 +23,10 @@ const _prevMonth = _thisMonth === 1 ? 12 : _thisMonth - 1;
 const _prevYear = _thisMonth === 1 ? _thisYear - 1 : _thisYear;
 let _compareA = { year: _prevYear, month: _prevMonth };
 let _compareB = { year: _thisYear, month: _thisMonth };
+
+let _trendCategoryId = null;
+let _trendCategoryName = '';
+let _trendCategoryIcon = '';
 
 let _chartInstances = [];
 let _fpInstances = [];
@@ -60,6 +64,11 @@ function refresh() {
 
   const data = getData();
   const { defaultCurrency } = data.settings;
+
+  if (_trendCategoryId !== null) {
+    renderCategoryTrend(data, defaultCurrency, main);
+    return;
+  }
 
   if (_reportType === 'compare') {
     let rA, rB;
@@ -162,7 +171,7 @@ function buildReportsSidebar() {
   reportSect.appendChild(makeSegGroup(
     [['summary', 'Summary'], ['compare', 'Compare']],
     _reportType,
-    rt => { _reportType = rt; refresh(); }
+    rt => { _reportType = rt; _trendCategoryId = null; refresh(); }
   ));
   sidebar.appendChild(reportSect);
 
@@ -310,7 +319,8 @@ function buildReportsSidebar() {
   }
   sidebar.appendChild(periodSect);
 
-  // --- Section: View ---
+  // --- Section: View (hidden during trend drill-down) ---
+  if (_trendCategoryId !== null) return sidebar;
   const viewSect = makeSection('View');
   viewSect.appendChild(makeSegGroup(
     [['category', 'Category'], ['label', 'Label']],
@@ -713,11 +723,238 @@ function renderChartAndBreakdown(report, data, currency, container) {
         <span style="display:block;font-size:0.75rem;color:var(--text-muted)">${b.count} transaction${b.count !== 1 ? 's' : ''} &bull; ${pct}%</span>
       </span>
       <span class="${b.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600;flex-shrink:0">${fmt(b.total, currency)}</span>
+      ${isCat ? '<span style="flex-shrink:0;margin-left:0.5rem;color:var(--text-muted);font-size:0.9rem">›</span>' : ''}
     `;
+    if (isCat && b.categoryId) {
+      row.style.cursor = 'pointer';
+      row.addEventListener('click', () => {
+        _trendCategoryId = b.categoryId;
+        _trendCategoryName = name;
+        _trendCategoryIcon = icon;
+        refresh();
+      });
+    }
     list.appendChild(row);
   }
   card.appendChild(list);
   container.appendChild(card);
+}
+
+function trendDateRange(data, categoryId) {
+  if (_mode === 'monthly') {
+    const start = new Date(Date.UTC(_year, _month - 1, 1));
+    const end = new Date(Date.UTC(_year, _month, 0));
+    return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10), granularity: 'daily' };
+  }
+  if (_mode === 'yearly') {
+    return { from: `${_year}-01-01`, to: `${_year}-12-31`, granularity: 'monthly' };
+  }
+  if (_mode === 'custom' && _customStart && _customEnd) {
+    const s = new Date(_customStart + 'T00:00:00Z');
+    const e = new Date(_customEnd + 'T00:00:00Z');
+    const spanMonths = (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + e.getUTCMonth() - s.getUTCMonth();
+    return { from: _customStart, to: _customEnd, granularity: spanMonths >= 36 ? 'quarterly' : 'monthly' };
+  }
+  // all time
+  const catTxs = data.transactions.filter(t => t.categoryId === categoryId);
+  const earliest = catTxs.length > 0 ? catTxs.reduce((min, t) => t.date < min ? t.date : min, catTxs[0].date) : new Date().toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const s = new Date(earliest + 'T00:00:00Z');
+  const e = new Date(today + 'T00:00:00Z');
+  const spanMonths = (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + e.getUTCMonth() - s.getUTCMonth();
+  return { from: earliest, to: today, granularity: spanMonths >= 36 ? 'quarterly' : 'monthly' };
+}
+
+function trendPeriodLabel(from, to, granularity) {
+  const MONTHS = months();
+  if (granularity === 'daily') {
+    const d = new Date(from + 'T00:00:00Z');
+    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  }
+  const sf = new Date(from + 'T00:00:00Z');
+  const st = new Date(to + 'T00:00:00Z');
+  if (sf.getUTCFullYear() === st.getUTCFullYear() && granularity === 'monthly') return `${sf.getUTCFullYear()}`;
+  return `${MONTHS[sf.getUTCMonth()]} ${sf.getUTCFullYear()} – ${MONTHS[st.getUTCMonth()]} ${st.getUTCFullYear()}`;
+}
+
+function trendChartLabel(period, granularity) {
+  if (granularity === 'daily') return period.slice(8);
+  if (granularity === 'quarterly') return period.replace('-', " '").replace(/^(\d{4})/, (_, y) => y.slice(2));
+  const m = parseInt(period.slice(5, 7), 10);
+  const y = period.slice(2, 4);
+  return `${months()[m - 1]} '${y}`;
+}
+
+function computeDynamicComparison(data, categoryId, from, to, granularity, currentTotal) {
+  let prevFrom, prevTo, label;
+  if (_mode === 'monthly') {
+    const d = new Date(Date.UTC(_year, _month - 2, 1));
+    const dEnd = new Date(Date.UTC(_year, _month - 1, 0));
+    prevFrom = d.toISOString().slice(0, 10);
+    prevTo = dEnd.toISOString().slice(0, 10);
+    label = `vs. ${months()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  } else if (_mode === 'yearly') {
+    prevFrom = `${_year - 1}-01-01`;
+    prevTo = `${_year - 1}-12-31`;
+    label = `vs. ${_year - 1}`;
+  } else {
+    const s = new Date(from + 'T00:00:00Z');
+    const e = new Date(to + 'T00:00:00Z');
+    const spanMs = e - s;
+    const ps = new Date(s - spanMs);
+    prevFrom = ps.toISOString().slice(0, 10);
+    prevTo = new Date(s.getTime() - 86400000).toISOString().slice(0, 10);
+    label = `vs. prev. period`;
+  }
+  const prevData = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity);
+  const prevTotal = prevData.reduce((s, b) => s + b.total, 0);
+  if (prevTotal === 0) return { pct: null, label, subtitle: null };
+  const pct = ((currentTotal - prevTotal) / Math.abs(prevTotal)) * 100;
+  let subtitle;
+  if (_mode === 'monthly') {
+    const pd = new Date(prevFrom + 'T00:00:00Z');
+    subtitle = `Compared to ${months()[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
+  } else if (_mode === 'yearly') {
+    subtitle = `Compared to ${_year - 1}`;
+  } else {
+    const pf = new Date(prevFrom + 'T00:00:00Z');
+    const pt = new Date(prevTo + 'T00:00:00Z');
+    subtitle = `Compared to ${months()[pf.getUTCMonth()]} ${pf.getUTCFullYear()} – ${months()[pt.getUTCMonth()]} ${pt.getUTCFullYear()}`;
+  }
+  return { pct, label, subtitle };
+}
+
+function renderCategoryTrend(data, currency, container) {
+  const { from, to, granularity } = trendDateRange(data, _trendCategoryId);
+  const trendData = categoryTrendReport(data, _trendCategoryId, from, to, granularity);
+
+  // --- Header with back button ---
+  const header = document.createElement('div');
+  header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:0.5rem';
+  const left = document.createElement('div');
+  left.style.cssText = 'display:flex;align-items:center;gap:0.75rem';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'btn btn-sm btn-secondary';
+  backBtn.innerHTML = '←';
+  backBtn.title = 'Back to breakdown';
+  backBtn.setAttribute('aria-label', 'Back to breakdown');
+  backBtn.addEventListener('click', () => { _trendCategoryId = null; refresh(); });
+  left.appendChild(backBtn);
+  if (_trendCategoryIcon) {
+    const emojiCircle = document.createElement('span');
+    emojiCircle.style.cssText = 'width:40px;height:40px;background:var(--surface-hover);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.2rem;flex-shrink:0';
+    emojiCircle.textContent = _trendCategoryIcon;
+    left.appendChild(emojiCircle);
+  }
+  const titleEl = document.createElement('span');
+  titleEl.style.cssText = 'font-size:1.25rem;font-weight:700';
+  titleEl.textContent = `${_trendCategoryName} Trends`;
+  left.appendChild(titleEl);
+  header.appendChild(left);
+  const periodLabel = document.createElement('span');
+  periodLabel.style.cssText = 'font-size:0.875rem;color:var(--text-muted);font-weight:500';
+  periodLabel.textContent = trendPeriodLabel(from, to, granularity);
+  header.appendChild(periodLabel);
+  container.appendChild(header);
+
+  if (trendData.length === 0 || trendData.every(b => b.total === 0 && b.count === 0)) {
+    container.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'No transactions for this category in this period.' }));
+    return;
+  }
+
+  // --- Insight cards ---
+  const total = trendData.reduce((s, b) => s + b.total, 0);
+  const nonZeroPeriods = trendData.filter(b => b.count > 0).length;
+  const avgLabel = granularity === 'daily' ? 'Avg. Daily' : granularity === 'quarterly' ? 'Avg. Quarterly' : 'Avg. Monthly';
+  const avg = nonZeroPeriods > 0 ? total / trendData.length : 0;
+
+  const comparison = computeDynamicComparison(data, _trendCategoryId, from, to, granularity, total);
+
+  const totalIsNeg = total < 0;
+  const totalCardClass = totalIsNeg ? 'summary-card-expense' : 'summary-card-income';
+
+  const grid = document.createElement('div');
+  grid.className = 'summary-cards';
+  grid.style.marginBottom = '1.25rem';
+
+  // Card 1: Average
+  grid.innerHTML = `
+    <div class="summary-card">
+      <div class="label">${avgLabel}</div>
+      <div class="value" style="color:var(--primary)">${escHtml(fmt(Math.abs(avg), currency))}</div>
+      <div class="sublabel">${trendData.length} ${granularity === 'daily' ? 'days' : granularity === 'quarterly' ? 'quarters' : 'months'}</div>
+    </div>
+    <div class="summary-card">
+      <div class="label">${escHtml(comparison.label)}</div>
+      ${comparison.pct !== null
+        ? `<div class="value" style="color:var(--primary)">${comparison.pct > 0 ? '↑' : '↓'} ${Math.abs(comparison.pct).toFixed(1)}%</div>
+           <div class="sublabel">${escHtml(comparison.subtitle)}</div>`
+        : '<div class="value" style="color:var(--text-muted)">No History</div><div class="sublabel">&nbsp;</div>'}
+    </div>
+    <div class="summary-card ${totalCardClass}">
+      <div class="label">Total in Period</div>
+      <div class="value">${escHtml(fmt(Math.abs(total), currency))}</div>
+      <div class="sublabel">${nonZeroPeriods} active ${granularity === 'daily' ? 'days' : granularity === 'quarterly' ? 'quarters' : 'months'}</div>
+    </div>
+  `;
+  container.appendChild(grid);
+
+  // --- Line chart ---
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'card';
+  chartWrap.style.cssText = 'padding:1.25rem';
+
+  const chartTitle = document.createElement('div');
+  chartTitle.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px';
+  chartTitle.textContent = granularity === 'daily' ? 'Daily Spending' : granularity === 'quarterly' ? 'Quarterly Spending' : 'Monthly Spending';
+  chartWrap.appendChild(chartTitle);
+
+  const canvas = document.createElement('canvas');
+  canvas.height = 180;
+  chartWrap.appendChild(canvas);
+  container.appendChild(chartWrap);
+
+  const dark = isDark();
+  const lineColor = dark ? '#818cf8' : '#5055d8';
+  const labelColor = dark ? '#9896b8' : '#78716c';
+
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createLinearGradient(0, 0, 0, 180);
+  gradient.addColorStop(0, dark ? 'rgba(129,140,248,0.2)' : 'rgba(80,85,216,0.15)');
+  gradient.addColorStop(1, dark ? 'rgba(129,140,248,0)' : 'rgba(80,85,216,0)');
+
+  const labels = trendData.map(b => trendChartLabel(b.period, granularity));
+  const chartData = trendData.map(b => Math.abs(b.total));
+
+  _chartInstances.push(new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Spending',
+        data: chartData,
+        borderColor: lineColor,
+        backgroundColor: gradient,
+        fill: true,
+        borderWidth: 2.5,
+        tension: 0.4,
+        pointRadius: trendData.length > 60 ? 0 : 4,
+        pointBackgroundColor: lineColor,
+        pointBorderColor: 'transparent',
+        pointHoverRadius: 6,
+      }],
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false }, tooltip: {
+        callbacks: { label: ctx => fmt(ctx.parsed.y, currency) }
+      }},
+      scales: {
+        x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },
+        y: { display: false },
+      },
+    },
+  }));
 }
 
 function fmt(amount, currency) {

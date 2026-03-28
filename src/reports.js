@@ -60,6 +60,48 @@ export function allTimeReport(data) {
   return summarise(txs, data.categories, data.labels);
 }
 
+export function categoryTrendReport(data, categoryId, from, to, granularity) {
+  const end = new Date(to + 'T00:00:00Z');
+  const txs = expandAndFilter(data.transactions, { categoryId, windowEnd: end })
+    .filter(tx => tx.date >= from && tx.date <= to);
+
+  const buckets = new Map();
+  for (const tx of txs) {
+    const key = bucketKey(tx.date, granularity);
+    const b = buckets.get(key) || { total: 0, count: 0 };
+    b.total += tx.amountInDefault;
+    b.count++;
+    buckets.set(key, b);
+  }
+
+  const results = [];
+  const cursor = new Date(from + 'T00:00:00Z');
+  const endD = new Date(to + 'T00:00:00Z');
+  while (cursor <= endD) {
+    const key = bucketKey(cursor.toISOString().slice(0, 10), granularity);
+    if (results.length === 0 || results[results.length - 1].period !== key) {
+      const b = buckets.get(key) || { total: 0, count: 0 };
+      results.push({ period: key, total: b.total, count: b.count });
+    }
+    if (granularity === 'daily') {
+      cursor.setUTCDate(cursor.getUTCDate() + 1);
+    } else if (granularity === 'monthly') {
+      cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    } else {
+      cursor.setUTCMonth(cursor.getUTCMonth() + 3);
+    }
+  }
+  return results;
+}
+
+function bucketKey(dateStr, granularity) {
+  if (granularity === 'daily') return dateStr;
+  const y = dateStr.slice(0, 4);
+  const m = parseInt(dateStr.slice(5, 7), 10);
+  if (granularity === 'monthly') return `${y}-${String(m).padStart(2, '0')}`;
+  return `${y}-Q${Math.ceil(m / 3)}`;
+}
+
 export function cashFlowReport(data, from, to) {
   const results = [];
   let cursor = new Date(from + 'T00:00:00Z');

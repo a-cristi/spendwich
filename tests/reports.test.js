@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -187,4 +187,73 @@ test('report transactions are sorted by date', () => {
   const r = monthlyReport(makeData(txs), 2026, 1);
   const dates = r.transactions.map(t => t.date);
   assert.deepEqual(dates, ['2026-01-05', '2026-01-10', '2026-01-20']);
+});
+
+// --- categoryTrendReport ---
+
+test('categoryTrendReport monthly: groups by month with gap-filling', () => {
+  const cat = { id: 'cat-1', name: 'Streaming', icon: '🍿' };
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -15, categoryId: 'cat-1' }),
+    makeTx({ date: '2026-01-20', amountInDefault: -10, categoryId: 'cat-1' }),
+    makeTx({ date: '2026-03-05', amountInDefault: -20, categoryId: 'cat-1' }),
+  ];
+  const r = categoryTrendReport(makeData(txs, [cat]), 'cat-1', '2026-01-01', '2026-03-31', 'monthly');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-01');
+  assert.equal(r[0].total, -25);
+  assert.equal(r[0].count, 2);
+  assert.equal(r[1].period, '2026-02');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[1].count, 0);
+  assert.equal(r[2].period, '2026-03');
+  assert.equal(r[2].total, -20);
+  assert.equal(r[2].count, 1);
+});
+
+test('categoryTrendReport daily: one entry per day', () => {
+  const txs = [
+    makeTx({ date: '2026-01-01', amountInDefault: -5, categoryId: 'c1' }),
+    makeTx({ date: '2026-01-03', amountInDefault: -10, categoryId: 'c1' }),
+  ];
+  const r = categoryTrendReport(makeData(txs), 'c1', '2026-01-01', '2026-01-03', 'daily');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-01-01');
+  assert.equal(r[0].total, -5);
+  assert.equal(r[1].period, '2026-01-02');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[2].period, '2026-01-03');
+  assert.equal(r[2].total, -10);
+});
+
+test('categoryTrendReport quarterly: groups into Q1-Q4', () => {
+  const txs = [
+    makeTx({ date: '2026-02-15', amountInDefault: -30, categoryId: 'c1' }),
+    makeTx({ date: '2026-07-10', amountInDefault: -50, categoryId: 'c1' }),
+  ];
+  const r = categoryTrendReport(makeData(txs), 'c1', '2026-01-01', '2026-09-30', 'quarterly');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-Q1');
+  assert.equal(r[0].total, -30);
+  assert.equal(r[1].period, '2026-Q2');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[2].period, '2026-Q3');
+  assert.equal(r[2].total, -50);
+});
+
+test('categoryTrendReport filters to specified category only', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -15, categoryId: 'cat-a' }),
+    makeTx({ date: '2026-01-15', amountInDefault: -99, categoryId: 'cat-b' }),
+  ];
+  const r = categoryTrendReport(makeData(txs), 'cat-a', '2026-01-01', '2026-01-31', 'monthly');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].total, -15);
+  assert.equal(r[0].count, 1);
+});
+
+test('categoryTrendReport returns empty array for no matching data', () => {
+  const r = categoryTrendReport(makeData([]), 'nonexistent', '2026-01-01', '2026-03-31', 'monthly');
+  assert.equal(r.length, 3);
+  assert.ok(r.every(b => b.total === 0 && b.count === 0));
 });
