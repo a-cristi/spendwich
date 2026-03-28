@@ -964,7 +964,14 @@ function renderCategoryTrend(data, currency, container) {
       }},
       scales: {
         x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },
-        y: { display: false, grace: '10%' },
+        y: {
+          position: 'right',
+          border: { display: false },
+          grid: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', drawTicks: false },
+          ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => fmtCompact(v, currency) },
+          grace: '10%',
+          beginAtZero: true,
+        },
       },
     },
   }));
@@ -975,6 +982,14 @@ function fmt(amount, currency) {
     return new Intl.NumberFormat(undefined, { style: 'currency', currency }).format(amount);
   } catch {
     return `${amount.toFixed(2)} ${currency}`;
+  }
+}
+
+function fmtCompact(amount, currency) {
+  try {
+    return new Intl.NumberFormat(undefined, { style: 'currency', currency, notation: 'compact', maximumFractionDigits: 1 }).format(amount);
+  } catch {
+    return amount >= 1000 ? `${(amount / 1000).toFixed(1)}K` : String(Math.round(amount));
   }
 }
 
