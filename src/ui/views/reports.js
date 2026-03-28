@@ -964,7 +964,7 @@ function renderCategoryTrend(data, currency, container) {
       }},
       scales: {
         x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },
-        y: { display: false },
+        y: { display: false, grace: '10%' },
       },
     },
   }));
