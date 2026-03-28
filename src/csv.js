@@ -1,6 +1,5 @@
 import { makeCategory, makeLabel, makeTransaction } from './schema.js';
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const REQUIRED_COLS = ['date', 'amount', 'currency', 'category', 'description'];
 
 export function parseCSV(text) {
@@ -75,9 +74,14 @@ export function importTransactions(csvText, data) {
   rows.forEach((row, idx) => {
     const rowNum = idx + 2;
 
-    if (!DATE_RE.test(row.date)) {
-      throw new Error(`Row ${rowNum}: invalid date "${row.date}" (expected YYYY-MM-DD)`);
+    const parsed = new Date(row.date);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Row ${rowNum}: invalid date "${row.date}"`);
     }
+    const yyyy = parsed.getFullYear();
+    const mm = String(parsed.getMonth() + 1).padStart(2, '0');
+    const dd = String(parsed.getDate()).padStart(2, '0');
+    row.date = `${yyyy}-${mm}-${dd}`;
 
     const amount = Number(row.amount);
     if (isNaN(amount)) {

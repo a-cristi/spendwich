@@ -82,8 +82,14 @@ test('importTransactions: throws on missing required column', () => {
 });
 
 test('importTransactions: throws on invalid date with row number', () => {
-  const csv = 'date,amount,currency,category,description\n01/15/2026,-10,USD,Food,Test';
+  const csv = 'date,amount,currency,category,description\nnot-a-date,-10,USD,Food,Test';
   assert.throws(() => importTransactions(csv, emptyData()), /Row 2.*invalid date/);
+});
+
+test('importTransactions: normalizes ISO datetime to YYYY-MM-DD', () => {
+  const csv = 'date,amount,currency,category,description\n2026-02-13T12:32:55+00:00,-10,USD,Food,Test';
+  const result = importTransactions(csv, emptyData());
+  assert.strictEqual(result.transactions[0].date, '2026-02-13');
 });
 
 test('importTransactions: throws on invalid amount with row number', () => {
