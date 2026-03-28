@@ -923,7 +923,6 @@ function renderCategoryTrend(data, currency, container) {
   // Compute income data for pct mode
   let incomeData = null;
   let rawPcts = null;
-  const PCT_CEILING = 100;
   if (pctMode) {
     incomeData = incomeTrendReport(data, from, to, granularity);
     rawPcts = trendData.map((b, i) => {
@@ -987,36 +986,37 @@ function renderCategoryTrend(data, currency, container) {
   `;
   container.appendChild(grid);
 
-  // --- Value / % of Income toggle (expense categories only) ---
+  // --- Line chart ---
+  const chartWrap = document.createElement('div');
+  chartWrap.className = 'card';
+  chartWrap.style.cssText = 'padding:1.25rem';
+
+  const chartHeader = document.createElement('div');
+  chartHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem';
+
+  const chartTitle = document.createElement('div');
+  chartTitle.style.cssText = 'font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px';
+  if (pctMode) {
+    chartTitle.textContent = granularity === 'daily' ? 'Daily % of Income' : granularity === 'quarterly' ? 'Quarterly % of Income' : 'Monthly % of Income';
+  } else {
+    chartTitle.textContent = granularity === 'daily' ? 'Daily Spending' : granularity === 'quarterly' ? 'Quarterly Spending' : 'Monthly Spending';
+  }
+  chartHeader.appendChild(chartTitle);
+
   if (isExpenseCat) {
-    const toggleWrap = document.createElement('div');
-    toggleWrap.style.cssText = 'margin-bottom:1rem;display:flex;justify-content:flex-start';
     const seg = document.createElement('div');
     seg.className = 'seg-group';
-    for (const [label, val] of [['Value', false], ['% of Income', true]]) {
+    for (const [label, val] of [['Value', false], ['% Inc', true]]) {
       const btn = document.createElement('button');
       btn.className = 'btn btn-sm' + (val === _trendPctMode ? ' btn-primary' : ' btn-secondary');
       btn.textContent = label;
       btn.addEventListener('click', () => { _trendPctMode = val; refresh(); });
       seg.appendChild(btn);
     }
-    toggleWrap.appendChild(seg);
-    container.appendChild(toggleWrap);
+    chartHeader.appendChild(seg);
   }
 
-  // --- Line chart ---
-  const chartWrap = document.createElement('div');
-  chartWrap.className = 'card';
-  chartWrap.style.cssText = 'padding:1.25rem';
-
-  const chartTitle = document.createElement('div');
-  chartTitle.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px';
-  if (pctMode) {
-    chartTitle.textContent = granularity === 'daily' ? 'Daily % of Income' : granularity === 'quarterly' ? 'Quarterly % of Income' : 'Monthly % of Income';
-  } else {
-    chartTitle.textContent = granularity === 'daily' ? 'Daily Spending' : granularity === 'quarterly' ? 'Quarterly Spending' : 'Monthly Spending';
-  }
-  chartWrap.appendChild(chartTitle);
+  chartWrap.appendChild(chartHeader);
 
   const canvas = document.createElement('canvas');
   canvas.height = 180;
@@ -1035,12 +1035,17 @@ function renderCategoryTrend(data, currency, container) {
 
   const labels = trendData.map(b => trendChartLabel(b.period, granularity));
 
-  let chartData, spikeIndices, ceilingIndices;
+  let chartData, spikeIndices, ceilingIndices, pctCeiling;
   if (pctMode) {
-    const clampedPcts = rawPcts.map(p => Math.min(p, PCT_CEILING));
+    const finitePcts = rawPcts.filter(p => p !== Infinity);
+    const maxPct = finitePcts.length > 0 ? Math.max(...finitePcts) : 0;
+    const steps = [25, 50, 75, 100, 150, 200];
+    pctCeiling = steps.find(s => s >= maxPct * 1.15) || Math.ceil(maxPct * 1.15 / 50) * 50;
+    const clampCeil = Math.max(pctCeiling, 100);
+    const clampedPcts = rawPcts.map(p => Math.min(p, clampCeil));
     chartData = clampedPcts;
-    ceilingIndices = new Set(rawPcts.map((p, i) => p > PCT_CEILING ? i : -1).filter(i => i !== -1));
-    const forSpikes = rawPcts.map(p => p === Infinity ? PCT_CEILING : p);
+    ceilingIndices = new Set(rawPcts.map((p, i) => p > clampCeil ? i : -1).filter(i => i !== -1));
+    const forSpikes = rawPcts.map(p => p === Infinity ? clampCeil : Math.min(p, clampCeil));
     spikeIndices = new Set([...detectSpikes(forSpikes), ...ceilingIndices]);
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
@@ -1076,7 +1081,7 @@ function renderCategoryTrend(data, currency, container) {
   const yScale = pctMode
     ? {
         position: 'right',
-        min: 0, max: 100,
+        min: 0, max: pctCeiling,
         border: { display: false },
         grid: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', drawTicks: false },
         ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => v + '%' },
