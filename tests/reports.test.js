@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes, incomeTrendReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -283,4 +283,43 @@ test('detectSpikes: sensitivity adjusts threshold', () => {
 
 test('detectSpikes: empty array returns empty', () => {
   assert.deepEqual(detectSpikes([]), []);
+});
+
+// --- incomeTrendReport ---
+
+test('incomeTrendReport monthly: returns income per month with gap-filling', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: 3000 }),
+    makeTx({ date: '2026-01-20', amountInDefault: 500 }),
+    makeTx({ date: '2026-03-05', amountInDefault: 3000 }),
+  ];
+  const r = incomeTrendReport(makeData(txs), '2026-01-01', '2026-03-31', 'monthly');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-01');
+  assert.equal(r[0].income, 3500);
+  assert.equal(r[1].period, '2026-02');
+  assert.equal(r[1].income, 0);
+  assert.equal(r[2].period, '2026-03');
+  assert.equal(r[2].income, 3000);
+});
+
+test('incomeTrendReport monthly: ignores expense transactions', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: 3000 }),
+    makeTx({ date: '2026-01-15', amountInDefault: -200 }),
+  ];
+  const r = incomeTrendReport(makeData(txs), '2026-01-01', '2026-01-31', 'monthly');
+  assert.equal(r[0].income, 3000);
+});
+
+test('incomeTrendReport daily: spreads total period income to every day', () => {
+  const txs = [
+    makeTx({ date: '2026-01-01', amountInDefault: 3000 }),
+    makeTx({ date: '2026-01-15', amountInDefault: -200 }),
+  ];
+  const r = incomeTrendReport(makeData(txs), '2026-01-01', '2026-01-03', 'daily');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].income, 3000);
+  assert.equal(r[1].income, 3000);
+  assert.equal(r[2].income, 3000);
 });

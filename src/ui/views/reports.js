@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes, incomeTrendReport } from '../../reports.js';
 import { escHtml } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -27,6 +27,7 @@ let _compareB = { year: _thisYear, month: _thisMonth };
 let _trendCategoryId = null;
 let _trendCategoryName = '';
 let _trendCategoryIcon = '';
+let _trendPctMode = false;
 
 let _chartInstances = [];
 let _fpInstances = [];
@@ -171,7 +172,7 @@ function buildReportsSidebar() {
   reportSect.appendChild(makeSegGroup(
     [['summary', 'Summary'], ['compare', 'Compare']],
     _reportType,
-    rt => { _reportType = rt; _trendCategoryId = null; refresh(); }
+    rt => { _reportType = rt; _trendCategoryId = null; _trendPctMode = false; refresh(); }
   ));
   sidebar.appendChild(reportSect);
 
@@ -731,6 +732,7 @@ function renderChartAndBreakdown(report, data, currency, container) {
         _trendCategoryId = b.categoryId;
         _trendCategoryName = name;
         _trendCategoryIcon = icon;
+        _trendPctMode = false;
         refresh();
       });
     }
@@ -824,6 +826,55 @@ function computeDynamicComparison(data, categoryId, from, to, granularity, curre
   return { pct, label, subtitle };
 }
 
+function computePctComparison(data, categoryId, from, to, granularity, currentRawPcts) {
+  let prevFrom, prevTo, label;
+  if (_mode === 'monthly') {
+    const d = new Date(Date.UTC(_year, _month - 2, 1));
+    const dEnd = new Date(Date.UTC(_year, _month - 1, 0));
+    prevFrom = d.toISOString().slice(0, 10);
+    prevTo = dEnd.toISOString().slice(0, 10);
+    label = `vs. ${months()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+  } else if (_mode === 'yearly') {
+    prevFrom = `${_year - 1}-01-01`;
+    prevTo = `${_year - 1}-12-31`;
+    label = `vs. ${_year - 1}`;
+  } else {
+    const s = new Date(from + 'T00:00:00Z');
+    const e = new Date(to + 'T00:00:00Z');
+    const spanMs = e - s;
+    const ps = new Date(s - spanMs);
+    prevFrom = ps.toISOString().slice(0, 10);
+    prevTo = new Date(s.getTime() - 86400000).toISOString().slice(0, 10);
+    label = `vs. prev. period`;
+  }
+  const validCur = currentRawPcts.filter(p => p !== Infinity);
+  const curAvg = validCur.length > 0 ? validCur.reduce((a, b) => a + b, 0) / validCur.length : null;
+
+  const prevCat = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity);
+  const prevInc = incomeTrendReport(data, prevFrom, prevTo, granularity);
+  const prevRawPcts = prevCat.map((b, i) => {
+    const inc = prevInc[i].income;
+    return inc > 0 ? Math.abs(b.total) / inc * 100 : Infinity;
+  });
+  const validPrev = prevRawPcts.filter(p => p !== Infinity);
+  const prevAvg = validPrev.length > 0 ? validPrev.reduce((a, b) => a + b, 0) / validPrev.length : null;
+
+  if (curAvg === null || prevAvg === null) return { pp: null, label, subtitle: null };
+  const pp = curAvg - prevAvg;
+  let subtitle;
+  if (_mode === 'monthly') {
+    const pd = new Date(prevFrom + 'T00:00:00Z');
+    subtitle = `Compared to ${months()[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
+  } else if (_mode === 'yearly') {
+    subtitle = `Compared to ${_year - 1}`;
+  } else {
+    const pf = new Date(prevFrom + 'T00:00:00Z');
+    const pt = new Date(prevTo + 'T00:00:00Z');
+    subtitle = `Compared to ${months()[pf.getUTCMonth()]} ${pf.getUTCFullYear()} – ${months()[pt.getUTCMonth()]} ${pt.getUTCFullYear()}`;
+  }
+  return { pp, label, subtitle };
+}
+
 function renderCategoryTrend(data, currency, container) {
   const { from, to, granularity } = trendDateRange(data, _trendCategoryId);
   const trendData = categoryTrendReport(data, _trendCategoryId, from, to, granularity);
@@ -838,7 +889,7 @@ function renderCategoryTrend(data, currency, container) {
   backBtn.innerHTML = '←';
   backBtn.title = 'Back to breakdown';
   backBtn.setAttribute('aria-label', 'Back to breakdown');
-  backBtn.addEventListener('click', () => { _trendCategoryId = null; refresh(); });
+  backBtn.addEventListener('click', () => { _trendCategoryId = null; _trendPctMode = false; refresh(); });
   left.appendChild(backBtn);
   if (_trendCategoryIcon) {
     const emojiCircle = document.createElement('span');
@@ -865,39 +916,93 @@ function renderCategoryTrend(data, currency, container) {
   // --- Insight cards ---
   const total = trendData.reduce((s, b) => s + b.total, 0);
   const nonZeroPeriods = trendData.filter(b => b.count > 0).length;
-  const avgLabel = granularity === 'daily' ? 'Avg. Daily' : granularity === 'quarterly' ? 'Avg. Quarterly' : 'Avg. Monthly';
-  const avg = nonZeroPeriods > 0 ? total / trendData.length : 0;
+  const isExpenseCat = total < 0;
+  const pctMode = _trendPctMode && isExpenseCat;
+  const periodWord = granularity === 'daily' ? 'days' : granularity === 'quarterly' ? 'quarters' : 'months';
 
-  const comparison = computeDynamicComparison(data, _trendCategoryId, from, to, granularity, total);
+  // Compute income data for pct mode
+  let incomeData = null;
+  let rawPcts = null;
+  const PCT_CEILING = 100;
+  if (pctMode) {
+    incomeData = incomeTrendReport(data, from, to, granularity);
+    rawPcts = trendData.map((b, i) => {
+      const inc = incomeData[i].income;
+      return inc > 0 ? Math.abs(b.total) / inc * 100 : Infinity;
+    });
+  }
 
-  const totalIsNeg = total < 0;
-  const totalCardClass = totalIsNeg ? 'summary-card-expense' : 'summary-card-income';
+  const avgLabel = pctMode
+    ? (granularity === 'daily' ? 'Avg. Daily % of Inc.' : granularity === 'quarterly' ? 'Avg. Quarterly % of Inc.' : 'Avg. Monthly % of Inc.')
+    : (granularity === 'daily' ? 'Avg. Daily' : granularity === 'quarterly' ? 'Avg. Quarterly' : 'Avg. Monthly');
+
+  let avgValue, comparisonHtml;
+  if (pctMode) {
+    const validPcts = rawPcts.filter(p => p !== Infinity);
+    const avgPct = validPcts.length > 0 ? validPcts.reduce((a, b) => a + b, 0) / validPcts.length : 0;
+    avgValue = `<div class="value" style="color:var(--primary)">${avgPct.toFixed(1)}%</div>`;
+
+    const comparison = computePctComparison(data, _trendCategoryId, from, to, granularity, rawPcts);
+    comparisonHtml = `
+      <div class="summary-card">
+        <div class="label">${escHtml(comparison.label)}</div>
+        ${comparison.pp !== null
+          ? `<div class="value" style="color:var(--primary)">${comparison.pp > 0 ? '↑' : '↓'} ${Math.abs(comparison.pp).toFixed(1)}pp</div>
+             <div class="sublabel">${escHtml(comparison.subtitle)}</div>`
+          : '<div class="value" style="color:var(--text-muted)">No History</div><div class="sublabel">&nbsp;</div>'}
+      </div>`;
+  } else {
+    const avg = nonZeroPeriods > 0 ? total / trendData.length : 0;
+    avgValue = `<div class="value" style="color:var(--primary)">${escHtml(fmt(Math.abs(avg), currency))}</div>`;
+
+    const comparison = computeDynamicComparison(data, _trendCategoryId, from, to, granularity, total);
+    comparisonHtml = `
+      <div class="summary-card">
+        <div class="label">${escHtml(comparison.label)}</div>
+        ${comparison.pct !== null
+          ? `<div class="value" style="color:var(--primary)">${comparison.pct > 0 ? '↑' : '↓'} ${Math.abs(comparison.pct).toFixed(1)}%</div>
+             <div class="sublabel">${escHtml(comparison.subtitle)}</div>`
+          : '<div class="value" style="color:var(--text-muted)">No History</div><div class="sublabel">&nbsp;</div>'}
+      </div>`;
+  }
+
+  const totalCardClass = isExpenseCat ? 'summary-card-expense' : 'summary-card-income';
 
   const grid = document.createElement('div');
   grid.className = 'summary-cards';
   grid.style.marginBottom = '1.25rem';
 
-  // Card 1: Average
   grid.innerHTML = `
     <div class="summary-card">
       <div class="label">${avgLabel}</div>
-      <div class="value" style="color:var(--primary)">${escHtml(fmt(Math.abs(avg), currency))}</div>
-      <div class="sublabel">${trendData.length} ${granularity === 'daily' ? 'days' : granularity === 'quarterly' ? 'quarters' : 'months'}</div>
+      ${avgValue}
+      <div class="sublabel">${trendData.length} ${periodWord}</div>
     </div>
-    <div class="summary-card">
-      <div class="label">${escHtml(comparison.label)}</div>
-      ${comparison.pct !== null
-        ? `<div class="value" style="color:var(--primary)">${comparison.pct > 0 ? '↑' : '↓'} ${Math.abs(comparison.pct).toFixed(1)}%</div>
-           <div class="sublabel">${escHtml(comparison.subtitle)}</div>`
-        : '<div class="value" style="color:var(--text-muted)">No History</div><div class="sublabel">&nbsp;</div>'}
-    </div>
+    ${comparisonHtml}
     <div class="summary-card ${totalCardClass}">
       <div class="label">Total in Period</div>
       <div class="value">${escHtml(fmt(Math.abs(total), currency))}</div>
-      <div class="sublabel">${nonZeroPeriods} active ${granularity === 'daily' ? 'days' : granularity === 'quarterly' ? 'quarters' : 'months'}</div>
+      <div class="sublabel">${nonZeroPeriods} active ${periodWord}</div>
     </div>
   `;
   container.appendChild(grid);
+
+  // --- Value / % of Income toggle (expense categories only) ---
+  if (isExpenseCat) {
+    const toggleWrap = document.createElement('div');
+    toggleWrap.style.cssText = 'margin-bottom:1rem;display:flex;justify-content:flex-start';
+    const seg = document.createElement('div');
+    seg.className = 'seg-group';
+    for (const [label, val] of [['Value', false], ['% of Income', true]]) {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-sm' + (val === _trendPctMode ? ' btn-primary' : ' btn-secondary');
+      btn.textContent = label;
+      btn.addEventListener('click', () => { _trendPctMode = val; refresh(); });
+      seg.appendChild(btn);
+    }
+    toggleWrap.appendChild(seg);
+    container.appendChild(toggleWrap);
+  }
 
   // --- Line chart ---
   const chartWrap = document.createElement('div');
@@ -906,7 +1011,11 @@ function renderCategoryTrend(data, currency, container) {
 
   const chartTitle = document.createElement('div');
   chartTitle.style.cssText = 'font-size:0.75rem;color:var(--text-muted);margin-bottom:0.75rem;font-weight:600;text-transform:uppercase;letter-spacing:0.5px';
-  chartTitle.textContent = granularity === 'daily' ? 'Daily Spending' : granularity === 'quarterly' ? 'Quarterly Spending' : 'Monthly Spending';
+  if (pctMode) {
+    chartTitle.textContent = granularity === 'daily' ? 'Daily % of Income' : granularity === 'quarterly' ? 'Quarterly % of Income' : 'Monthly % of Income';
+  } else {
+    chartTitle.textContent = granularity === 'daily' ? 'Daily Spending' : granularity === 'quarterly' ? 'Quarterly Spending' : 'Monthly Spending';
+  }
   chartWrap.appendChild(chartTitle);
 
   const canvas = document.createElement('canvas');
@@ -917,6 +1026,7 @@ function renderCategoryTrend(data, currency, container) {
   const dark = isDark();
   const lineColor = dark ? '#818cf8' : '#5055d8';
   const labelColor = dark ? '#9896b8' : '#78716c';
+  const roseColor = dark ? '#fb7185' : '#b91c1c';
 
   const ctx = canvas.getContext('2d');
   const gradient = ctx.createLinearGradient(0, 0, 0, 180);
@@ -924,24 +1034,68 @@ function renderCategoryTrend(data, currency, container) {
   gradient.addColorStop(1, dark ? 'rgba(129,140,248,0)' : 'rgba(80,85,216,0)');
 
   const labels = trendData.map(b => trendChartLabel(b.period, granularity));
-  const chartData = trendData.map(b => Math.abs(b.total));
 
-  const spikeIndices = new Set(detectSpikes(chartData));
+  let chartData, spikeIndices, ceilingIndices;
+  if (pctMode) {
+    const clampedPcts = rawPcts.map(p => Math.min(p, PCT_CEILING));
+    chartData = clampedPcts;
+    ceilingIndices = new Set(rawPcts.map((p, i) => p > PCT_CEILING ? i : -1).filter(i => i !== -1));
+    const forSpikes = rawPcts.map(p => p === Infinity ? PCT_CEILING : p);
+    spikeIndices = new Set([...detectSpikes(forSpikes), ...ceilingIndices]);
+  } else {
+    chartData = trendData.map(b => Math.abs(b.total));
+    ceilingIndices = new Set();
+    spikeIndices = new Set(detectSpikes(chartData));
+  }
+
   const defaultRadius = trendData.length > 60 ? 0 : 4;
   const pointRadii = chartData.map((_, i) => spikeIndices.has(i) ? 7 : defaultRadius);
   const pointColors = chartData.map((_, i) => {
+    if (ceilingIndices.has(i)) return roseColor;
     if (!spikeIndices.has(i)) return lineColor;
     return trendData[i].total < 0
-      ? (dark ? '#fb7185' : '#b91c1c')
+      ? roseColor
       : (dark ? '#4ade80' : '#15803d');
   });
+
+  const tooltipCb = pctMode
+    ? (ctx => {
+        const idx = ctx.dataIndex;
+        if (ceilingIndices.has(idx)) {
+          const amt = fmt(Math.abs(trendData[idx].total), currency);
+          return incomeData[idx].income === 0 ? `${amt} (No Income)` : `${amt} (Funded by Savings)`;
+        }
+        const pctVal = rawPcts[idx].toFixed(1) + '%';
+        return spikeIndices.has(idx) ? `${pctVal} (Spike)` : pctVal;
+      })
+    : (ctx => {
+        const val = fmt(ctx.parsed.y, currency);
+        return spikeIndices.has(ctx.dataIndex) ? `${val} (Spike)` : val;
+      });
+
+  const yScale = pctMode
+    ? {
+        position: 'right',
+        min: 0, max: 100,
+        border: { display: false },
+        grid: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', drawTicks: false },
+        ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => v + '%' },
+      }
+    : {
+        position: 'right',
+        border: { display: false },
+        grid: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', drawTicks: false },
+        ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => fmtCompact(v, currency) },
+        grace: '10%',
+        beginAtZero: true,
+      };
 
   _chartInstances.push(new Chart(ctx, {
     type: 'line',
     data: {
       labels,
       datasets: [{
-        label: 'Spending',
+        label: pctMode ? '% of Income' : 'Spending',
         data: chartData,
         borderColor: lineColor,
         backgroundColor: gradient,
@@ -957,21 +1111,11 @@ function renderCategoryTrend(data, currency, container) {
     options: {
       responsive: true,
       plugins: { legend: { display: false }, tooltip: {
-        callbacks: { label: ctx => {
-          const val = fmt(ctx.parsed.y, currency);
-          return spikeIndices.has(ctx.dataIndex) ? `${val} (Spike)` : val;
-        }}
+        callbacks: { label: tooltipCb }
       }},
       scales: {
         x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },
-        y: {
-          position: 'right',
-          border: { display: false },
-          grid: { color: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)', drawTicks: false },
-          ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => fmtCompact(v, currency) },
-          grace: '10%',
-          beginAtZero: true,
-        },
+        y: yScale,
       },
     },
   }));
