@@ -30,6 +30,9 @@ let _month = new Date().getMonth() + 1;
 let _customStart = '';
 let _customEnd = '';
 let _page = 0;
+let _filtersExpanded = false;
+let _catPanelOpen = false;
+let _catSearch = '';
 const PAGE_SIZE = 100;
 
 export function render(container) {
@@ -53,7 +56,13 @@ function getDateRange() {
   return { start: null, end: null };
 }
 
+function _closeTxMenus(e) {
+  if (e && e.target.closest('.tx-menu-trigger')) return;
+  document.querySelectorAll('.tx-action-menu.active').forEach(m => m.classList.remove('active'));
+}
+
 function refresh() {
+  document.removeEventListener('click', _closeTxMenus);
   _fpInstances.forEach(fp => fp.destroy());
   _fpInstances = [];
   const data = getData();
@@ -63,7 +72,10 @@ function refresh() {
   const header = document.createElement('div');
   header.className = 'page-header';
   header.innerHTML = `
-    <h1>Transactions</h1>
+    <div class="page-title-block">
+      <h1>Transactions</h1>
+      <p class="page-subtitle">Your financial timeline</p>
+    </div>
     <div style="display:flex;gap:0.5rem;flex-wrap:wrap">
       <button class="btn btn-sm btn-secondary" id="import-csv-btn">Import CSV</button>
       <button class="btn btn-sm btn-secondary" id="export-btn">Export JSON</button>
@@ -76,11 +88,10 @@ function refresh() {
   layout.className = 'view-layout';
   _container.appendChild(layout);
 
-  layout.appendChild(buildSidebar(data));
+  const sidebar = buildSidebar(data);
 
   const main = document.createElement('div');
   main.className = 'view-main';
-  layout.appendChild(main);
 
   const range = getDateRange();
   const windowEnd = range.end
@@ -103,31 +114,49 @@ function refresh() {
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
   const { defaultCurrency } = data.settings;
 
+  let summaryCards = null;
   if (txs.length > 0) {
     const income   = txs.reduce((s, t) => t.amountInDefault > 0 ? s + t.amountInDefault : s, 0);
     const expenses = txs.reduce((s, t) => t.amountInDefault < 0 ? s + t.amountInDefault : s, 0);
     const net = income + expenses;
-    const netCls = net >= 0 ? 'amount-income' : 'amount-expense';
-    const netSign = net >= 0 ? '+' : '-';
+    const netCardCls = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
+    const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
+    const netSign = net >= 0 ? '+' : '';
 
-    const summaryBar = document.createElement('div');
-    summaryBar.className = 'summary-bar';
-    summaryBar.innerHTML = `
-      <div class="summary-bar-item">
-        <span class="summary-bar-label">Income</span>
-        <span class="summary-bar-value amount-income">+${escHtml(formatAmount(income, defaultCurrency))}</span>
+    summaryCards = document.createElement('div');
+    summaryCards.className = 'summary-cards';
+    summaryCards.innerHTML = `
+      <div class="summary-card summary-card-income">
+        <div class="label">Income</div>
+        <div class="value">+${escHtml(formatAmount(income, defaultCurrency))}</div>
+        <div class="sublabel">this period</div>
       </div>
-      <div class="summary-bar-item">
-        <span class="summary-bar-label">Expenses</span>
-        <span class="summary-bar-value amount-expense">-${escHtml(formatAmount(Math.abs(expenses), defaultCurrency))}</span>
+      <div class="summary-card summary-card-expense">
+        <div class="label">Expenses</div>
+        <div class="value">${escHtml(formatAmount(Math.abs(expenses), defaultCurrency))}</div>
+        <div class="sublabel">this period</div>
       </div>
-      <div class="summary-bar-item">
-        <span class="summary-bar-label">Net</span>
-        <span class="summary-bar-value ${netCls}">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span>
+      <div class="summary-card ${netCardCls}">
+        <div class="label">Net</div>
+        <div class="value ${netValueCls}">${netSign}${escHtml(formatAmount(net, defaultCurrency))}</div>
+        <div class="sublabel">${net >= 0 ? 'positive balance' : 'negative balance'}</div>
       </div>
     `;
-    main.appendChild(summaryBar);
   }
+
+  const isMobile = window.matchMedia('(max-width: 600px)').matches;
+  if (isMobile) {
+    const stickyHeader = document.createElement('div');
+    stickyHeader.className = 'tx-sticky-header';
+    stickyHeader.appendChild(sidebar);
+    if (summaryCards) stickyHeader.appendChild(summaryCards);
+    layout.appendChild(stickyHeader);
+  } else {
+    layout.appendChild(sidebar);
+    if (summaryCards) main.appendChild(summaryCards);
+  }
+
+  layout.appendChild(main);
 
   const list = document.createElement('div');
   list.className = 'list';
@@ -191,14 +220,18 @@ function refresh() {
     renderGrouped(list, groupByLabel(txs, data.labels), 'label', catMap, lblMap, defaultCurrency, data);
   }
 
-  if (_viewMode === 'by-label') {
-    const note = document.createElement('p');
-    note.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem';
-    note.textContent = 'Transactions with multiple labels appear in each group — totals may overlap.';
-    main.appendChild(note);
+  if (txs.length > 0) {
+    if (_viewMode === 'by-label') {
+      const note = document.createElement('p');
+      note.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.5rem';
+      note.textContent = 'Transactions with multiple labels appear in each group — totals may overlap.';
+      main.appendChild(note);
+    }
+    const listCard = document.createElement('div');
+    listCard.className = 'tx-list-card';
+    listCard.appendChild(list);
+    main.appendChild(listCard);
   }
-
-  main.appendChild(list);
 
   header.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
   header.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
@@ -209,9 +242,55 @@ function refresh() {
     const a = document.createElement('a');
     a.href = url;
     a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
+
+  // Populate nav overflow menu on mobile
+  const overflowMenu = document.querySelector('.nav-overflow-menu');
+  const overflowTrigger = document.querySelector('.nav-overflow-trigger');
+  if (overflowMenu) {
+    overflowMenu.innerHTML = '';
+    if (overflowTrigger) overflowTrigger.style.display = '';
+    const importItem = document.createElement('button');
+    importItem.className = 'nav-overflow-item';
+    importItem.textContent = 'Import CSV';
+    importItem.addEventListener('click', () => {
+      overflowMenu.classList.remove('active');
+      openCsvImport(getData());
+    });
+    const exportItem = document.createElement('button');
+    exportItem.className = 'nav-overflow-item';
+    exportItem.textContent = 'Export JSON';
+    exportItem.addEventListener('click', () => {
+      overflowMenu.classList.remove('active');
+      const json = exportData();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+    overflowMenu.appendChild(importItem);
+    overflowMenu.appendChild(exportItem);
+  }
+
+  // FAB for mobile "+ Add"
+  const fab = document.createElement('button');
+  fab.className = 'tx-fab';
+  fab.textContent = '+';
+  fab.setAttribute('aria-label', 'Add transaction');
+  fab.addEventListener('click', () => openTxModal(null, data));
+  _container.appendChild(fab);
+
+  // Close any open three-dot menus on outside click
+  document.addEventListener('click', _closeTxMenus);
 }
 
 function buildSidebar(data) {
@@ -265,9 +344,10 @@ function buildSidebar(data) {
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
       const monthRow = document.createElement('div');
+      monthRow.className = 'month-year-row';
       monthRow.style.cssText = 'display:flex;gap:0.5rem';
       const monthSel = document.createElement('select');
-      monthSel.style.flex = '2';
+      monthSel.style.flex = '1';
       for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
@@ -299,26 +379,33 @@ function buildSidebar(data) {
       periodNav.querySelector('#prev-period').addEventListener('click', () => { _year--; _page = 0; refresh(); });
       periodNav.querySelector('#next-period').addEventListener('click', () => { _year++; _page = 0; refresh(); });
     } else if (_dateMode === 'custom') {
+      periodNav.className = 'custom-range-row';
       periodNav.style.cssText = 'display:flex;flex-direction:column;gap:0.5rem;width:100%';
       periodNav.innerHTML = `
         <label style="font-size:0.875rem">From
-          <input type="text" id="range-start" placeholder="Start date" autocomplete="off" style="margin-top:0.2rem">
+          <input type="text" id="range-start" placeholder="Start date" autocomplete="off" readonly inputmode="none" style="margin-top:0.2rem">
         </label>
         <label style="font-size:0.875rem">To
-          <input type="text" id="range-end" placeholder="End date" autocomplete="off" style="margin-top:0.2rem">
+          <input type="text" id="range-end" placeholder="End date" autocomplete="off" readonly inputmode="none" style="margin-top:0.2rem">
         </label>
-        <button class="btn btn-sm btn-primary" id="apply-range">Apply</button>
       `;
-      periodNav.querySelector('#apply-range').addEventListener('click', () => {
-        _customStart = periodNav.querySelector('#range-start').value;
-        _customEnd   = periodNav.querySelector('#range-end').value;
-        _page = 0; refresh();
-      });
-      _fpInstances.push(flatpickr(periodNav.querySelector('#range-start'), {
+      const startEl = periodNav.querySelector('#range-start');
+      const endEl = periodNav.querySelector('#range-end');
+      _fpInstances.push(flatpickr(startEl, {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
+        onChange: ([d]) => {
+          if (!d) return;
+          _customStart = d.toISOString().slice(0, 10);
+          if (endEl.value) { _page = 0; refresh(); }
+        },
       }));
-      _fpInstances.push(flatpickr(periodNav.querySelector('#range-end'), {
+      _fpInstances.push(flatpickr(endEl, {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
+        onChange: ([d]) => {
+          if (!d) return;
+          _customEnd = d.toISOString().slice(0, 10);
+          if (startEl.value) { _page = 0; refresh(); }
+        },
       }));
     }
 
@@ -327,6 +414,18 @@ function buildSidebar(data) {
 
   periodSect.appendChild(dateRow);
   sidebar.appendChild(periodSect);
+
+  // --- Mobile filter toggle button (hidden on desktop via CSS) ---
+  const hasActiveFilter = !!_filterCategoryId || _filterLabel.trim() !== '' || _viewMode !== 'flat';
+  const filterToggle = document.createElement('button');
+  filterToggle.className = 'btn btn-sm btn-secondary tx-filter-toggle' + (_filtersExpanded ? ' expanded' : '');
+  filterToggle.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg> Filters${hasActiveFilter ? '<span class="tx-filter-dot"></span>' : ''}`;
+  filterToggle.addEventListener('click', () => {
+    _filtersExpanded = !_filtersExpanded;
+    filterToggle.classList.toggle('expanded', _filtersExpanded);
+    filterArea.classList.toggle('expanded', _filtersExpanded);
+  });
+  sidebar.appendChild(filterToggle);
 
   // --- Section 2: Filters + View ---
   const filterSect = document.createElement('div');
@@ -338,15 +437,36 @@ function buildSidebar(data) {
   filterSect.appendChild(filterLabel);
 
   const filterArea = document.createElement('div');
-  filterArea.className = 'tx-sidebar-filter-area';
+  filterArea.className = 'tx-sidebar-filter-area' + (_filtersExpanded ? ' expanded' : '');
+  const selectedCat = _filterCategoryId ? data.categories.find(c => c.id === _filterCategoryId) : null;
+  const triggerContent = selectedCat
+    ? `<span class="cat-trigger-emoji">${selectedCat.icon ?? '🏷️'}</span><span class="cat-trigger-name">${escHtml(selectedCat.name)}</span><span class="cat-trigger-clear" title="Clear filter">✕</span>`
+    : `<span class="cat-trigger-emoji" style="opacity:0.5">🏷️</span><span class="cat-trigger-name">All categories</span><span class="cat-trigger-chevron">▼</span>`;
+
+  const catCards = data.categories
+    .filter(c => !_catSearch || c.name.toLowerCase().includes(_catSearch.toLowerCase()))
+    .map(c => `<div class="cat-card${_filterCategoryId === c.id ? ' selected' : ''}" data-cat-id="${escHtml(c.id)}"><span class="cat-card-emoji">${c.icon ?? '🏷️'}</span><span class="cat-card-name">${escHtml(c.name)}</span></div>`)
+    .join('');
+
+  const allVisible = !_catSearch || 'all'.includes(_catSearch.toLowerCase());
+
   filterArea.innerHTML = `
-    <select id="filter-cat" class="tx-sidebar-filter-cat">
-      <option value="">All categories</option>
-      ${data.categories.map(c => `<option value="${escHtml(c.id)}" ${_filterCategoryId === c.id ? 'selected' : ''}>${escHtml(c.name)}</option>`).join('')}
-    </select>
+    <div class="tx-sidebar-filter-cat">
+      <button class="cat-trigger" type="button">${triggerContent}</button>
+      ${_catPanelOpen ? `<div class="cat-panel">
+        <div class="cat-search-wrap">
+          <svg class="cat-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          <input class="cat-search" type="text" placeholder="Search…" value="${escHtml(_catSearch)}">
+        </div>
+        <div class="cat-grid">
+          ${allVisible ? `<div class="cat-card cat-card-all${!_filterCategoryId ? ' selected' : ''}" data-cat-id=""><span class="cat-card-emoji cat-card-all-icon">✱</span><span class="cat-card-name">All</span></div>` : ''}
+          ${catCards}
+        </div>
+      </div>` : ''}
+    </div>
     <div class="label-search-wrapper tx-sidebar-filter-label">
       <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label (wildcards ok)">
+      <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label…">
     </div>
     <div class="seg-group tx-sidebar-filter-toggle">
       <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
@@ -356,11 +476,60 @@ function buildSidebar(data) {
   `;
   filterSect.appendChild(filterArea);
 
-  filterArea.querySelector('#filter-cat').addEventListener('change', e => {
-    _filterCategoryId = e.target.value || null;
-    _page = 0;
+  // Category trigger button — toggle panel
+  const catTriggerBtn = filterArea.querySelector('.cat-trigger');
+  catTriggerBtn.addEventListener('click', (e) => {
+    if (e.target.closest('.cat-trigger-clear')) {
+      _filterCategoryId = null;
+      _catPanelOpen = false;
+      _catSearch = '';
+      _page = 0;
+      refresh();
+      return;
+    }
+    _catPanelOpen = !_catPanelOpen;
+    _catSearch = '';
     refresh();
   });
+
+  // Category card clicks
+  filterArea.querySelectorAll('.cat-card').forEach(card => {
+    card.addEventListener('click', () => {
+      _filterCategoryId = card.dataset.catId || null;
+      _catPanelOpen = false;
+      _catSearch = '';
+      _page = 0;
+      refresh();
+    });
+  });
+
+  // Category search input
+  const catSearchInput = filterArea.querySelector('.cat-search');
+  if (catSearchInput) {
+    catSearchInput.addEventListener('input', (e) => {
+      const pos = e.target.selectionStart;
+      _catSearch = e.target.value;
+      refresh();
+      const newInput = _container.querySelector('.cat-search');
+      if (newInput) { newInput.focus(); newInput.setSelectionRange(pos, pos); }
+    });
+    catSearchInput.focus();
+  }
+
+  // Click outside to close panel
+  if (_catPanelOpen) {
+    const panel = filterArea.querySelector('.cat-panel');
+    setTimeout(() => {
+      const closeOnOutside = (e) => {
+        if (panel && !panel.contains(e.target) && !catTriggerBtn.contains(e.target)) {
+          _catPanelOpen = false;
+          _catSearch = '';
+          refresh();
+        }
+      };
+      document.addEventListener('click', closeOnOutside, { once: true });
+    }, 0);
+  }
 
   filterArea.querySelector('#filter-label').addEventListener('input', e => {
     const pos = e.target.selectionStart;
@@ -410,7 +579,7 @@ function renderGrouped(list, groups, groupType, catMap, lblMap, defaultCurrency,
           : `<span class="badge badge-label">${escHtml(groupName)}</span>`;
 
     const groupHeader = document.createElement('div');
-    groupHeader.style.cssText = 'padding:0.6rem 1rem;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:0.5rem;cursor:pointer;user-select:none';
+    groupHeader.className = 'group-header';
     groupHeader.innerHTML = `
       ${groupBadge}
       <span style="margin-left:auto;font-size:0.875rem;font-weight:600" class="${group.total >= 0 ? 'amount-income' : 'amount-expense'}">${formatAmount(group.total, defaultCurrency)}</span>
@@ -493,12 +662,17 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
 
   const cat = tx.categoryId ? catMap.get(tx.categoryId) : null;
   const catDeleted = tx.categoryId && !cat;
-  const lblPills = tx.labelIds.map(id => {
+  const MAX_LABELS = 3;
+  const allLblPills = tx.labelIds.map(id => {
     const lbl = lblMap.get(id);
     return lbl
       ? `<span class="badge badge-label">${escHtml(lbl.name)}</span>`
       : `<span class="badge badge-deleted">(deleted)</span>`;
-  }).join('');
+  });
+  const lblOverflow = allLblPills.length - MAX_LABELS;
+  const lblPills = lblOverflow > 0
+    ? allLblPills.slice(0, MAX_LABELS).join('') + `<span class="badge badge-more" title="${escHtml(tx.labelIds.map(id => lblMap.get(id)?.name ?? '(deleted)').join(', '))}">+${lblOverflow}</span>`
+    : allLblPills.join('');
 
   const amountStr = formatAmount(tx.amount, tx.currency);
   const amountCls = tx.amount >= 0 ? 'amount-income' : 'amount-expense';
@@ -507,19 +681,26 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
     ? `<div class="tx-primary">${escHtml(tx.description)}</div>`
     : '';
 
-  const catBadge = cat
-    ? `<span class="badge badge-category">${cat.icon ?? ''} ${escHtml(cat.name)}</span>`
+  const catDot = cat
+    ? `<span class="tx-row-cat-dot">${cat.icon ?? '🏷️'}</span>`
     : catDeleted
-      ? `<span class="badge badge-deleted">(deleted category)</span>`
+      ? `<span class="tx-row-cat-dot" title="Deleted category">🏷️</span>`
+      : `<span class="tx-row-cat-dot">🏷️</span>`;
+
+  const catNameLine = cat
+    ? `<span class="tx-row-cat-name">${escHtml(cat.name)}</span>`
+    : catDeleted
+      ? `<span class="tx-row-cat-name" style="opacity:0.5">(deleted)</span>`
       : '';
 
   row.innerHTML = `
     <div class="tx-row-content">
       <span class="tx-date">${escHtml(formatTxDate(tx.date))}</span>
+      ${catDot}
       <div class="tx-info">
         ${primaryHtml}
+        ${catNameLine}
         <div class="tx-meta">
-          ${catBadge}
           ${lblPills}
           ${tx.isVirtual ? '<span class="badge badge-recurring">↻ recurring</span>' : ''}
         </div>
@@ -530,17 +711,38 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
       <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
       <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
     </div>
+    <div class="tx-actions-mobile">
+      <button class="tx-menu-trigger" aria-label="Actions">&#8942;</button>
+      <div class="tx-action-menu">
+        <button class="tx-menu-item tx-menu-edit">Edit</button>
+        <button class="tx-menu-item tx-menu-delete">Delete</button>
+      </div>
+    </div>
   `;
 
   const sourceTx = tx.isVirtual ? data.transactions.find(t => t.id === tx.sourceId) : tx;
   const occurrenceDate = tx.date;
-  if (sourceTx?.recurrence) {
-    row.querySelector('.edit-btn').addEventListener('click', () => openRecurringScopeDialog('edit', sourceTx, occurrenceDate, data));
-    row.querySelector('.del-btn').addEventListener('click', () => openRecurringScopeDialog('delete', sourceTx, occurrenceDate, data));
-  } else {
-    row.querySelector('.edit-btn').addEventListener('click', () => openTxModal(sourceTx, data));
-    row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteTx(tx));
-  }
+  const editHandler = sourceTx?.recurrence
+    ? () => openRecurringScopeDialog('edit', sourceTx, occurrenceDate, data)
+    : () => openTxModal(sourceTx, data);
+  const deleteHandler = sourceTx?.recurrence
+    ? () => openRecurringScopeDialog('delete', sourceTx, occurrenceDate, data)
+    : () => confirmDeleteTx(tx);
+
+  // Desktop buttons
+  row.querySelector('.edit-btn').addEventListener('click', editHandler);
+  row.querySelector('.del-btn').addEventListener('click', deleteHandler);
+
+  // Mobile three-dot menu
+  row.querySelector('.tx-menu-trigger').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const menu = row.querySelector('.tx-action-menu');
+    const wasActive = menu.classList.contains('active');
+    _closeTxMenus();
+    if (!wasActive) menu.classList.add('active');
+  });
+  row.querySelector('.tx-menu-edit').addEventListener('click', () => { _closeTxMenus(); editHandler(); });
+  row.querySelector('.tx-menu-delete').addEventListener('click', () => { _closeTxMenus(); deleteHandler(); });
 
   return row;
 }
@@ -550,101 +752,119 @@ function openTxModal(tx, data, saveOverride = null) {
   const { defaultCurrency } = data.settings;
   let isExpense = tx ? tx.amount < 0 : true;
 
-  const body = document.createElement('div');
-  body.innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
-      <div class="form-group" style="grid-column:1/-1">
-        <label for="tx-date">Date</label>
-        <input type="text" id="tx-date" placeholder="YYYY-MM-DD" autocomplete="off">
-      </div>
-      <div style="grid-column:1/-1;display:flex;gap:0.25rem;margin-bottom:0.25rem">
-        <button type="button" id="tx-expense-btn" class="btn btn-sm">Expense</button>
-        <button type="button" id="tx-income-btn"  class="btn btn-sm">Income</button>
-      </div>
-      <div class="form-group">
-        <label for="tx-amount">Amount</label>
-        <input type="number" id="tx-amount" step="0.01" min="0" value="${tx ? Math.abs(tx.amount) : ''}">
-      </div>
-      <div class="form-group">
-        <label for="tx-currency">Currency</label>
-        <input type="text" id="tx-currency" maxlength="10" value="${escHtml(tx?.currency ?? defaultCurrency)}" placeholder="${escHtml(defaultCurrency)}">
-      </div>
-      <div class="form-group">
-        <label for="tx-exchange">Exchange rate <span id="rate-status" style="font-weight:400;color:var(--text-muted)"></span></label>
-        <input type="number" id="tx-exchange" step="0.000001" value="${tx?.exchangeRate ?? 1}">
-      </div>
-      <div class="form-group">
-        <label for="tx-amount-default">Amount in ${escHtml(defaultCurrency)}</label>
-        <input type="number" id="tx-amount-default" step="0.01" value="${tx?.amountInDefault ?? ''}">
-      </div>
-    </div>
-    <div class="form-group">
-      <label for="tx-desc">Description</label>
-      <input type="text" id="tx-desc" value="${escHtml(tx?.description ?? '')}" autocomplete="off">
-    </div>
-    <div class="form-group">
-      <label>Category</label>
-      <div id="tx-cat" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;border:1px solid var(--border);border-radius:var(--radius)">
-        ${data.categories.map((c, i) => `
-          <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
-            <input type="radio" name="tx-cat" value="${escHtml(c.id)}" ${(tx ? tx.categoryId === c.id : i === 0) ? 'checked' : ''}>
-            ${c.icon ?? ''} ${escHtml(c.name)}
-          </label>
-        `).join('')}
-        ${data.categories.length === 0 ? '<span style="color:var(--text-muted);font-size:0.8rem">No categories — go to Categories to create one first.</span>' : ''}
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Labels</label>
-      <div id="tx-labels" style="display:flex;flex-wrap:wrap;gap:0.4rem;padding:0.5rem;border:1px solid var(--border);border-radius:var(--radius)">
-        ${data.labels.map(l => `
-          <label style="display:flex;align-items:center;gap:0.3rem;cursor:pointer;font-size:0.875rem">
-            <input type="checkbox" value="${escHtml(l.id)}" ${tx?.labelIds?.includes(l.id) ? 'checked' : ''}>
-            ${escHtml(l.name)}
-          </label>
-        `).join('')}
-        ${data.labels.length === 0 ? '<span style="color:var(--text-muted);font-size:0.8rem">No labels defined</span>' : ''}
-      </div>
-    </div>
-    <div class="form-group">
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
-        <input type="checkbox" id="tx-recurring" ${tx?.recurrence ? 'checked' : ''}>
-        Recurring
-      </label>
-    </div>
-    <div id="recurrence-fields" style="${tx?.recurrence ? '' : 'display:none'}">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 1rem">
-        <div class="form-group">
-          <label for="tx-freq">Frequency</label>
-          <select id="tx-freq">
-            ${['daily','weekly','monthly','yearly'].map(f => `<option ${tx?.recurrence?.frequency === f ? 'selected' : ''}>${f}</option>`).join('')}
-          </select>
+  const dialog = document.createElement('dialog');
+  dialog.className = 'tx-dialog';
+
+  const catCards = data.categories.map((c, i) => {
+    const selected = tx ? tx.categoryId === c.id : i === 0;
+    return `<div class="cat-card${selected ? ' selected' : ''}" data-cat-id="${escHtml(c.id)}">
+      <span class="cat-card-emoji">${c.icon ?? '🏷️'}</span>
+      <span class="cat-card-name">${escHtml(c.name)}</span>
+    </div>`;
+  }).join('');
+
+  const labelChips = data.labels.map(l => {
+    const checked = tx?.labelIds?.includes(l.id);
+    return `
+      <label class="tx-label-chip${checked ? ' selected' : ''}">
+        <input type="checkbox" value="${escHtml(l.id)}" ${checked ? 'checked' : ''} style="display:none">
+        ${escHtml(l.name)}
+      </label>`;
+  }).join('');
+
+  dialog.innerHTML = `
+    <div class="tx-form-wrap">
+      <div class="tx-form-main">
+        <div class="tx-body-grid">
+          <div class="tx-body-left">
+            <div class="tx-form-header">
+              <p class="modal-subtitle">Record a transaction</p>
+              <h2 class="modal-title">${isEdit ? 'Edit Entry' : 'New Entry'}</h2>
+            </div>
+            <div class="tx-amount-row">
+              <div class="seg-group">
+                <button type="button" id="tx-expense-btn" class="btn btn-sm">Expense</button>
+                <button type="button" id="tx-income-btn" class="btn btn-sm">Income</button>
+              </div>
+              <input type="text" id="tx-date" class="tx-date-input" placeholder="YYYY-MM-DD" autocomplete="off">
+            </div>
+            <input type="number" id="tx-amount" class="tx-amount-input" step="0.01" min="0"
+              placeholder="0.00" value="${tx ? Math.abs(tx.amount) : ''}">
+            <span class="tx-field-label">Category</span>
+            <div class="tx-cat-picker" id="tx-cat">
+              <div class="cat-search-wrap">
+                <svg class="cat-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                <input class="cat-search" type="text" placeholder="Search categories…">
+              </div>
+              <div class="cat-grid">
+                ${data.categories.length > 0 ? catCards : '<span style="color:var(--text-muted);font-size:0.8rem;grid-column:1/-1">No categories yet — add one in Settings.</span>'}
+              </div>
+            </div>
+            <div class="form-group">
+              <span class="tx-field-label">Description</span>
+              <input type="text" id="tx-desc" value="${escHtml(tx?.description ?? '')}" autocomplete="off" placeholder="What was this for?">
+            </div>
+            ${data.labels.length > 0 ? `
+            <div class="form-group">
+              <span class="tx-field-label">Labels</span>
+              <div class="tx-labels-wrap" id="tx-labels">${labelChips}</div>
+            </div>` : ''}
+          </div>
+          <div class="tx-body-right">
+            <div class="tx-currency-card">
+              <span class="tx-field-label">Currency</span>
+              <input type="text" id="tx-currency" maxlength="10" value="${escHtml(tx?.currency ?? defaultCurrency)}" placeholder="${escHtml(defaultCurrency)}">
+              <span class="tx-field-label">Rate <span id="rate-status" style="font-weight:400;color:var(--text-muted);text-transform:none;letter-spacing:0"></span></span>
+              <input type="number" id="tx-exchange" step="0.000001" value="${tx?.exchangeRate ?? 1}">
+              <span class="tx-field-label">In ${escHtml(defaultCurrency)}</span>
+              <input type="number" id="tx-amount-default" step="0.01" value="${tx?.amountInDefault ?? ''}">
+            </div>
+            <div class="tx-recurring-wrap">
+              <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-size:0.875rem;margin-bottom:0.25rem">
+                <input type="checkbox" id="tx-recurring" ${tx?.recurrence ? 'checked' : ''}>
+                Recurring
+              </label>
+              <div id="recurrence-fields" style="${tx?.recurrence ? '' : 'display:none'}">
+                <div class="form-group" style="margin-top:0.5rem">
+                  <span class="tx-field-label">Frequency</span>
+                  <select id="tx-freq">
+                    ${['daily','weekly','monthly','yearly'].map(f => `<option ${tx?.recurrence?.frequency === f ? 'selected' : ''}>${f}</option>`).join('')}
+                  </select>
+                </div>
+                <div class="form-group">
+                  <span class="tx-field-label">Every N</span>
+                  <input type="number" id="tx-interval" min="1" value="${tx?.recurrence?.interval ?? 1}">
+                </div>
+                <div class="form-group">
+                  <span class="tx-field-label">End date</span>
+                  <div style="display:flex;gap:0.25rem">
+                    <input type="text" id="tx-end" placeholder="No end date" autocomplete="off" style="flex:1">
+                    <button type="button" id="tx-end-clear" class="btn btn-sm btn-secondary" title="Clear end date">×</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
-        <div class="form-group">
-          <label for="tx-interval">Every N</label>
-          <input type="number" id="tx-interval" min="1" value="${tx?.recurrence?.interval ?? 1}">
-        </div>
       </div>
-      <div class="form-group">
-        <label for="tx-end">End date (optional)</label>
-        <div style="display:flex;gap:0.25rem">
-          <input type="text" id="tx-end" placeholder="No end date" autocomplete="off" style="flex:1">
-          <button type="button" id="tx-end-clear" class="btn btn-sm btn-secondary" title="Clear end date">×</button>
-        </div>
+      <div class="tx-form-deco" aria-hidden="true">
+        <div class="tx-form-deco-text">${isEdit ? 'EDIT' : 'NEW'}</div>
+        <div class="tx-form-deco-line"></div>
       </div>
+    </div>
+    <div class="tx-form-footer">
+      <button class="btn btn-secondary cancel-btn">Cancel</button>
+      <button class="btn btn-primary save-btn" ${data.categories.length === 0 ? 'disabled' : ''}>${isEdit ? 'Save changes' : 'Add Transaction'}</button>
     </div>
   `;
 
-  const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
-  footer.innerHTML = `
-    <button class="btn btn-secondary cancel-btn">Cancel</button>
-    <button class="btn btn-primary save-btn" ${data.categories.length === 0 ? 'disabled' : ''}>${isEdit ? 'Save' : 'Add'}</button>
-  `;
+  document.body.appendChild(dialog);
+  dialog.showModal();
 
-  const { close, dialog } = openModal({ title: isEdit ? 'Edit transaction' : 'New transaction', body, footer });
+  function close() { dialog.close(); dialog.remove(); }
+  dialog.addEventListener('cancel', close);
 
-  const fpDate = flatpickr(body.querySelector('#tx-date'), {
+  const fpDate = flatpickr(dialog.querySelector('#tx-date'), {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
@@ -652,59 +872,89 @@ function openTxModal(tx, data, saveOverride = null) {
     onChange: () => updateRate(),
   });
 
-  const fpEnd = flatpickr(body.querySelector('#tx-end'), {
+  const fpEnd = flatpickr(dialog.querySelector('#tx-end'), {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.recurrence?.endDate || null,
     appendTo: dialog,
+    onOpen(_, __, fp) {
+      requestAnimationFrame(() => {
+        const cal = fp.calendarContainer;
+        const dr = dialog.getBoundingClientRect();
+        const cr = cal.getBoundingClientRect();
+        if (cr.right > dr.right) cal.style.left = (parseFloat(cal.style.left) - (cr.right - dr.right) - 8) + 'px';
+      });
+    },
   });
 
-  body.querySelector('#tx-end-clear').addEventListener('click', () => fpEnd.clear());
+  dialog.querySelector('#tx-end-clear').addEventListener('click', () => fpEnd.clear());
 
   // Auto-fetch exchange rate on currency/date change
   async function updateRate() {
-    const curr = body.querySelector('#tx-currency').value.trim().toUpperCase();
-    const date = body.querySelector('#tx-date').value;
+    const curr = dialog.querySelector('#tx-currency').value.trim().toUpperCase();
+    const date = dialog.querySelector('#tx-date').value;
     if (!curr || !date || curr === defaultCurrency) {
-      body.querySelector('#tx-exchange').value = 1;
+      dialog.querySelector('#tx-exchange').value = 1;
       syncAmountDefault();
       return;
     }
-    body.querySelector('#rate-status').textContent = '(fetching…)';
+    dialog.querySelector('#rate-status').textContent = '(fetching…)';
     const rate = await fetchRate(curr, defaultCurrency, date);
-    body.querySelector('#rate-status').textContent = rate ? '' : '(unavailable)';
+    dialog.querySelector('#rate-status').textContent = rate ? '' : '(unavailable)';
     if (rate) {
-      body.querySelector('#tx-exchange').value = rate;
+      dialog.querySelector('#tx-exchange').value = rate;
       syncAmountDefault();
     }
   }
 
   function syncAmountDefault() {
-    const absAmt = parseFloat(body.querySelector('#tx-amount').value);
-    const rate = parseFloat(body.querySelector('#tx-exchange').value);
+    const absAmt = parseFloat(dialog.querySelector('#tx-amount').value);
+    const rate = parseFloat(dialog.querySelector('#tx-exchange').value);
     if (!isNaN(absAmt) && !isNaN(rate)) {
       const signed = isExpense ? -Math.abs(absAmt) : Math.abs(absAmt);
-      body.querySelector('#tx-amount-default').value = convertAmount(signed, rate);
+      dialog.querySelector('#tx-amount-default').value = convertAmount(signed, rate);
     }
   }
 
   function updateToggle() {
-    body.querySelector('#tx-expense-btn').className = 'btn btn-sm ' + (isExpense ? 'btn-expense' : 'btn-secondary');
-    body.querySelector('#tx-income-btn').className  = 'btn btn-sm ' + (isExpense ? 'btn-secondary' : 'btn-income');
+    dialog.querySelector('#tx-expense-btn').className = 'btn btn-sm ' + (isExpense ? 'btn-expense' : 'btn-secondary');
+    dialog.querySelector('#tx-income-btn').className  = 'btn btn-sm ' + (isExpense ? 'btn-secondary' : 'btn-income');
   }
 
   updateToggle();
 
-  body.querySelector('#tx-expense-btn').addEventListener('click', () => {
+  dialog.querySelector('#tx-expense-btn').addEventListener('click', () => {
     isExpense = true; updateToggle(); syncAmountDefault();
   });
-  body.querySelector('#tx-income-btn').addEventListener('click', () => {
+  dialog.querySelector('#tx-income-btn').addEventListener('click', () => {
     isExpense = false; updateToggle(); syncAmountDefault();
   });
 
-  body.querySelector('#tx-currency').addEventListener('change', updateRate);
-  body.querySelector('#tx-amount').addEventListener('input', () => {
-    const el = body.querySelector('#tx-amount');
+  dialog.querySelector('#tx-cat .cat-search').addEventListener('input', e => {
+    const q = e.target.value.toLowerCase();
+    dialog.querySelectorAll('#tx-cat .cat-card').forEach(card => {
+      const name = card.querySelector('.cat-card-name').textContent.toLowerCase();
+      card.style.display = !q || name.includes(q) ? '' : 'none';
+    });
+  });
+  dialog.querySelector('#tx-cat .cat-grid').addEventListener('click', e => {
+    const card = e.target.closest('.cat-card');
+    if (!card) return;
+    dialog.querySelectorAll('#tx-cat .cat-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+  });
+
+  if (data.labels.length > 0) {
+    dialog.querySelector('#tx-labels').addEventListener('change', e => {
+      if (!e.target.matches('input[type="checkbox"]')) return;
+      const chip = e.target.closest('.tx-label-chip');
+      if (chip) chip.classList.toggle('selected', e.target.checked);
+    });
+  }
+
+  dialog.querySelector('#tx-currency').addEventListener('change', updateRate);
+  dialog.querySelector('#tx-amount').addEventListener('input', () => {
+    const el = dialog.querySelector('#tx-amount');
     if (el.valueAsNumber < 0) {
       el.value = Math.abs(el.valueAsNumber);
       isExpense = !isExpense;
@@ -712,23 +962,23 @@ function openTxModal(tx, data, saveOverride = null) {
     }
     syncAmountDefault();
   });
-  body.querySelector('#tx-exchange').addEventListener('input', syncAmountDefault);
+  dialog.querySelector('#tx-exchange').addEventListener('input', syncAmountDefault);
 
-  body.querySelector('#tx-recurring').addEventListener('change', e => {
-    body.querySelector('#recurrence-fields').style.display = e.target.checked ? '' : 'none';
+  dialog.querySelector('#tx-recurring').addEventListener('change', e => {
+    dialog.querySelector('#recurrence-fields').style.display = e.target.checked ? '' : 'none';
   });
 
-  footer.querySelector('.cancel-btn').addEventListener('click', close);
-  footer.querySelector('.save-btn').addEventListener('click', () => {
-    const date = body.querySelector('#tx-date').value;
-    const absAmt = parseFloat(body.querySelector('#tx-amount').value);
+  dialog.querySelector('.cancel-btn').addEventListener('click', close);
+  dialog.querySelector('.save-btn').addEventListener('click', () => {
+    const date = dialog.querySelector('#tx-date').value;
+    const absAmt = parseFloat(dialog.querySelector('#tx-amount').value);
     const amount = isExpense ? -Math.abs(absAmt) : Math.abs(absAmt);
-    const currency = body.querySelector('#tx-currency').value.trim().toUpperCase();
-    const exchangeRate = parseFloat(body.querySelector('#tx-exchange').value) || 1;
-    const amountInDefault = parseFloat(body.querySelector('#tx-amount-default').value) || amount;
-    const description = body.querySelector('#tx-desc').value.trim();
-    const categoryId = body.querySelector('#tx-cat input[name="tx-cat"]:checked')?.value || null;
-    const labelIds = [...body.querySelectorAll('#tx-labels input:checked')].map(cb => cb.value);
+    const currency = dialog.querySelector('#tx-currency').value.trim().toUpperCase();
+    const exchangeRate = parseFloat(dialog.querySelector('#tx-exchange').value) || 1;
+    const amountInDefault = parseFloat(dialog.querySelector('#tx-amount-default').value) || amount;
+    const description = dialog.querySelector('#tx-desc').value.trim();
+    const categoryId = dialog.querySelector('#tx-cat .cat-card.selected')?.dataset.catId || null;
+    const labelIds = [...dialog.querySelectorAll('#tx-labels input:checked')].map(cb => cb.value);
 
     if (!date || isNaN(amount) || !currency || !categoryId) {
       toast('Please fill in date, amount, currency, and category', 'error');
@@ -736,11 +986,11 @@ function openTxModal(tx, data, saveOverride = null) {
     }
 
     let recurrence = null;
-    if (body.querySelector('#tx-recurring').checked) {
+    if (dialog.querySelector('#tx-recurring').checked) {
       recurrence = {
-        frequency: body.querySelector('#tx-freq').value,
-        interval: parseInt(body.querySelector('#tx-interval').value) || 1,
-        endDate: body.querySelector('#tx-end').value || null,
+        frequency: dialog.querySelector('#tx-freq').value,
+        interval: parseInt(dialog.querySelector('#tx-interval').value) || 1,
+        endDate: dialog.querySelector('#tx-end').value || null,
       };
     }
 
@@ -762,78 +1012,109 @@ function openTxModal(tx, data, saveOverride = null) {
   });
 
   if (!isEdit) updateRate();
-  setTimeout(() => body.querySelector('#tx-amount').focus(), 50);
+  setTimeout(() => dialog.querySelector('#tx-amount').focus(), 50);
 }
 
 function openRecurringScopeDialog(action, sourceTx, occurrenceDate, data) {
+  let selectedScope = 'occurrence';
+
+  const isEdit = action === 'edit';
+  const verb = isEdit ? 'editing' : 'deleting';
+  const verbPast = isEdit ? 'updated' : 'deleted';
+
+  const options = [
+    {
+      value: 'occurrence',
+      title: 'Only this occurrence',
+      desc: isEdit
+        ? `Change applies to ${occurrenceDate} only. Future occurrences remain unchanged.`
+        : `Remove only the ${occurrenceDate} occurrence. The rest of the series remains.`,
+    },
+    {
+      value: 'from-here',
+      title: 'This and all future occurrences',
+      desc: isEdit
+        ? 'Updates this occurrence and all subsequent ones in the series.'
+        : 'Deletes from this date onward. Earlier occurrences remain.',
+    },
+    {
+      value: 'all',
+      title: 'All occurrences in the series',
+      desc: isEdit
+        ? 'Applies changes to every occurrence, past and future.'
+        : 'Removes the entire recurring transaction series permanently.',
+    },
+  ];
+
   const body = document.createElement('div');
   body.innerHTML = `
-    <p style="margin-bottom:1rem;color:var(--text-muted);font-size:0.875rem">Which occurrences should be ${action === 'edit' ? 'updated' : 'deleted'}?</p>
-    <div style="display:flex;flex-direction:column;gap:0.75rem">
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
-        <input type="radio" name="scope" value="occurrence" checked> Only this occurrence (${escHtml(occurrenceDate)})
-      </label>
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
-        <input type="radio" name="scope" value="from-here"> This and all future occurrences
-      </label>
-      <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer">
-        <input type="radio" name="scope" value="all"> All occurrences in the series
-      </label>
+    <p class="scope-intro">You're ${verb} <strong>${escHtml(sourceTx.description)}</strong>.
+      Which occurrences should be ${verbPast}?</p>
+    <div class="scope-options">
+      ${options.map((o, i) => `
+        <button type="button" class="scope-option${i === 0 ? ' selected' : ''}" data-scope="${o.value}">
+          <span class="scope-radio"></span>
+          <span class="scope-text">
+            <span class="scope-title">${escHtml(o.title)}</span>
+            <span class="scope-desc">${escHtml(o.desc)}</span>
+          </span>
+        </button>
+      `).join('')}
     </div>
   `;
 
+  body.querySelectorAll('.scope-option').forEach(btn => {
+    btn.addEventListener('click', () => {
+      body.querySelectorAll('.scope-option').forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      selectedScope = btn.dataset.scope;
+    });
+  });
+
   const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
   footer.innerHTML = `
     <button class="btn btn-secondary cancel-btn">Cancel</button>
-    <button class="btn ${action === 'delete' ? 'btn-danger' : 'btn-primary'} confirm-btn">${action === 'edit' ? 'Edit' : 'Delete'}</button>
+    <button class="btn ${isEdit ? 'btn-primary' : 'btn-danger'} confirm-btn">${isEdit ? 'Edit' : 'Delete'}</button>
   `;
 
-  const { close } = openModal({ title: action === 'edit' ? 'Edit recurring transaction' : 'Delete recurring transaction', body, footer });
+  const { close } = openModal({
+    title: isEdit ? 'Edit recurring transaction' : 'Delete recurring transaction',
+    subtitle: 'Recurring',
+    deco: 'SERIES',
+    body,
+    footer,
+  });
+
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.confirm-btn').addEventListener('click', () => {
-    const scope = body.querySelector('input[name="scope"]:checked').value;
     close();
-
-    if (action === 'delete') {
-      if (scope === 'occurrence') {
-        deleteOccurrenceAt(sourceTx.id, occurrenceDate);
-        toast('Occurrence deleted', 'success');
-      } else if (scope === 'from-here') {
-        truncateSeries(sourceTx.id, occurrenceDate);
-        toast('Transactions deleted', 'success');
-      } else {
-        deleteTransaction(sourceTx.id);
-        toast('Transaction deleted', 'success');
-      }
-      _page = 0;
-      refresh();
+    if (!isEdit) {
+      if (selectedScope === 'occurrence') { deleteOccurrenceAt(sourceTx.id, occurrenceDate); toast('Occurrence deleted', 'success'); }
+      else if (selectedScope === 'from-here') { truncateSeries(sourceTx.id, occurrenceDate); toast('Transactions deleted', 'success'); }
+      else { deleteTransaction(sourceTx.id); toast('Transaction deleted', 'success'); }
+      _page = 0; refresh();
     } else {
-      if (scope === 'occurrence') {
-        openTxModal({ ...sourceTx, date: occurrenceDate, recurrence: null }, data,
-          fields => overrideOccurrence(sourceTx.id, occurrenceDate, fields));
-      } else if (scope === 'from-here') {
-        openTxModal({ ...sourceTx, date: occurrenceDate }, data,
-          fields => splitSeries(sourceTx.id, occurrenceDate, fields));
-      } else {
-        openTxModal(sourceTx, data);
-      }
+      if (selectedScope === 'occurrence') openTxModal({ ...sourceTx, date: occurrenceDate, recurrence: null }, data, fields => overrideOccurrence(sourceTx.id, occurrenceDate, fields));
+      else if (selectedScope === 'from-here') openTxModal({ ...sourceTx, date: occurrenceDate }, data, fields => splitSeries(sourceTx.id, occurrenceDate, fields));
+      else openTxModal(sourceTx, data);
     }
   });
 }
 
 function confirmDeleteTx(tx) {
-  const body = document.createElement('p');
-  body.textContent = `Delete this transaction from ${tx.date}? This cannot be undone.`;
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <p style="margin-bottom:0.25rem">Remove <strong>${escHtml(tx.description || 'this transaction')}</strong> from ${escHtml(tx.date)}?</p>
+    <p style="font-size:0.8rem;color:var(--text-muted)">This cannot be undone.</p>
+  `;
 
   const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
   footer.innerHTML = `
     <button class="btn btn-secondary cancel-btn">Cancel</button>
     <button class="btn btn-danger confirm-btn">Delete</button>
   `;
 
-  const { close } = openModal({ title: 'Delete transaction', body, footer });
+  const { close } = openModal({ title: 'Delete transaction', subtitle: 'Transaction', deco: 'ENTRY', body, footer });
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.confirm-btn').addEventListener('click', () => {
     deleteTransaction(tx.id);
@@ -877,7 +1158,7 @@ function openCsvImport(data) {
   const footer = document.createElement('div');
   footer.innerHTML = '<button class="btn btn-secondary cancel-btn">Close</button>';
 
-  const { close } = openModal({ title: 'Import CSV', body, footer });
+  const { close } = openModal({ title: 'Import CSV', subtitle: 'Import', deco: 'CSV', body, footer });
   footer.querySelector('.cancel-btn').addEventListener('click', close);
 
   body.querySelector('#csv-input').addEventListener('change', e => {

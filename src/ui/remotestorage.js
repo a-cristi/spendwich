@@ -138,10 +138,8 @@ function scheduleAutosave() {
 
 function _showFirstConnectConflict(localRaw, remoteRaw) {
   const body = document.createElement('p');
-  body.style.fontSize = '0.9rem';
   body.textContent = 'Your storage account already has data. Which version do you want to keep?';
   const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
   footer.innerHTML = `
     <button class="btn btn-secondary" id="rs-keep-local">Keep local</button>
     <button class="btn btn-primary" id="rs-use-remote">Load remote</button>
@@ -174,10 +172,8 @@ export function resumeAutosave() { _paused = false; saveToRemote(); }
 export function confirmLoadIfConnected(raw, onConfirm) {
   if (!_rs?.remote.connected) { onConfirm(); return; }
   const body = document.createElement('p');
-  body.style.fontSize = '0.9rem';
   body.textContent = 'You\'re connected to remote storage. This import will overwrite your remote data too. Continue?';
   const footer = document.createElement('div');
-  footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
   footer.innerHTML = `
     <button class="btn btn-secondary" id="rs-cancel">Cancel</button>
     <button class="btn btn-primary" id="rs-continue">Continue</button>

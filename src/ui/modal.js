@@ -1,16 +1,39 @@
 import { escHtml } from './utils.js';
 
-export function openModal({ title, body, footer }) {
+export function openModal({ title, subtitle, deco, body, footer }) {
   const dialog = document.createElement('dialog');
+  const isStyled = subtitle || deco;
+  if (isStyled) dialog.classList.add('modal-styled');
 
-  dialog.innerHTML = `
-    <div class="modal-header">
-      <h2>${escHtml(title)}</h2>
+  const headerContent = subtitle
+    ? `<div>
+         <p class="modal-subtitle">${escHtml(subtitle)}</p>
+         <h2 class="modal-title">${escHtml(title)}</h2>
+       </div>`
+    : `<h2>${escHtml(title)}</h2>`;
+
+  const headerHTML = `
+    <div class="modal-header${subtitle ? ' modal-header--styled' : ''}">
+      ${headerContent}
       <button class="close-btn" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body"></div>
     <div class="modal-footer"></div>
   `;
+
+  if (deco) {
+    dialog.innerHTML = `
+      <div class="modal-inner">
+        <div class="modal-main">${headerHTML}</div>
+        <div class="modal-deco">
+          <div class="modal-deco-text">${escHtml(deco)}</div>
+          <div class="modal-deco-line"></div>
+        </div>
+      </div>
+    `;
+  } else {
+    dialog.innerHTML = headerHTML;
+  }
 
   const bodyEl = dialog.querySelector('.modal-body');
   const footerEl = dialog.querySelector('.modal-footer');
@@ -37,4 +60,3 @@ export function openModal({ title, body, footer }) {
 
   return { close, dialog, bodyEl };
 }
-

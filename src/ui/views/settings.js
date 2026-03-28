@@ -1,4 +1,6 @@
-import { getData, loadData, exportData, updateSettings, importBulk, updateTransaction, addLabel } from '../../store.js';
+import { getData, loadData, exportData, updateSettings, importBulk, updateTransaction,
+         addLabel, updateLabel, deleteLabel,
+         addCategory, updateCategory, deleteCategory } from '../../store.js';
 import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
@@ -7,10 +9,27 @@ import { escHtml } from '../utils.js';
 import { attachWidget, confirmLoadIfConnected, pauseAutosave, resumeAutosave } from '../remotestorage.js';
 import { getThemePref, setTheme } from '../theme.js';
 
+const EMOJI_SET = [
+  '🏷️','🍔','🍕','🍜','🍣','🥗','☕','🍺','🥂',
+  '🚗','🚌','✈️','🚂','🚲','⛽',
+  '🏠','🏡','🔑','🛁','🔨','💡','🛒','💧','🔌','🔥',
+  '🛍️','👕','👟','💄','💎',
+  '🎬','🍿','🎮','🎵','🎨','📚','🎭','📺','🏖️',
+  '💊','🏥','💪','🧘',
+  '💰','💳','📈','🏦','💵','🧾','🏛️','🎁',
+  '🧳','🌴','🎉','🍸','💃',
+  '❤️','🌹','👨‍👩‍👧‍👦',
+  '👶','🐶','🐱','🌿','⚽','💼','💻','📱','🎓',
+];
+
 let _container = null;
 
 export function render(container) {
   _container = container;
+  const overflowMenu = document.querySelector('.nav-overflow-menu');
+  if (overflowMenu) { overflowMenu.innerHTML = ''; overflowMenu.classList.remove('active'); }
+  const overflowTrigger = document.querySelector('.nav-overflow-trigger');
+  if (overflowTrigger) overflowTrigger.style.display = 'none';
   refresh();
 }
 
@@ -22,69 +41,77 @@ function refresh() {
 
   const header = document.createElement('div');
   header.className = 'page-header';
-  header.innerHTML = '<h1>Settings</h1>';
+  header.innerHTML = '<div class="page-title-block"><h1>Settings</h1><p class="page-subtitle">Manage categories, labels, and preferences</p></div>';
   _container.appendChild(header);
 
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.style.padding = '1.5rem';
-  _container.appendChild(card);
+  const layout = document.createElement('div');
+  layout.className = 'manage-layout';
+  _container.appendChild(layout);
 
-  // Appearance
-  const appearanceSection = document.createElement('div');
-  appearanceSection.style.marginBottom = '1.5rem';
-  const appearanceTitle = document.createElement('p');
-  appearanceTitle.style.cssText = 'font-weight:600;margin-bottom:0.5rem';
-  appearanceTitle.textContent = 'Appearance';
+  const main = document.createElement('div');
+  main.className = 'manage-main';
+  layout.appendChild(main);
+
+  const aside = document.createElement('div');
+  aside.className = 'manage-aside';
+  layout.appendChild(aside);
+
+  // ── Left column ─────────────────────────────────────────────────────────
+  renderCategoriesSection(main, data.categories);
+  renderLabelsSection(main, data.labels);
+
+  // ── Right column ─────────────────────────────────────────────────────────
+  function makeSection(title) {
+    const sec = document.createElement('div');
+    sec.className = 'settings-section';
+    const t = document.createElement('div');
+    t.className = 'settings-section-title';
+    t.textContent = title;
+    sec.appendChild(t);
+    aside.appendChild(sec);
+    return sec;
+  }
+
+  // Preferences: theme + currency
+  const prefSection = makeSection('Preferences');
+
   const themeGroup = document.createElement('div');
   themeGroup.className = 'seg-group';
+  themeGroup.style.cssText = 'max-width:216px;margin-bottom:0.75rem';
   const currentPref = getThemePref();
   for (const [pref, label] of [['light', 'Light'], ['auto', 'Auto'], ['dark', 'Dark']]) {
     const btn = document.createElement('button');
     btn.className = 'btn btn-sm ' + (currentPref === pref ? 'btn-primary' : 'btn-secondary');
     btn.textContent = label;
-    btn.addEventListener('click', () => {
-      setTheme(pref);
-      refresh();
-    });
+    btn.addEventListener('click', () => { setTheme(pref); refresh(); });
     themeGroup.appendChild(btn);
   }
-  appearanceSection.appendChild(appearanceTitle);
-  appearanceSection.appendChild(themeGroup);
-  card.appendChild(appearanceSection);
+  prefSection.appendChild(themeGroup);
 
-  card.appendChild(document.createElement('hr'));
-  card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
-
-  // Currency setting
   const currGroup = document.createElement('div');
   currGroup.className = 'form-group';
+  currGroup.style.marginBottom = '0';
   currGroup.innerHTML = `
     <label for="default-currency">Default currency (ISO 4217, e.g. USD, EUR)</label>
-    <div style="display:flex;gap:0.5rem;max-width:300px">
+    <div style="display:flex;gap:0.5rem;max-width:260px">
       <input type="text" id="default-currency" value="${escHtml(defaultCurrency)}" maxlength="10">
       <button class="btn btn-primary" id="save-currency">Save</button>
     </div>
   `;
-  card.appendChild(currGroup);
+  prefSection.appendChild(currGroup);
 
-  card.querySelector('#save-currency').addEventListener('click', async () => {
-    const val = card.querySelector('#default-currency').value.trim().toUpperCase();
+  prefSection.querySelector('#save-currency').addEventListener('click', async () => {
+    const val = prefSection.querySelector('#default-currency').value.trim().toUpperCase();
     if (!val) return;
 
     const oldDefault = getData().settings.defaultCurrency;
-    if (val === oldDefault) {
-      toast('Default currency updated', 'success');
-      return;
-    }
+    if (val === oldDefault) { toast('Default currency updated', 'success'); return; }
 
-    const btn = card.querySelector('#save-currency');
+    const btn = prefSection.querySelector('#save-currency');
     btn.disabled = true;
     let paused = false;
     try {
       const txs = getData().transactions;
-
-      // Phase 1: pre-fetch all rates
       const succeeded = [];
       const failed = [];
       const failedPairs = new Set();
@@ -104,14 +131,11 @@ function refresh() {
         btn.textContent = `Fetching rates… ${succeeded.length + failed.length}/${txs.length}`;
       }
 
-      // Phase 2: if any failures, ask the user whether to proceed
       if (failed.length > 0) {
         const proceed = await confirmPartialMigration(val, [...failedPairs]);
         if (!proceed) return;
       }
 
-      // Phase 3: commit currency change + successful recalculations
-      // Pause remote autosave for the batch — resume once when all done
       paused = true;
       pauseAutosave();
       updateSettings({ defaultCurrency: val });
@@ -119,7 +143,6 @@ function refresh() {
         updateTransaction(id, { exchangeRate, amountInDefault });
       }
 
-      // Phase 4: tag failed transactions with an 'error' label so user can find them
       if (failed.length > 0) {
         let errorLabel = getData().labels.find(l => l.name === 'exchange-rate-error') ?? addLabel('exchange-rate-error');
         for (const { id } of failed) {
@@ -139,63 +162,44 @@ function refresh() {
     }
   });
 
-  card.appendChild(document.createElement('hr'));
-  card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
-
   // Sync
-  const syncSection = document.createElement('div');
-  syncSection.style.marginBottom = '1.5rem';
-  const syncTitle = document.createElement('p');
-  syncTitle.style.cssText = 'font-weight:600;margin-bottom:0.5rem';
-  syncTitle.textContent = 'Sync';
-  const syncDesc = document.createElement('p');
-  syncDesc.style.cssText = 'font-size:0.8rem;color:var(--text-muted);margin-bottom:0.75rem';
-  syncDesc.textContent = 'Connect a remoteStorage account (5apps, self-hosted) to sync your data across devices.';
+  const syncSection = makeSection('Sync');
   const widgetContainer = document.createElement('div');
-  syncSection.appendChild(syncTitle);
-  syncSection.appendChild(syncDesc);
   syncSection.appendChild(widgetContainer);
-  card.appendChild(syncSection);
   attachWidget(widgetContainer);
 
-  card.appendChild(document.createElement('hr'));
-  card.lastChild.style.cssText = 'margin:1.5rem 0;border:none;border-top:1px solid var(--border)';
-
-  // Import/Export
-  const ioSection = document.createElement('div');
-  ioSection.innerHTML = `
-    <p style="font-weight:600;margin-bottom:1rem">Data</p>
+  // Data
+  const ioSection = makeSection('Data');
+  ioSection.insertAdjacentHTML('beforeend', `
     <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:center">
-      <button class="btn btn-secondary" id="export-btn">Export JSON</button>
-      <label class="btn btn-secondary" style="cursor:pointer">
+      <button class="btn btn-sm btn-secondary" id="export-btn">Export JSON</button>
+      <label class="btn btn-sm btn-secondary" style="cursor:pointer">
         Import JSON
         <input type="file" id="import-json-input" accept=".json" style="display:none">
       </label>
-      <label class="btn btn-secondary" style="cursor:pointer">
+      <label class="btn btn-sm btn-secondary" style="cursor:pointer">
         Import CSV
         <input type="file" id="import-csv-input" accept=".csv,text/csv" style="display:none">
       </label>
     </div>
     <div id="csv-status" style="margin-top:0.5rem;font-size:0.8rem"></div>
-    <p style="margin-top:0.75rem;font-size:0.8rem;color:var(--text-muted)">
-      JSON export/import saves or restores all data. CSV import appends transactions.<br>
-      CSV columns: <code>date</code>, <code>amount</code>, <code>currency</code>, <code>category</code>, <code>description</code>, <code>labels</code> (optional, semicolon-separated).
-    </p>
-  `;
-  card.appendChild(ioSection);
+    <p style="margin-top:0.5rem;font-size:0.8rem;color:var(--text-muted)">JSON backup/restore · CSV import appends transactions (columns: date, amount, currency, category, description, labels)</p>
+  `);
 
-  card.querySelector('#export-btn').addEventListener('click', () => {
+  ioSection.querySelector('#export-btn').addEventListener('click', () => {
     const json = exportData();
     const blob = new Blob([json], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
     a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
     a.click();
+    document.body.removeChild(a);
     URL.revokeObjectURL(url);
   });
 
-  card.querySelector('#import-json-input').addEventListener('change', e => {
+  ioSection.querySelector('#import-json-input').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
@@ -215,10 +219,10 @@ function refresh() {
     e.target.value = '';
   });
 
-  card.querySelector('#import-csv-input').addEventListener('change', e => {
+  ioSection.querySelector('#import-csv-input').addEventListener('change', e => {
     const file = e.target.files[0];
     if (!file) return;
-    const statusEl = card.querySelector('#csv-status');
+    const statusEl = ioSection.querySelector('#csv-status');
     const reader = new FileReader();
     reader.onload = evt => {
       try {
@@ -235,16 +239,222 @@ function refresh() {
   });
 }
 
+// ── Category section ──────────────────────────────────────────────────────
+
+function renderCategoriesSection(parent, categories) {
+  const section = document.createElement('div');
+  section.className = 'settings-section';
+
+  const header = document.createElement('div');
+  header.className = 'settings-section-header';
+  header.innerHTML = `
+    <div class="settings-section-title">Categories</div>
+    <button class="btn btn-sm btn-primary" id="add-cat-btn">+ Add</button>
+  `;
+  section.appendChild(header);
+
+  if (categories.length === 0) {
+    section.insertAdjacentHTML('beforeend', '<div class="list-empty">No categories yet. Add one to get started.</div>');
+  } else {
+    const list = document.createElement('div');
+    list.className = 'list';
+    for (const cat of categories) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span style="font-size:1.1rem;width:2rem;text-align:center;flex-shrink:0">${cat.icon ?? '🏷️'}</span>
+        <span style="flex:1;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(cat.name)}</span>
+        <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
+        <button class="btn btn-sm btn-danger del-btn">Delete</button>
+      `;
+      row.querySelector('.edit-btn').addEventListener('click', () => openCategoryModal(cat));
+      row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteCategory(cat));
+      list.appendChild(row);
+    }
+    section.appendChild(list);
+  }
+
+  parent.appendChild(section);
+  section.querySelector('#add-cat-btn').addEventListener('click', () => openCategoryModal(null));
+}
+
+function openCategoryModal(cat) {
+  const isEdit = cat !== null;
+  let selectedIcon = cat?.icon ?? '🏷️';
+
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <div class="form-group">
+      <label for="cat-name" class="tx-field-label">Name</label>
+      <input type="text" id="cat-name" value="${escHtml(cat?.name ?? '')}" placeholder="e.g. Groceries" autocomplete="off">
+    </div>
+    <div class="form-group">
+      <span class="tx-field-label">Icon</span>
+      <div id="icon-picker" class="icon-picker-grid">
+        ${EMOJI_SET.map(e => `
+          <button type="button" class="icon-btn${e === selectedIcon ? ' selected' : ''}" data-icon="${e}">${e}</button>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  body.querySelector('#icon-picker').addEventListener('click', e => {
+    const btn = e.target.closest('.icon-btn');
+    if (!btn) return;
+    selectedIcon = btn.dataset.icon;
+    body.querySelectorAll('.icon-btn').forEach(b => {
+      b.classList.toggle('selected', b.dataset.icon === selectedIcon);
+    });
+  });
+
+  const footer = document.createElement('div');
+  footer.innerHTML = `
+    <button class="btn btn-secondary cancel-btn">Cancel</button>
+    <button class="btn btn-primary save-btn">${isEdit ? 'Save' : 'Add'}</button>
+  `;
+
+  const { close } = openModal({ title: isEdit ? 'Edit category' : 'New category', subtitle: 'Category', deco: 'CATEGORY', body, footer });
+  footer.querySelector('.cancel-btn').addEventListener('click', close);
+  footer.querySelector('.save-btn').addEventListener('click', () => {
+    const name = body.querySelector('#cat-name').value.trim();
+    if (!name) { body.querySelector('#cat-name').focus(); return; }
+    if (isEdit) {
+      updateCategory(cat.id, { name, icon: selectedIcon });
+      toast('Category updated', 'success');
+    } else {
+      addCategory(name, selectedIcon);
+      toast('Category added', 'success');
+    }
+    close();
+    refresh();
+  });
+
+  setTimeout(() => body.querySelector('#cat-name').focus(), 50);
+}
+
+function confirmDeleteCategory(cat) {
+  const body = document.createElement('p');
+  body.textContent = `Delete "${cat.name}"? Existing transactions will keep a reference to it (shown as deleted).`;
+
+  const footer = document.createElement('div');
+  footer.innerHTML = `
+    <button class="btn btn-secondary cancel-btn">Cancel</button>
+    <button class="btn btn-danger confirm-btn">Delete</button>
+  `;
+
+  const { close } = openModal({ title: 'Delete category', subtitle: 'Category', deco: 'CATEGORY', body, footer });
+  footer.querySelector('.cancel-btn').addEventListener('click', close);
+  footer.querySelector('.confirm-btn').addEventListener('click', () => {
+    deleteCategory(cat.id);
+    toast('Category deleted', 'success');
+    close();
+    refresh();
+  });
+}
+
+// ── Label section ─────────────────────────────────────────────────────────
+
+function renderLabelsSection(parent, labels) {
+  const section = document.createElement('div');
+  section.className = 'settings-section';
+
+  const header = document.createElement('div');
+  header.className = 'settings-section-header';
+  header.innerHTML = `
+    <div class="settings-section-title">Labels</div>
+    <button class="btn btn-sm btn-primary" id="add-lbl-btn">+ Add</button>
+  `;
+  section.appendChild(header);
+
+  if (labels.length === 0) {
+    section.insertAdjacentHTML('beforeend', '<div class="list-empty">No labels yet. Add one to get started.</div>');
+  } else {
+    const list = document.createElement('div');
+    list.className = 'list';
+    for (const lbl of labels) {
+      const row = document.createElement('div');
+      row.className = 'list-row';
+      row.innerHTML = `
+        <span style="flex:1;font-weight:500">${escHtml(lbl.name)}</span>
+        <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
+        <button class="btn btn-sm btn-danger del-btn">Delete</button>
+      `;
+      row.querySelector('.edit-btn').addEventListener('click', () => openLabelModal(lbl));
+      row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteLabel(lbl));
+      list.appendChild(row);
+    }
+    section.appendChild(list);
+  }
+
+  parent.appendChild(section);
+  section.querySelector('#add-lbl-btn').addEventListener('click', () => openLabelModal(null));
+}
+
+function openLabelModal(lbl) {
+  const isEdit = lbl !== null;
+  const body = document.createElement('div');
+  body.innerHTML = `
+    <div class="form-group">
+      <label for="lbl-name" class="tx-field-label">Name</label>
+      <input type="text" id="lbl-name" value="${escHtml(lbl?.name ?? '')}" placeholder="e.g. work-trip" autocomplete="off">
+    </div>
+  `;
+
+  const footer = document.createElement('div');
+  footer.innerHTML = `
+    <button class="btn btn-secondary cancel-btn">Cancel</button>
+    <button class="btn btn-primary save-btn">${isEdit ? 'Save' : 'Add'}</button>
+  `;
+
+  const { close } = openModal({ title: isEdit ? 'Edit label' : 'New label', subtitle: 'Label', deco: 'LABEL', body, footer });
+  footer.querySelector('.cancel-btn').addEventListener('click', close);
+  footer.querySelector('.save-btn').addEventListener('click', () => {
+    const name = body.querySelector('#lbl-name').value.trim();
+    if (!name) { body.querySelector('#lbl-name').focus(); return; }
+    if (isEdit) {
+      updateLabel(lbl.id, { name });
+      toast('Label updated', 'success');
+    } else {
+      addLabel(name);
+      toast('Label added', 'success');
+    }
+    close();
+    refresh();
+  });
+
+  setTimeout(() => body.querySelector('#lbl-name').focus(), 50);
+}
+
+function confirmDeleteLabel(lbl) {
+  const body = document.createElement('p');
+  body.textContent = `Delete "${lbl.name}"? Existing transactions will keep a reference to it (shown as deleted).`;
+
+  const footer = document.createElement('div');
+  footer.innerHTML = `
+    <button class="btn btn-secondary cancel-btn">Cancel</button>
+    <button class="btn btn-danger confirm-btn">Delete</button>
+  `;
+
+  const { close } = openModal({ title: 'Delete label', subtitle: 'Label', deco: 'LABEL', body, footer });
+  footer.querySelector('.cancel-btn').addEventListener('click', close);
+  footer.querySelector('.confirm-btn').addEventListener('click', () => {
+    deleteLabel(lbl.id);
+    toast('Label deleted', 'success');
+    close();
+    refresh();
+  });
+}
+
+// ── Currency migration helper ─────────────────────────────────────────────
+
 function confirmPartialMigration(newCurrency, failedCurrencies) {
   return new Promise(resolve => {
     const body = document.createElement('p');
-    body.style.fontSize = '0.9rem';
     body.innerHTML = `Exchange rates could not be fetched for: <strong>${escHtml(failedCurrencies.join(', '))}</strong>.
       <br><br>You can still switch to ${escHtml(newCurrency)} — affected transactions will be
       tagged with an <strong>exchange-rate-error</strong> label so you can find and correct them.`;
 
     const footer = document.createElement('div');
-    footer.style.cssText = 'display:flex;gap:0.5rem;justify-content:flex-end';
     footer.innerHTML = `
       <button class="btn btn-secondary cancel-btn">Cancel</button>
       <button class="btn btn-primary proceed-btn">Change anyway</button>
@@ -255,4 +465,3 @@ function confirmPartialMigration(newCurrency, failedCurrencies) {
     footer.querySelector('.proceed-btn').addEventListener('click', () => { close(); resolve(true);  });
   });
 }
-
