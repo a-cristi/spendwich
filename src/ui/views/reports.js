@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes } from '../../reports.js';
 import { escHtml } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -926,6 +926,16 @@ function renderCategoryTrend(data, currency, container) {
   const labels = trendData.map(b => trendChartLabel(b.period, granularity));
   const chartData = trendData.map(b => Math.abs(b.total));
 
+  const spikeIndices = new Set(detectSpikes(chartData));
+  const defaultRadius = trendData.length > 60 ? 0 : 4;
+  const pointRadii = chartData.map((_, i) => spikeIndices.has(i) ? 7 : defaultRadius);
+  const pointColors = chartData.map((_, i) => {
+    if (!spikeIndices.has(i)) return lineColor;
+    return trendData[i].total < 0
+      ? (dark ? '#fb7185' : '#b91c1c')
+      : (dark ? '#4ade80' : '#15803d');
+  });
+
   _chartInstances.push(new Chart(ctx, {
     type: 'line',
     data: {
@@ -938,8 +948,8 @@ function renderCategoryTrend(data, currency, container) {
         fill: true,
         borderWidth: 2.5,
         tension: 0.4,
-        pointRadius: trendData.length > 60 ? 0 : 4,
-        pointBackgroundColor: lineColor,
+        pointRadius: pointRadii,
+        pointBackgroundColor: pointColors,
         pointBorderColor: 'transparent',
         pointHoverRadius: 6,
       }],
@@ -947,7 +957,10 @@ function renderCategoryTrend(data, currency, container) {
     options: {
       responsive: true,
       plugins: { legend: { display: false }, tooltip: {
-        callbacks: { label: ctx => fmt(ctx.parsed.y, currency) }
+        callbacks: { label: ctx => {
+          const val = fmt(ctx.parsed.y, currency);
+          return spikeIndices.has(ctx.dataIndex) ? `${val} (Spike)` : val;
+        }}
       }},
       scales: {
         x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },

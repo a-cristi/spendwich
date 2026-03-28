@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -256,4 +256,31 @@ test('categoryTrendReport returns empty array for no matching data', () => {
   const r = categoryTrendReport(makeData([]), 'nonexistent', '2026-01-01', '2026-03-31', 'monthly');
   assert.equal(r.length, 3);
   assert.ok(r.every(b => b.total === 0 && b.count === 0));
+});
+
+// --- detectSpikes ---
+
+test('detectSpikes: fewer than 3 values returns empty', () => {
+  assert.deepEqual(detectSpikes([10, 20]), []);
+});
+
+test('detectSpikes: all identical values returns empty', () => {
+  assert.deepEqual(detectSpikes([5, 5, 5, 5]), []);
+});
+
+test('detectSpikes: finds obvious spike', () => {
+  const values = [10, 12, 11, 10, 50, 11, 10];
+  const spikes = detectSpikes(values);
+  assert.ok(spikes.includes(4), 'index 4 (value 50) should be a spike');
+  assert.equal(spikes.length, 1);
+});
+
+test('detectSpikes: sensitivity adjusts threshold', () => {
+  const values = [10, 12, 11, 10, 30, 11, 10];
+  assert.equal(detectSpikes(values, 1.0).length, 1, 'low sensitivity catches it');
+  assert.equal(detectSpikes(values, 5.0).length, 0, 'high sensitivity ignores it');
+});
+
+test('detectSpikes: empty array returns empty', () => {
+  assert.deepEqual(detectSpikes([]), []);
 });

@@ -94,6 +94,17 @@ export function categoryTrendReport(data, categoryId, from, to, granularity) {
   return results;
 }
 
+export function detectSpikes(values, sensitivity = 2.0) {
+  if (values.length < 3) return [];
+  const mean = values.reduce((a, b) => a + b, 0) / values.length;
+  const squareDiffs = values.map(v => Math.pow(v - mean, 2));
+  const stdDev = Math.sqrt(squareDiffs.reduce((a, b) => a + b, 0) / values.length);
+  if (stdDev === 0) return [];
+  return values
+    .map((val, i) => (val > mean + sensitivity * stdDev ? i : -1))
+    .filter(i => i !== -1);
+}
+
 function bucketKey(dateStr, granularity) {
   if (granularity === 'daily') return dateStr;
   const y = dateStr.slice(0, 4);
