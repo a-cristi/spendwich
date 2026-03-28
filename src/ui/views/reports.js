@@ -1039,13 +1039,14 @@ function renderCategoryTrend(data, currency, container) {
   if (pctMode) {
     const finitePcts = rawPcts.filter(p => p !== Infinity);
     const maxPct = finitePcts.length > 0 ? Math.max(...finitePcts) : 0;
-    const steps = [25, 50, 75, 100, 150, 200];
-    pctCeiling = steps.find(s => s >= maxPct * 1.15) || Math.ceil(maxPct * 1.15 / 50) * 50;
-    const clampCeil = Math.max(pctCeiling, 100);
-    const clampedPcts = rawPcts.map(p => Math.min(p, clampCeil));
+    const hasOverspend = rawPcts.some(p => p > 100 || p === Infinity);
+    const steps = [2, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200];
+    const stepCeil = steps.find(s => s >= maxPct * 1.15) || Math.ceil(maxPct * 1.15 / 50) * 50;
+    pctCeiling = hasOverspend ? Math.max(stepCeil, 100) : stepCeil;
+    const clampedPcts = rawPcts.map(p => Math.min(p, pctCeiling));
     chartData = clampedPcts;
-    ceilingIndices = new Set(rawPcts.map((p, i) => p > clampCeil ? i : -1).filter(i => i !== -1));
-    const forSpikes = rawPcts.map(p => p === Infinity ? clampCeil : Math.min(p, clampCeil));
+    ceilingIndices = new Set(rawPcts.map((p, i) => (p > pctCeiling || p === Infinity) ? i : -1).filter(i => i !== -1));
+    const forSpikes = rawPcts.map(p => p === Infinity ? pctCeiling : Math.min(p, pctCeiling));
     spikeIndices = new Set([...detectSpikes(forSpikes), ...ceilingIndices]);
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
