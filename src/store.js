@@ -52,6 +52,18 @@ export function updateCategory(id, fields) {
   _notifyChange();
 }
 
+export function reassignCategory(fromId, toCategoryId, addLabelIds = []) {
+  for (const tx of _data.transactions) {
+    if (tx.categoryId === fromId) {
+      if (toCategoryId != null) tx.categoryId = toCategoryId;
+      for (const lid of addLabelIds) {
+        if (!tx.labelIds.includes(lid)) tx.labelIds.push(lid);
+      }
+    }
+  }
+  _notifyChange();
+}
+
 export function deleteCategory(id) {
   const idx = _data.categories.findIndex(c => c.id === id);
   if (idx === -1) throw new Error(`Category not found: ${id}`);

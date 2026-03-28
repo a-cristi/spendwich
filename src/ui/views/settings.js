@@ -1,6 +1,6 @@
 import { getData, loadData, exportData, updateSettings, importBulk, updateTransaction,
          addLabel, updateLabel, deleteLabel,
-         addCategory, updateCategory, deleteCategory } from '../../store.js';
+         addCategory, updateCategory, deleteCategory, reassignCategory } from '../../store.js';
 import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
@@ -341,8 +341,91 @@ function openCategoryModal(cat) {
 }
 
 function confirmDeleteCategory(cat) {
-  const body = document.createElement('p');
-  body.textContent = `Delete "${cat.name}"? Existing transactions will keep a reference to it (shown as deleted).`;
+  const data = getData();
+  const affected = data.transactions.filter(t => t.categoryId === cat.id).length;
+  const otherCats = data.categories.filter(c => c.id !== cat.id);
+
+  const body = document.createElement('div');
+
+  if (affected === 0) {
+    body.innerHTML = `<p>Delete "${escHtml(cat.name)}"? No transactions use this category.</p>`;
+  } else {
+    let selectedCatId = null;
+    const catCards = otherCats.map(c =>
+      `<div class="cat-card" data-cat-id="${escHtml(c.id)}"><span class="cat-card-emoji">${c.icon ?? '🏷️'}</span><span class="cat-card-name">${escHtml(c.name)}</span></div>`
+    ).join('');
+
+    const labelChips = data.labels.map(l =>
+      `<label class="tx-label-chip"><input type="checkbox" value="${escHtml(l.id)}" style="display:none">${escHtml(l.name)}</label>`
+    ).join('');
+
+    body.innerHTML = `
+      <p style="margin-top:0"><strong>${affected}</strong> transaction${affected === 1 ? '' : 's'} use${affected === 1 ? 's' : ''} this category.</p>
+      ${otherCats.length > 0 ? `
+      <div class="form-group">
+        <span class="tx-field-label">Reassign to</span>
+        <div class="tx-cat-picker" id="reassign-cat">
+          <div class="cat-search-wrap">
+            <svg class="cat-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input class="cat-search" type="text" placeholder="Search categories…">
+          </div>
+          <div class="cat-grid">${catCards}</div>
+        </div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">Optional — skip to leave as "(deleted)"</div>
+      </div>` : ''}
+      ${data.labels.length > 0 ? `
+      <div class="form-group">
+        <span class="tx-field-label">Add label</span>
+        <div class="tx-labels-wrap" id="reassign-labels">${labelChips}</div>
+        <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">Optional — tag affected transactions for easy filtering</div>
+      </div>` : ''}
+    `;
+
+    // Category card selection
+    const catPicker = body.querySelector('#reassign-cat');
+    if (catPicker) {
+      catPicker.addEventListener('click', e => {
+        const card = e.target.closest('.cat-card');
+        if (!card) return;
+        const id = card.dataset.catId;
+        if (selectedCatId === id) {
+          selectedCatId = null;
+          card.classList.remove('selected');
+        } else {
+          catPicker.querySelectorAll('.cat-card').forEach(c => c.classList.remove('selected'));
+          card.classList.add('selected');
+          selectedCatId = id;
+        }
+      });
+
+      const searchInput = catPicker.querySelector('.cat-search');
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.toLowerCase();
+        catPicker.querySelectorAll('.cat-card').forEach(card => {
+          const name = card.querySelector('.cat-card-name').textContent.toLowerCase();
+          card.style.display = name.includes(q) ? '' : 'none';
+        });
+      });
+    }
+
+    // Label chip toggle
+    const labelsWrap = body.querySelector('#reassign-labels');
+    if (labelsWrap) {
+      labelsWrap.addEventListener('change', e => {
+        const chip = e.target.closest('.tx-label-chip');
+        if (chip) chip.classList.toggle('selected', e.target.checked);
+      });
+    }
+
+    // Store selection getter for the confirm handler
+    body._getSelection = () => {
+      const labelIds = [];
+      if (labelsWrap) {
+        labelsWrap.querySelectorAll('input:checked').forEach(cb => labelIds.push(cb.value));
+      }
+      return { catId: selectedCatId, labelIds };
+    };
+  }
 
   const footer = document.createElement('div');
   footer.innerHTML = `
@@ -353,8 +436,19 @@ function confirmDeleteCategory(cat) {
   const { close } = openModal({ title: 'Delete category', subtitle: 'Category', deco: 'CATEGORY', body, footer });
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.confirm-btn').addEventListener('click', () => {
+    let reassigned = false;
+    if (affected > 0 && body._getSelection) {
+      const { catId, labelIds } = body._getSelection();
+      if (catId || labelIds.length > 0) {
+        reassignCategory(cat.id, catId, labelIds);
+        reassigned = !!catId;
+      }
+    }
     deleteCategory(cat.id);
-    toast('Category deleted', 'success');
+    const msg = reassigned
+      ? `Category deleted, ${affected} transaction${affected === 1 ? '' : 's'} reassigned`
+      : 'Category deleted';
+    toast(msg, 'success');
     close();
     refresh();
   });

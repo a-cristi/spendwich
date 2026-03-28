@@ -275,3 +275,39 @@ test('splitSeries with fromDate equal to source.date updates source (edit-all)',
   assert.equal(txs.length, 1);
   assert.equal(txs[0].amount, -50);
 });
+
+test('reassignCategory moves transactions to new category', () => {
+  const catA = store.addCategory('Food', '🍔');
+  const catB = store.addCategory('Dining', '🍕');
+  store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, categoryId: catA.id, labelIds: [], description: '' });
+  store.addTransaction({ date: '2026-01-02', amount: -20, currency: 'USD', amountInDefault: -20, exchangeRate: 1, categoryId: catA.id, labelIds: [], description: '' });
+  store.addTransaction({ date: '2026-01-03', amount: -5, currency: 'USD', amountInDefault: -5, exchangeRate: 1, categoryId: catB.id, labelIds: [], description: '' });
+  store.reassignCategory(catA.id, catB.id);
+  const txs = store.getData().transactions;
+  assert.equal(txs.filter(t => t.categoryId === catB.id).length, 3);
+  assert.equal(txs.filter(t => t.categoryId === catA.id).length, 0);
+});
+
+test('reassignCategory adds labels without duplicates', () => {
+  const cat = store.addCategory('Food', '🍔');
+  const catB = store.addCategory('Other', '🏷️');
+  const lbl = store.addLabel('migrated');
+  store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, categoryId: cat.id, labelIds: [lbl.id], description: '' });
+  store.addTransaction({ date: '2026-01-02', amount: -20, currency: 'USD', amountInDefault: -20, exchangeRate: 1, categoryId: cat.id, labelIds: [], description: '' });
+  store.reassignCategory(cat.id, catB.id, [lbl.id]);
+  const txs = store.getData().transactions;
+  assert.equal(txs[0].labelIds.length, 1);
+  assert.equal(txs[1].labelIds.length, 1);
+  assert.equal(txs[1].labelIds[0], lbl.id);
+});
+
+test('reassignCategory with null target only adds labels, preserves categoryId', () => {
+  const cat = store.addCategory('Food', '🍔');
+  const lbl = store.addLabel('archived');
+  store.addTransaction({ date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, categoryId: cat.id, labelIds: [], description: '' });
+  store.reassignCategory(cat.id, null, [lbl.id]);
+  const txs = store.getData().transactions;
+  assert.equal(txs[0].categoryId, cat.id);
+  assert.equal(txs[0].labelIds.length, 1);
+  assert.equal(txs[0].labelIds[0], lbl.id);
+});
