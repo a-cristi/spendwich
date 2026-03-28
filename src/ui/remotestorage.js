@@ -29,8 +29,8 @@ export function initRemoteStorage(refreshFn) {
   if (location.protocol === 'file:') return;
 
   _rs = new RemoteStorage({ logging: false });
-  _client = _rs.scope('/spendwich/');
   _rs.access.claim('spendwich', 'rw');
+  _client = _rs.scope('/spendwich/');
   _rs.caching.enable('/spendwich/');
 
   _rs.on('ready', onReady);
