@@ -896,6 +896,34 @@ function renderCategoryTrend(data, currency, container) {
 
   if (pctMode) {
     incomeData = incomeTrendReport(data, from, to, granularity);
+    if (incomeData.every(b => b.income === 0)) {
+      const wrap = document.createElement('div');
+      wrap.className = 'card';
+      wrap.style.cssText = 'padding:1.25rem';
+      const hdr = document.createElement('div');
+      hdr.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem';
+      const title = document.createElement('div');
+      title.style.cssText = 'font-size:0.75rem;color:var(--text-muted);font-weight:600;text-transform:uppercase;letter-spacing:0.5px';
+      title.textContent = (granularity === 'daily' ? 'Daily' : granularity === 'quarterly' ? 'Quarterly' : 'Monthly') + ' % of Income';
+      hdr.appendChild(title);
+      const seg = document.createElement('div');
+      seg.className = 'seg-group';
+      for (const [lbl, val] of [['Value', false], ['% Inc', true]]) {
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-sm' + (val === _trendPctMode ? ' btn-primary' : ' btn-secondary');
+        btn.textContent = lbl;
+        btn.addEventListener('click', () => { _trendPctMode = val; refresh(); });
+        seg.appendChild(btn);
+      }
+      hdr.appendChild(seg);
+      wrap.appendChild(hdr);
+      wrap.appendChild(Object.assign(document.createElement('p'), {
+        className: 'placeholder',
+        textContent: 'No income recorded in this period — % of Income view is unavailable.',
+      }));
+      container.appendChild(wrap);
+      return;
+    }
     rawPcts = trendData.map((b, i) => {
       const inc = incomeData[i].income;
       return inc > 0 ? Math.abs(b.total) / inc * 100 : Infinity;
