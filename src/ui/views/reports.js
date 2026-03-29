@@ -825,7 +825,7 @@ function computeDynamicComparison(data, categoryId, from, to, granularity, curre
 
 function computePctComparison(data, categoryId, from, to, granularity, currentRawPcts) {
   const { prevFrom, prevTo, label, subtitle } = prevPeriodRange(from, to);
-  const validCur = currentRawPcts.filter(p => p !== Infinity);
+  const validCur = currentRawPcts.filter(p => p !== null);
   const curAvg = validCur.length > 0 ? validCur.reduce((a, b) => a + b, 0) / validCur.length : null;
 
   const prevCat = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity);
@@ -886,7 +886,7 @@ function renderCategoryTrend(data, currency, container) {
 
   // --- Mode-dependent values (single branch) ---
   let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, comparison, chartTitleText, tooltipCb, yScale;
-  let incomeData, rawPcts, pctCeiling;
+  let incomeData, rawPcts, pctCeiling, noIncomeIndices = new Set();
 
   const dark = isDark();
   const lineColor = dark ? '#818cf8' : '#5055d8';
@@ -926,21 +926,21 @@ function renderCategoryTrend(data, currency, container) {
     }
     rawPcts = trendData.map((b, i) => {
       const inc = incomeData[i].income;
-      return inc > 0 ? Math.abs(b.total) / inc * 100 : Infinity;
+      return inc > 0 ? Math.abs(b.total) / inc * 100 : null;
     });
-    const finitePcts = rawPcts.filter(p => p !== Infinity);
+    noIncomeIndices = new Set(rawPcts.map((p, i) => p === null ? i : -1).filter(i => i !== -1));
+    const finitePcts = rawPcts.filter(p => p !== null);
     const maxPct = finitePcts.length > 0 ? Math.max(...finitePcts) : 0;
-    const hasOverspend = rawPcts.some(p => p > 100 || p === Infinity);
+    const hasOverspend = finitePcts.some(p => p > 100);
     const steps = [2, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200];
     const stepCeil = steps.find(s => s >= maxPct * 1.15) || Math.ceil(maxPct * 1.15 / 50) * 50;
     pctCeiling = hasOverspend ? Math.max(stepCeil, 100) : stepCeil;
-    chartData = rawPcts.map(p => Math.min(p, pctCeiling));
-    ceilingIndices = new Set(rawPcts.map((p, i) => (p > pctCeiling || p === Infinity) ? i : -1).filter(i => i !== -1));
-    const forSpikes = rawPcts.map(p => p === Infinity ? pctCeiling : Math.min(p, pctCeiling));
+    chartData = rawPcts.map(p => p === null ? null : Math.min(p, pctCeiling));
+    ceilingIndices = new Set(rawPcts.map((p, i) => (p !== null && p > pctCeiling) ? i : -1).filter(i => i !== -1));
+    const forSpikes = rawPcts.map(p => p === null ? 0 : Math.min(p, pctCeiling));
     spikeIndices = new Set([...detectSpikes(forSpikes), ...ceilingIndices]);
 
-    const validPcts = finitePcts;
-    const avgPct = validPcts.length > 0 ? validPcts.reduce((a, b) => a + b, 0) / validPcts.length : 0;
+    const avgPct = finitePcts.length > 0 ? finitePcts.reduce((a, b) => a + b, 0) / finitePcts.length : 0;
     avgLabel = `Avg. ${granLabel} % of Inc.`;
     avgVal = `${avgPct.toFixed(1)}%`;
     comparison = computePctComparison(data, _trendCategoryId, from, to, granularity, rawPcts);
@@ -948,8 +948,7 @@ function renderCategoryTrend(data, currency, container) {
     tooltipCb = ctx => {
       const idx = ctx.dataIndex;
       if (ceilingIndices.has(idx)) {
-        const amt = fmt(Math.abs(trendData[idx].total), currency);
-        return incomeData[idx].income === 0 ? `${amt} (No Income)` : `${amt} (Funded by Savings)`;
+        return `${fmt(Math.abs(trendData[idx].total), currency)} (Funded by Savings)`;
       }
       const pctVal = rawPcts[idx].toFixed(1) + '%';
       return spikeIndices.has(idx) ? `${pctVal} (Spike)` : pctVal;
@@ -1040,8 +1039,12 @@ function renderCategoryTrend(data, currency, container) {
 
   const labels = trendData.map(b => trendChartLabel(b.period, granularity));
   const defaultRadius = trendData.length > 60 ? 0 : 4;
-  const pointRadii = chartData.map((_, i) => spikeIndices.has(i) ? 7 : defaultRadius);
+  const pointRadii = chartData.map((_, i) => {
+    if (noIncomeIndices.has(i)) return 0;
+    return spikeIndices.has(i) ? 7 : defaultRadius;
+  });
   const pointColors = chartData.map((_, i) => {
+    if (noIncomeIndices.has(i)) return 'transparent';
     if (ceilingIndices.has(i)) return roseColor;
     if (!spikeIndices.has(i)) return lineColor;
     return trendData[i].total < 0 ? roseColor : (dark ? '#4ade80' : '#15803d');
@@ -1058,7 +1061,18 @@ function renderCategoryTrend(data, currency, container) {
     }] },
     options: {
       responsive: true,
-      plugins: { legend: { display: false }, tooltip: { callbacks: { label: tooltipCb } } },
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: tooltipCb } },
+        annotation: { annotations: (() => {
+          const a = {};
+          if (pctMode) for (const idx of noIncomeIndices) {
+            a[`noInc${idx}`] = { type: 'box', xMin: idx - 0.5, xMax: idx + 0.5,
+              backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)', borderWidth: 0 };
+          }
+          return a;
+        })() },
+      },
       scales: {
         x: { grid: { display: false }, ticks: { color: labelColor, font: { size: 11 }, maxTicksLimit: granularity === 'daily' ? 10 : undefined } },
         y: yScale,
