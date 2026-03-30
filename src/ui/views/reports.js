@@ -814,6 +814,8 @@ function prevPeriodRange(from, to) {
   return { prevFrom, prevTo, label, subtitle };
 }
 
+// Golden Rule: current period in progress → compare avg/elapsed vs avg/elapsed (fair
+// apples-to-apples); past period → full total vs full total (no slicing needed).
 function computeDynamicComparison(data, categoryId, from, to, granularity, currentTotal, elapsedCount) {
   const { prevFrom, prevTo, label, subtitle } = prevPeriodRange(from, to);
   const todayStr = new Date().toISOString().slice(0, 10);
@@ -1000,6 +1002,8 @@ function renderCategoryTrend(data, currency, container) {
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
+    // Spike detection must run on raw values before nulling future periods — nulling
+    // first would reduce the dataset and distort the mean/stddev baseline.
     spikeIndices = new Set(detectSpikes(chartData));
     chartData = chartData.map((v, i) => isFuturePeriod(trendData[i].period) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
