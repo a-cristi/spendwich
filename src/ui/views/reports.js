@@ -861,6 +861,19 @@ function computePctComparison(data, categoryId, from, to, granularity, currentRa
   return { value: curAvg - prevAvg, label, subtitle, unit: 'pp' };
 }
 
+function makeHatchPattern(ctx, dark) {
+  const s = 8;
+  const pc = document.createElement('canvas');
+  pc.width = s; pc.height = s;
+  const pctx = pc.getContext('2d');
+  pctx.strokeStyle = dark ? 'rgba(255,255,255,0.10)' : 'rgba(0,0,0,0.07)';
+  pctx.lineWidth = 1;
+  pctx.beginPath();
+  pctx.moveTo(0, s); pctx.lineTo(s, 0);
+  pctx.stroke();
+  return ctx.createPattern(pc, 'repeat');
+}
+
 function renderCategoryTrend(data, currency, container) {
   const { from, to, granularity } = trendDateRange(data, _trendCategoryId);
   const trendData = categoryTrendReport(data, _trendCategoryId, from, to, granularity);
@@ -1104,17 +1117,6 @@ function renderCategoryTrend(data, currency, container) {
     pointRadius: pointRadii, pointBackgroundColor: pointColors,
     pointBorderColor: 'transparent', pointHoverRadius: 6,
   }];
-  if (pctMode && noIncomeIndices.size > 0) {
-    datasets.push({
-      label: 'No income',
-      data: chartData.map((_, i) => noIncomeIndices.has(i) ? pctCeiling * 0.06 : null),
-      borderColor: 'transparent', backgroundColor: 'transparent', fill: false,
-      pointRadius: chartData.map((_, i) => noIncomeIndices.has(i) ? 5 : 0),
-      pointBackgroundColor: dark ? '#1d1c2b' : '#fffefb',
-      pointBorderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)',
-      pointBorderWidth: 1.5, pointStyle: 'circle', pointHoverRadius: 6,
-    });
-  }
 
   _chartInstances.push(new Chart(ctx, {
     type: 'line',
@@ -1128,9 +1130,11 @@ function renderCategoryTrend(data, currency, container) {
           const a = {};
           if (pctMode) for (const idx of noIncomeIndices) {
             a[`noInc${idx}`] = { type: 'box', xMin: idx - 0.5, xMax: idx + 0.5,
-              backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)',
-              borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
-              borderDash: [4, 4] };
+              backgroundColor: makeHatchPattern(ctx, dark),
+              borderWidth: 0,
+              label: { display: granularity !== 'daily', content: 'NO INCOME', rotation: -90,
+                color: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.20)',
+                font: { size: 8, weight: '700' }, backgroundColor: 'transparent', position: 'center' } };
           }
           if (pctMode && hasOverspend) {
             a['incomeLimit'] = { type: 'line', yMin: 100, yMax: 100,
