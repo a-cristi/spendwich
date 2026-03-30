@@ -597,8 +597,8 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const nameBadge = d.amtA === 0 ? ` <span style="font-size:0.6rem;background:var(--primary);color:#fff;padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>` : '';
     const goneBadge = d.amtB === 0 ? ` <span style="font-size:0.6rem;background:var(--border);color:var(--text-muted);padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">GONE</span>` : '';
 
-    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of inc' : '—';
-    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of inc' : '—';
+    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of inc' : 'No income';
+    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of inc' : 'No income';
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
