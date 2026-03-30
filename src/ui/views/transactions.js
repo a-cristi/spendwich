@@ -469,9 +469,9 @@ function buildSidebar(data) {
       <input type="text" id="filter-label" value="${escHtml(_filterLabel)}" placeholder="Filter by label…">
     </div>
     <div class="seg-group tx-sidebar-filter-toggle">
-      <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">Flat</button>
-      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">By category</button>
-      <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">By label</button>
+      <button class="btn btn-sm ${_viewMode === 'flat'        ? 'btn-primary' : 'btn-secondary'}" data-mode="flat">All</button>
+      <button class="btn btn-sm ${_viewMode === 'by-category' ? 'btn-primary' : 'btn-secondary'}" data-mode="by-category">Category</button>
+      <button class="btn btn-sm ${_viewMode === 'by-label'    ? 'btn-primary' : 'btn-secondary'}" data-mode="by-label">Label</button>
     </div>
   `;
   filterSect.appendChild(filterArea);
