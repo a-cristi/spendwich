@@ -532,7 +532,7 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   savingsCard.className = 'card savings-rate-card';
   savingsCard.style.cssText = 'padding:1rem;margin-bottom:1.5rem;border-color:var(--primary);border-width:1px';
 
-  const fmtRate = r => r != null ? (r >= 0 ? '+' : '') + Math.round(r) + '%' : 'N/A';
+  const fmtRate = r => r != null ? (r >= 0 ? '+' : '') + r.toFixed(1) + '%' : 'N/A';
   const rateCls = r => r == null || r === 0 ? '' : (r > 0 ? 'amount-income' : 'amount-expense');
 
   savingsCard.innerHTML = `
