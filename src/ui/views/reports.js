@@ -1085,8 +1085,9 @@ function renderCategoryTrend(data, currency, container) {
 
   const labels = trendData.map(b => trendChartLabel(b.period, granularity));
   const defaultRadius = trendData.length > 60 ? 0 : 4;
-  const pointRadii = chartData.map((_, i) => {
+  const pointRadii = chartData.map((v, i) => {
     if (noIncomeIndices.has(i)) return 0;
+    if (v === 0 || v === null) return 0;
     return spikeIndices.has(i) ? 7 : defaultRadius;
   });
   const pointColors = chartData.map((_, i) => {
