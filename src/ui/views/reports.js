@@ -568,7 +568,7 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   sectionHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem';
   sectionHeader.innerHTML = `
     <div style="font-weight:600;font-size:0.875rem">Allocation Shifts</div>
-    <div style="font-size:0.7rem;color:var(--text-muted)" title="Sorted by largest change in % of income share">sorted by Δ income share</div>
+    <div style="font-size:0.7rem;color:var(--text-muted)" title="Sorted by largest change in % of incomeome share">sorted by Δ income share</div>
   `;
   container.appendChild(sectionHeader);
 
@@ -597,8 +597,8 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const nameBadge = d.amtA === 0 ? ` <span style="font-size:0.6rem;background:var(--primary);color:#fff;padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>` : '';
     const goneBadge = d.amtB === 0 ? ` <span style="font-size:0.6rem;background:var(--border);color:var(--text-muted);padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">GONE</span>` : '';
 
-    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of inc' : 'No income';
-    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of inc' : 'No income';
+    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of income' : 'No income';
+    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of income' : 'No income';
 
     card.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.75rem">
@@ -609,12 +609,12 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
         <div style="${d.amtA === 0 ? 'opacity:0.35;filter:grayscale(1)' : ''}">
           <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem">${escHtml(labelA)}</div>
           <div style="font-weight:700;font-size:0.875rem" class="amount-expense">${d.amtA !== 0 ? escHtml(fmt(Math.abs(d.amtA), currency)) : '—'}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtA !== 0 ? pctAText : '0% of inc'}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtA !== 0 ? pctAText : '0% of income'}</div>
         </div>
         <div style="border-left:1px solid var(--border);padding-left:0.75rem;${d.amtB === 0 ? 'opacity:0.35;filter:grayscale(1)' : ''}">
           <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem">${escHtml(labelB)}</div>
           <div style="font-weight:700;font-size:0.875rem" class="amount-expense">${d.amtB !== 0 ? escHtml(fmt(Math.abs(d.amtB), currency)) : '—'}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtB !== 0 ? pctBText : '0% of inc'}</div>
+          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtB !== 0 ? pctBText : '0% of income'}</div>
         </div>
       </div>
     `;
