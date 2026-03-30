@@ -947,6 +947,9 @@ function renderCategoryTrend(data, currency, container) {
     chartTitleText = `${granLabel} % of Income`;
     tooltipCb = ctx => {
       const idx = ctx.dataIndex;
+      if (ctx.datasetIndex === 1) {
+        return `${fmt(Math.abs(trendData[idx].total), currency)} · No income this period`;
+      }
       if (ceilingIndices.has(idx)) {
         return `${fmt(Math.abs(trendData[idx].total), currency)} (Funded by Savings)`;
       }
@@ -1050,15 +1053,28 @@ function renderCategoryTrend(data, currency, container) {
     return trendData[i].total < 0 ? roseColor : (dark ? '#4ade80' : '#15803d');
   });
 
+  const datasets = [{
+    label: pctMode ? '% of Income' : 'Spending',
+    data: chartData, borderColor: lineColor, backgroundColor: gradient,
+    fill: true, borderWidth: 2.5, tension: 0.4,
+    pointRadius: pointRadii, pointBackgroundColor: pointColors,
+    pointBorderColor: 'transparent', pointHoverRadius: 6,
+  }];
+  if (pctMode && noIncomeIndices.size > 0) {
+    datasets.push({
+      label: 'No income',
+      data: chartData.map((_, i) => noIncomeIndices.has(i) ? pctCeiling * 0.06 : null),
+      borderColor: 'transparent', backgroundColor: 'transparent', fill: false,
+      pointRadius: chartData.map((_, i) => noIncomeIndices.has(i) ? 5 : 0),
+      pointBackgroundColor: dark ? '#1d1c2b' : '#fffefb',
+      pointBorderColor: dark ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.2)',
+      pointBorderWidth: 1.5, pointStyle: 'circle', pointHoverRadius: 6,
+    });
+  }
+
   _chartInstances.push(new Chart(ctx, {
     type: 'line',
-    data: { labels, datasets: [{
-      label: pctMode ? '% of Income' : 'Spending',
-      data: chartData, borderColor: lineColor, backgroundColor: gradient,
-      fill: true, borderWidth: 2.5, tension: 0.4,
-      pointRadius: pointRadii, pointBackgroundColor: pointColors,
-      pointBorderColor: 'transparent', pointHoverRadius: 6,
-    }] },
+    data: { labels, datasets },
     options: {
       responsive: true,
       plugins: {
@@ -1068,7 +1084,9 @@ function renderCategoryTrend(data, currency, container) {
           const a = {};
           if (pctMode) for (const idx of noIncomeIndices) {
             a[`noInc${idx}`] = { type: 'box', xMin: idx - 0.5, xMax: idx + 0.5,
-              backgroundColor: dark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.04)', borderWidth: 0 };
+              backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)',
+              borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
+              borderDash: [4, 4] };
           }
           return a;
         })() },
