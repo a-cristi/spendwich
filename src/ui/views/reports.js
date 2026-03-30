@@ -576,16 +576,17 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const icon = catsByName?.get(d.name)?.icon ?? '';
     const displayName = d.name ?? '(uncategorized)';
 
-    // Shift text: always show numeric ±X.X% share
+    // Shift text: percentage-point change (pp), not a relative % change
+    const fmtPp = v => { const r = Math.round(v); return r === 0 ? v.toFixed(1) : String(r); };
     let shiftText = '', shiftColor = 'var(--text-muted)';
     if (d.shift != null) {
-      shiftText = (d.shift >= 0 ? '+' : '') + d.shift.toFixed(1) + '% share';
+      shiftText = (d.shift >= 0 ? '+' : '') + fmtPp(d.shift) + 'pp';
       shiftColor = d.shift > 0 ? 'var(--expense)' : 'var(--income)';
     } else if (d.pctB != null) {
-      shiftText = '+' + d.pctB.toFixed(1) + '% share';
+      shiftText = '+' + fmtPp(d.pctB) + 'pp';
       shiftColor = 'var(--expense)';
     } else if (d.pctA != null) {
-      shiftText = '-' + d.pctA.toFixed(1) + '% share';
+      shiftText = '-' + fmtPp(d.pctA) + 'pp';
       shiftColor = 'var(--income)';
     }
 
