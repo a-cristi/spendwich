@@ -568,7 +568,7 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   sectionHeader.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem';
   sectionHeader.innerHTML = `
     <div style="font-weight:600;font-size:0.875rem">Allocation Shifts</div>
-    <div style="font-size:0.7rem;color:var(--text-muted)">by impact</div>
+    <div style="font-size:0.7rem;color:var(--text-muted)" title="Sorted by largest change in % of income share">sorted by Δ income share</div>
   `;
   container.appendChild(sectionHeader);
 
