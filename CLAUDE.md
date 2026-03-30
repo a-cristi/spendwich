@@ -27,7 +27,7 @@
 - Dark class is `.dark` on `<html>`. All dark token overrides live in `:root.dark { ... }` in `index.html`.
 - Dark token palette: `--bg:#16151f` · `--surface:#1d1c2b` · `--surface-hover:#252436` · `--border:#2d2b42` · `--text:#eeedf5` · `--text-muted:#9896b8` · `--primary:#818cf8` · `--income:#4ade80` · `--expense:#fb7185`
 - Dark mode income/expense colors are perceptually tuned — lifted to higher lightness for contrast on dark backgrounds. Elements using these as backgrounds (summary cards, toggle buttons) need dark text (`#1c1917`) overrides in `:root.dark`
-- Summary cards: light mode uses pastel fills (`#e6f9ed` mint / `#fde8e8` rose) with semantic-colored text; dark mode uses solid fills with dark text. The Net card keeps a white/surface background with a colored `border-top` accent line — do not give it a pastel fill
+- Summary cards: light mode uses pastel fills (`#e6f9ed` mint / `#fde8e8` rose) with semantic-colored text; dark mode uses jewel-tone fills (`#064e3b` deep emerald / `#4c0519` deep ruby) — the base label/value/sublabel rules use `var(--income)`/`var(--expense)` which resolve to the bright dark-mode values (`#4ade80`/`#fb7185`) automatically. No text color overrides needed in `:root.dark` for these cards. The Net card keeps a white/surface background with a colored `border-top` accent line — do not give it a pastel fill
 - Anti-FOUC: a tiny inline `<script>` in `<head>` reads `localStorage` and adds `.dark` to `<html>` before any CSS/content renders. Do not remove or move it.
 - Theme logic lives in `src/ui/theme.js` — `initTheme()`, `setTheme(pref)`, `getThemePref()`, `isDark()`, `onThemeChange(fn)`. Import from there; never duplicate.
 - `initTheme()` is called in `router.js` before `initRemoteStorage()`.
