@@ -928,7 +928,9 @@ function renderCategoryTrend(data, currency, container) {
       const inc = incomeData[i].income;
       return inc > 0 ? Math.abs(b.total) / inc * 100 : null;
     });
-    noIncomeIndices = new Set(rawPcts.map((p, i) => p === null ? i : -1).filter(i => i !== -1));
+    noIncomeIndices = new Set(rawPcts.map((p, i) =>
+      (p === null && Math.abs(trendData[i].total) > 0) ? i : -1
+    ).filter(i => i !== -1));
     const finitePcts = rawPcts.filter(p => p !== null);
     const maxPct = finitePcts.length > 0 ? Math.max(...finitePcts) : 0;
     const hasOverspend = finitePcts.some(p => p > 100);
