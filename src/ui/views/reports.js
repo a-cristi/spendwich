@@ -886,7 +886,7 @@ function renderCategoryTrend(data, currency, container) {
 
   // --- Mode-dependent values (single branch) ---
   let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, comparison, chartTitleText, tooltipCb, yScale;
-  let incomeData, rawPcts, pctCeiling, noIncomeIndices = new Set();
+  let incomeData, rawPcts, pctCeiling, noIncomeIndices = new Set(), hasOverspend = false;
 
   const dark = isDark();
   const lineColor = dark ? '#818cf8' : '#5055d8';
@@ -933,7 +933,7 @@ function renderCategoryTrend(data, currency, container) {
     ).filter(i => i !== -1));
     const finitePcts = rawPcts.filter(p => p !== null);
     const maxPct = finitePcts.length > 0 ? Math.max(...finitePcts) : 0;
-    const hasOverspend = finitePcts.some(p => p > 100);
+    hasOverspend = finitePcts.some(p => p > 100);
     const steps = [2, 5, 10, 15, 20, 30, 50, 75, 100, 150, 200];
     const stepCeil = steps.find(s => s >= maxPct * 1.15) || Math.ceil(maxPct * 1.15 / 50) * 50;
     pctCeiling = hasOverspend ? Math.max(stepCeil, 100) : stepCeil;
@@ -960,7 +960,11 @@ function renderCategoryTrend(data, currency, container) {
     };
     yScale = { position: 'right', min: 0, max: pctCeiling, border: { display: false },
       grid: { color: gridColor, drawTicks: false },
-      ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => v + '%' } };
+      ticks: { color: labelColor, font: { size: 10 }, maxTicksLimit: 3, padding: 8, callback: v => v + '%' },
+      ...(hasOverspend && { afterBuildTicks: axis => {
+        axis.ticks = [{ value: 0 }, { value: 100 }, ...(pctCeiling !== 100 ? [{ value: pctCeiling }] : [])];
+      } }),
+    };
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
@@ -1089,6 +1093,15 @@ function renderCategoryTrend(data, currency, container) {
               backgroundColor: dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.025)',
               borderWidth: 1, borderColor: dark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)',
               borderDash: [4, 4] };
+          }
+          if (pctMode && hasOverspend) {
+            a['incomeLimit'] = { type: 'line', yMin: 100, yMax: 100,
+              borderColor: dark ? 'rgba(251,113,133,0.45)' : 'rgba(185,28,28,0.35)',
+              borderWidth: 1, borderDash: [5, 4],
+              label: { display: true, content: '= income', position: 'end', xAdjust: -4,
+                color: dark ? '#fb7185' : '#b91c1c',
+                font: { size: 9, weight: '700' }, backgroundColor: 'transparent',
+                padding: { top: 0, bottom: 2 } } };
           }
           return a;
         })() },
