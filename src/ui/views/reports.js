@@ -771,7 +771,7 @@ function trendPeriodLabel(from, to, granularity) {
   const MONTHS = months();
   if (granularity === 'daily') {
     const d = new Date(from + 'T00:00:00Z');
-    return `${MONTHS[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    return `${monthsFull()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
   }
   const sf = new Date(from + 'T00:00:00Z');
   const st = new Date(to + 'T00:00:00Z');
@@ -814,23 +814,43 @@ function prevPeriodRange(from, to) {
   return { prevFrom, prevTo, label, subtitle };
 }
 
-function computeDynamicComparison(data, categoryId, from, to, granularity, currentTotal) {
+function computeDynamicComparison(data, categoryId, from, to, granularity, currentTotal, elapsedCount) {
   const { prevFrom, prevTo, label, subtitle } = prevPeriodRange(from, to);
-  const prevTotal = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity)
-    .reduce((s, b) => s + b.total, 0);
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const prevTrend = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity);
+
+  if (from <= todayStr && todayStr <= to) {
+    const prevElapsed = Math.min(elapsedCount, prevTrend.length);
+    const prevTotal = prevTrend.slice(0, prevElapsed).reduce((s, b) => s + b.total, 0);
+    const curAvg = currentTotal / elapsedCount;
+    const prevAvg = prevElapsed > 0 ? prevTotal / prevElapsed : 0;
+    if (prevAvg === 0) return { value: null, label, subtitle: null, unit: '%' };
+    const clamped = elapsedCount > prevTrend.length;
+    const periodUnit = granularity === 'daily' ? 'day' : granularity === 'monthly' ? 'month' : 'quarter';
+    return {
+      value: ((curAvg - prevAvg) / Math.abs(prevAvg)) * 100,
+      label,
+      subtitle: clamped ? `avg/${periodUnit} · full prev. period` : `avg/${periodUnit} · same window`,
+      unit: '%',
+    };
+  }
+  const prevTotal = prevTrend.reduce((s, b) => s + b.total, 0);
   if (prevTotal === 0) return { value: null, label, subtitle: null, unit: '%' };
-  const value = ((currentTotal - prevTotal) / Math.abs(prevTotal)) * 100;
-  return { value, label, subtitle, unit: '%' };
+  return { value: ((currentTotal - prevTotal) / Math.abs(prevTotal)) * 100, label, subtitle, unit: '%' };
 }
 
-function computePctComparison(data, categoryId, from, to, granularity, currentRawPcts) {
+function computePctComparison(data, categoryId, from, to, granularity, currentRawPcts, elapsedCount) {
   const { prevFrom, prevTo, label, subtitle } = prevPeriodRange(from, to);
+  const todayStr = new Date().toISOString().slice(0, 10);
   const validCur = currentRawPcts.filter(p => p !== null);
   const curAvg = validCur.length > 0 ? validCur.reduce((a, b) => a + b, 0) / validCur.length : null;
 
   const prevCat = categoryTrendReport(data, categoryId, prevFrom, prevTo, granularity);
   const prevInc = incomeTrendReport(data, prevFrom, prevTo, granularity);
-  const validPrev = prevCat
+  const sliceLen = (from <= todayStr && todayStr <= to)
+    ? Math.min(elapsedCount, prevCat.length)
+    : prevCat.length;
+  const validPrev = prevCat.slice(0, sliceLen)
     .map((b, i) => prevInc[i].income > 0 ? Math.abs(b.total) / prevInc[i].income * 100 : Infinity)
     .filter(p => p !== Infinity);
   const prevAvg = validPrev.length > 0 ? validPrev.reduce((a, b) => a + b, 0) / validPrev.length : null;
@@ -842,6 +862,17 @@ function computePctComparison(data, categoryId, from, to, granularity, currentRa
 function renderCategoryTrend(data, currency, container) {
   const { from, to, granularity } = trendDateRange(data, _trendCategoryId);
   const trendData = categoryTrendReport(data, _trendCategoryId, from, to, granularity);
+
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayMonthStr = todayStr.slice(0, 7);
+  const todayQuarterStr = (() => {
+    const d = new Date(todayStr + 'T00:00:00Z');
+    return `${d.getUTCFullYear()}-Q${Math.ceil((d.getUTCMonth() + 1) / 3)}`;
+  })();
+  const isFuturePeriod = p =>
+    granularity === 'daily' ? p > todayStr :
+    granularity === 'monthly' ? p > todayMonthStr : p > todayQuarterStr;
+  const elapsedCount = Math.max(trendData.filter(b => !isFuturePeriod(b.period)).length, 1);
 
   // --- Header with back button ---
   const header = document.createElement('div');
@@ -928,6 +959,7 @@ function renderCategoryTrend(data, currency, container) {
       const inc = incomeData[i].income;
       return inc > 0 ? Math.abs(b.total) / inc * 100 : null;
     });
+    rawPcts = rawPcts.map((p, i) => isFuturePeriod(trendData[i].period) ? null : p);
     noIncomeIndices = new Set(rawPcts.map((p, i) =>
       (p === null && Math.abs(trendData[i].total) > 0) ? i : -1
     ).filter(i => i !== -1));
@@ -945,7 +977,7 @@ function renderCategoryTrend(data, currency, container) {
     const avgPct = finitePcts.length > 0 ? finitePcts.reduce((a, b) => a + b, 0) / finitePcts.length : 0;
     avgLabel = `Avg. ${granLabel} % of Inc.`;
     avgVal = `${avgPct.toFixed(1)}%`;
-    comparison = computePctComparison(data, _trendCategoryId, from, to, granularity, rawPcts);
+    comparison = computePctComparison(data, _trendCategoryId, from, to, granularity, rawPcts, elapsedCount);
     chartTitleText = `${granLabel} % of Income`;
     tooltipCb = ctx => {
       const idx = ctx.dataIndex;
@@ -969,10 +1001,11 @@ function renderCategoryTrend(data, currency, container) {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
     spikeIndices = new Set(detectSpikes(chartData));
-    const avg = nonZeroPeriods > 0 ? total / trendData.length : 0;
+    chartData = chartData.map((v, i) => isFuturePeriod(trendData[i].period) ? null : v);
+    const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
     avgVal = escHtml(fmt(Math.abs(avg), currency));
-    comparison = computeDynamicComparison(data, _trendCategoryId, from, to, granularity, total);
+    comparison = computeDynamicComparison(data, _trendCategoryId, from, to, granularity, total, elapsedCount);
     chartTitleText = `${granLabel} Spending`;
     tooltipCb = ctx => {
       const val = fmt(ctx.parsed.y, currency);
@@ -993,7 +1026,7 @@ function renderCategoryTrend(data, currency, container) {
     <div class="summary-card">
       <div class="label">${avgLabel}</div>
       <div class="value" style="color:var(--primary)">${avgVal}</div>
-      <div class="sublabel">${trendData.length} ${periodWord}</div>
+      <div class="sublabel">Based on ${elapsedCount} ${periodWord}</div>
     </div>
     <div class="summary-card">
       <div class="label">${escHtml(comparison.label)}</div>
@@ -1132,6 +1165,10 @@ function fmtCompact(amount, currency) {
 
 function months() {
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+}
+
+function monthsFull() {
+  return ['January','February','March','April','May','June','July','August','September','October','November','December'];
 }
 
 function yearRange() {
