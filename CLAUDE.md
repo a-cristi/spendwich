@@ -144,6 +144,13 @@
 - Tests must pass before any commit touching `src/`
 - `store._reset()` exists solely for test isolation — call it in `beforeEach` in any test file that touches store state. Do not call it in application code
 
+## Linting
+
+- Run with: `npm run lint` (requires `npm install` once after cloning)
+- `no-unused-vars` warns on dead code; prefix intentionally unused params with `_` to silence it
+- `no-restricted-syntax` enforces the `innerHTML +=` ban documented above
+- CDN globals (`Chart`, `flatpickr`, `RemoteStorage`, `Widget`) are declared in `eslint.config.js` — add new ones there if further CDN libraries are introduced
+
 ## Git
 
 - Commit after each feature is working, not all at once at the end
