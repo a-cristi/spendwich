@@ -71,8 +71,14 @@ Then open `http://localhost:8000`. Or just open `index.html` directly — it wor
 ## Development
 
 ```bash
+# Install dev dependencies (once)
+npm install
+
 # Run tests (requires Node 20+)
 node --test tests/*.test.js
+
+# Lint
+npm run lint
 ```
 
 - Pure logic lives in `src/` — no DOM dependencies, fully unit-testable
