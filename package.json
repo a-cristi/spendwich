@@ -1,0 +1,11 @@
+{
+  "type": "module",
+  "scripts": {
+    "lint": "eslint src/ tests/"
+  },
+  "devDependencies": {
+    "eslint": "^9",
+    "@eslint/js": "^9",
+    "globals": "^15"
+  }
+}
