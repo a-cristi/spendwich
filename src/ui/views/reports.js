@@ -496,6 +496,7 @@ function renderCashFlowChart(cfData, labels, currency, container) {
   }));
 }
 
+
 function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const labelA = specA.month ? `${MONTHS_SHORT[specA.month - 1]} ${specA.year}` : `${specA.year}`;
@@ -615,9 +616,10 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of income' : '';
     const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of income' : '';
 
+    const iconCircle = `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--border);font-size:0.9rem;flex-shrink:0;margin-right:0.5rem">${icon || escHtml(displayName.charAt(0).toUpperCase())}</span>`;
     row.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">
-        <div style="font-weight:700;font-size:0.9375rem">${icon ? icon + ' ' : ''}${escHtml(displayName)}${nameBadge}${goneBadge}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem">
+        <div style="display:flex;align-items:center;min-width:0">${iconCircle}<span style="font-weight:700;font-size:0.9375rem">${escHtml(displayName)}${nameBadge}${goneBadge}</span></div>
         <div style="font-size:0.85rem;font-weight:800;color:${shiftColor};flex-shrink:0;margin-left:0.75rem">${escHtml(shiftText)}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
