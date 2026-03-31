@@ -577,6 +577,16 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   shiftList.style.cssText = 'padding:0;overflow:hidden';
   container.appendChild(shiftList);
 
+  const noIncA = rA.income === 0 ? ' · no income' : '';
+  const noIncB = rB.income === 0 ? ' · no income' : '';
+  const colHeader = document.createElement('div');
+  colHeader.style.cssText = 'display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;padding:0.5rem 1rem;border-bottom:1px solid var(--border);background:var(--surface-hover)';
+  colHeader.innerHTML = `
+    <div style="font-size:0.65rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px">${escHtml(labelA + noIncA)}</div>
+    <div style="font-size:0.65rem;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:0.5px">${escHtml(labelB + noIncB)}</div>
+  `;
+  shiftList.appendChild(colHeader);
+
   for (let i = 0; i < diff.length; i++) {
     const d = diff[i];
     const icon = catsByName?.get(d.name)?.icon ?? '';
@@ -602,8 +612,8 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const nameBadge = d.amtA === 0 ? ` <span style="font-size:0.6rem;background:var(--primary);color:#fff;padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>` : '';
     const goneBadge = d.amtB === 0 ? ` <span style="font-size:0.6rem;background:var(--border);color:var(--text-muted);padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">GONE</span>` : '';
 
-    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of income' : 'No income';
-    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of income' : 'No income';
+    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of income' : '';
+    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of income' : '';
 
     row.innerHTML = `
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:0.5rem">
@@ -612,14 +622,12 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem">
         <div style="${d.amtA === 0 ? 'opacity:0.35;filter:grayscale(1)' : ''}">
-          <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem">${escHtml(labelA)}</div>
           <div style="font-weight:700;font-size:0.875rem" class="amount-expense">${d.amtA !== 0 ? escHtml(fmt(Math.abs(d.amtA), currency)) : '—'}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtA !== 0 ? pctAText : '0% of income'}</div>
+          ${d.amtA !== 0 && pctAText ? `<div style="font-size:0.7rem;color:var(--text-muted)">${pctAText}</div>` : d.amtA === 0 ? '<div style="font-size:0.7rem;color:var(--text-muted)">0% of income</div>' : ''}
         </div>
         <div style="${d.amtB === 0 ? 'opacity:0.35;filter:grayscale(1)' : ''}">
-          <div style="font-size:0.6rem;color:var(--text-muted);text-transform:uppercase;margin-bottom:0.25rem">${escHtml(labelB)}</div>
           <div style="font-weight:700;font-size:0.875rem" class="amount-expense">${d.amtB !== 0 ? escHtml(fmt(Math.abs(d.amtB), currency)) : '—'}</div>
-          <div style="font-size:0.7rem;color:var(--text-muted)">${d.amtB !== 0 ? pctBText : '0% of income'}</div>
+          ${d.amtB !== 0 && pctBText ? `<div style="font-size:0.7rem;color:var(--text-muted)">${pctBText}</div>` : d.amtB === 0 ? '<div style="font-size:0.7rem;color:var(--text-muted)">0% of income</div>' : ''}
         </div>
       </div>
     `;
