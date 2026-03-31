@@ -864,7 +864,7 @@ function openTxModal(tx, data, saveOverride = null) {
   function close() { dialog.close(); dialog.remove(); }
   dialog.addEventListener('cancel', close);
 
-  const fpDate = flatpickr(dialog.querySelector('#tx-date'), {
+  flatpickr(dialog.querySelector('#tx-date'), {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
     defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
@@ -1205,9 +1205,6 @@ function buildPaginationBar(total) {
   return bar;
 }
 
-function months() {
-  return ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-}
 
 function yearRange() {
   const now = new Date().getFullYear();
