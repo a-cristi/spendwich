@@ -55,7 +55,7 @@ export function updateCategory(id, fields) {
 export function reassignCategory(fromId, toCategoryId, addLabelIds = []) {
   for (const tx of _data.transactions) {
     if (tx.categoryId === fromId) {
-      if (toCategoryId != null) tx.categoryId = toCategoryId;
+      if (toCategoryId !== null && toCategoryId !== undefined) tx.categoryId = toCategoryId;
       for (const lid of addLabelIds) {
         if (!tx.labelIds.includes(lid)) tx.labelIds.push(lid);
       }

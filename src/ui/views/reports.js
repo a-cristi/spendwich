@@ -527,14 +527,14 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
   // Savings rate header
   const rateA = rA.income > 0 ? rA.net / rA.income * 100 : null;
   const rateB = rB.income > 0 ? rB.net / rB.income * 100 : null;
-  const rateDelta = rateA != null && rateB != null ? rateB - rateA : null;
+  const rateDelta = rateA !== null && rateB !== null ? rateB - rateA : null;
 
   const savingsCard = document.createElement('div');
   savingsCard.className = 'card savings-rate-card';
   savingsCard.style.cssText = 'padding:1rem;margin-bottom:1.5rem;border-color:var(--primary);border-width:1px';
 
-  const fmtRate = r => r != null ? (r >= 0 ? '+' : '') + r.toFixed(1) + '%' : 'N/A';
-  const rateCls = r => r == null || r === 0 ? '' : (r > 0 ? 'amount-income' : 'amount-expense');
+  const fmtRate = r => r !== null && r !== undefined ? (r >= 0 ? '+' : '') + r.toFixed(1) + '%' : 'N/A';
+  const rateCls = r => r === null || r === undefined || r === 0 ? '' : (r > 0 ? 'amount-income' : 'amount-expense');
 
   savingsCard.innerHTML = `
     <div style="font-size:0.7rem;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:0.75rem;font-weight:600">Net Savings Rate</div>
@@ -543,7 +543,7 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
         <div class="${rateCls(rateA)}" style="font-size:1.25rem;font-weight:800">${fmtRate(rateA)}</div>
         <div style="font-size:0.7rem;color:var(--text-muted)">${escHtml(labelA)}</div>
       </div>
-      <div style="padding:0.25rem 0.5rem;border-radius:1rem;font-size:0.7rem;font-weight:700;background:var(--surface-hover);color:${rateDelta != null && rateDelta >= 0 ? 'var(--income)' : 'var(--expense)'}">${rateDelta != null ? (rateDelta >= 0 ? '+' : '') + Math.round(rateDelta) + 'pp' : '—'}</div>
+      <div style="padding:0.25rem 0.5rem;border-radius:1rem;font-size:0.7rem;font-weight:700;background:var(--surface-hover);color:${rateDelta !== null && rateDelta !== undefined && rateDelta >= 0 ? 'var(--income)' : 'var(--expense)'}">${rateDelta !== null && rateDelta !== undefined ? (rateDelta >= 0 ? '+' : '') + Math.round(rateDelta) + 'pp' : '—'}</div>
       <div style="text-align:right">
         <div class="${rateCls(rateB)}" style="font-size:1.25rem;font-weight:800">${fmtRate(rateB)}</div>
         <div style="font-size:0.7rem;color:var(--text-muted)">${escHtml(labelB)}</div>
@@ -596,13 +596,13 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     // Shift text: percentage-point change (pp), not a relative % change
     const fmtPp = v => { const r = Math.round(v); return r === 0 ? v.toFixed(1) : String(r); };
     let shiftText = '', shiftColor = 'var(--text-muted)';
-    if (d.shift != null) {
+    if (d.shift !== null && d.shift !== undefined) {
       shiftText = (d.shift >= 0 ? '+' : '') + fmtPp(d.shift) + 'pp';
       shiftColor = d.shift > 0 ? 'var(--expense)' : 'var(--income)';
-    } else if (d.pctB != null) {
+    } else if (d.pctB !== null && d.pctB !== undefined) {
       shiftText = '+' + fmtPp(d.pctB) + 'pp';
       shiftColor = 'var(--expense)';
-    } else if (d.pctA != null) {
+    } else if (d.pctA !== null && d.pctA !== undefined) {
       shiftText = '-' + fmtPp(d.pctA) + 'pp';
       shiftColor = 'var(--income)';
     }
@@ -613,8 +613,8 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     const nameBadge = d.amtA === 0 ? ` <span style="font-size:0.6rem;background:var(--primary);color:#fff;padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>` : '';
     const goneBadge = d.amtB === 0 ? ` <span style="font-size:0.6rem;background:var(--border);color:var(--text-muted);padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">GONE</span>` : '';
 
-    const pctAText = d.pctA != null ? d.pctA.toFixed(1) + '% of income' : '';
-    const pctBText = d.pctB != null ? d.pctB.toFixed(1) + '% of income' : '';
+    const pctAText = d.pctA !== null && d.pctA !== undefined ? d.pctA.toFixed(1) + '% of income' : '';
+    const pctBText = d.pctB !== null && d.pctB !== undefined ? d.pctB.toFixed(1) + '% of income' : '';
 
     const iconCircle = `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--border);font-size:0.9rem;flex-shrink:0;margin-right:0.5rem">${icon || escHtml(displayName.charAt(0).toUpperCase())}</span>`;
     row.innerHTML = `
@@ -647,11 +647,11 @@ function diffBreakdown(itemsA, itemsB, nameKey, incomeA, incomeB) {
       const amtB = mapB.get(name) ?? 0;
       const pctA = incomeA > 0 ? Math.abs(amtA) / incomeA * 100 : null;
       const pctB = incomeB > 0 ? Math.abs(amtB) / incomeB * 100 : null;
-      const shift = pctA != null && pctB != null ? pctB - pctA : null;
+      const shift = pctA !== null && pctA !== undefined && pctB !== null && pctB !== undefined ? pctB - pctA : null;
       return { name, amtA, amtB, pctA, pctB, shift };
     })
     .sort((a, b) => {
-      if (a.shift != null && b.shift != null) return Math.abs(b.shift) - Math.abs(a.shift);
+      if (a.shift !== null && a.shift !== undefined && b.shift !== null && b.shift !== undefined) return Math.abs(b.shift) - Math.abs(a.shift);
       return Math.abs(b.amtB) - Math.abs(a.amtB);
     });
 }

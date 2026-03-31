@@ -81,7 +81,7 @@ export function validate(data) {
       const r = tx.recurrence;
       if (!FREQUENCIES.includes(r.frequency)) throw new Error(`Transaction ${tx.id}: unknown recurrence frequency "${r.frequency}"`);
       if (typeof r.interval !== 'number' || r.interval < 1) throw new Error(`Transaction ${tx.id}: recurrence interval must be a positive number`);
-      if (r.endDate != null && !DATE_RE.test(r.endDate)) throw new Error(`Transaction ${tx.id}: recurrence endDate must be YYYY-MM-DD`);
+      if (r.endDate !== null && r.endDate !== undefined && !DATE_RE.test(r.endDate)) throw new Error(`Transaction ${tx.id}: recurrence endDate must be YYYY-MM-DD`);
     }
   }
 

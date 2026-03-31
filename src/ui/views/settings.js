@@ -121,7 +121,7 @@ function refresh() {
           succeeded.push({ id: tx.id, exchangeRate: 1, amountInDefault: tx.amount });
         } else {
           const rate = await fetchRate(tx.currency, val, tx.date);
-          if (rate == null) {
+          if (rate === null || rate === undefined) {
             failed.push({ id: tx.id });
             failedPairs.add(tx.currency);
           } else {
@@ -144,7 +144,7 @@ function refresh() {
       }
 
       if (failed.length > 0) {
-        let errorLabel = getData().labels.find(l => l.name === 'exchange-rate-error') ?? addLabel('exchange-rate-error');
+        const errorLabel = getData().labels.find(l => l.name === 'exchange-rate-error') ?? addLabel('exchange-rate-error');
         for (const { id } of failed) {
           const tx = getData().transactions.find(t => t.id === id);
           if (tx && !tx.labelIds.includes(errorLabel.id)) {
