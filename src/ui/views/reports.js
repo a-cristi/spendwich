@@ -608,7 +608,7 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     }
 
     const row = document.createElement('div');
-    row.style.cssText = `padding:1rem;${i < diff.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}`;
+    row.style.cssText = `padding:1rem;${i % 2 === 0 ? 'background:var(--surface-hover);' : ''}${i < diff.length - 1 ? 'border-bottom:1px solid var(--border)' : ''}`;
 
     const nameBadge = d.amtA === 0 ? ` <span style="font-size:0.6rem;background:var(--primary);color:#fff;padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">NEW</span>` : '';
     const goneBadge = d.amtB === 0 ? ` <span style="font-size:0.6rem;background:var(--border);color:var(--text-muted);padding:2px 5px;border-radius:4px;font-weight:700;vertical-align:middle">GONE</span>` : '';
