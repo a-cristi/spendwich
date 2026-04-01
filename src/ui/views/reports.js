@@ -867,7 +867,9 @@ function trendPeriodLabel(from, to, granularity) {
   }
   const sf = new Date(from + 'T00:00:00Z');
   const st = new Date(to + 'T00:00:00Z');
-  if (sf.getUTCFullYear() === st.getUTCFullYear() && granularity === 'monthly') return `${sf.getUTCFullYear()}`;
+  const fullCalYear = sf.getUTCFullYear() === st.getUTCFullYear() && sf.getUTCMonth() === 0 && st.getUTCMonth() === 11;
+  if (fullCalYear) return `${sf.getUTCFullYear()}`;
+  if (sf.getUTCFullYear() === st.getUTCFullYear()) return `${MONTHS[sf.getUTCMonth()]} – ${MONTHS[st.getUTCMonth()]} ${sf.getUTCFullYear()}`;
   return `${MONTHS[sf.getUTCMonth()]} ${sf.getUTCFullYear()} – ${MONTHS[st.getUTCMonth()]} ${st.getUTCFullYear()}`;
 }
 
