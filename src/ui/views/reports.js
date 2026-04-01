@@ -73,8 +73,6 @@ function refresh() {
     periodSubtitle = 'Understand your spending patterns';
   }
 
-  const cardPeriodLabel = _mode === 'all' ? 'all time' : periodSubtitle;
-
   const header = document.createElement('div');
   header.className = 'page-header';
   header.innerHTML = `<div class="page-title-block"><h1>Reports</h1><p class="page-subtitle">${escHtml(periodSubtitle)}</p></div>`;
@@ -144,9 +142,9 @@ function refresh() {
   }
 
   if (_mode === 'yearly' && !_isYTD) {
-    renderYearlyReport(report, defaultCurrency, data, main, cardPeriodLabel);
+    renderYearlyReport(report, defaultCurrency, data, main);
   } else {
-    renderSummaryReport(report, defaultCurrency, data, main, cardPeriodLabel);
+    renderSummaryReport(report, defaultCurrency, data, main);
   }
 }
 
@@ -438,7 +436,7 @@ function filterItems(items) {
   return items.filter(b => _breakdownTab === 'expenses' ? b.total < 0 : b.total > 0);
 }
 
-function buildSummaryCards(income, expenses, net, currency, periodLabel) {
+function buildSummaryCards(income, expenses, net, currency) {
   const netCardCls = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
   const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
   const netSign = net >= 0 ? '+' : '-';
@@ -448,24 +446,21 @@ function buildSummaryCards(income, expenses, net, currency, periodLabel) {
     <div class="summary-card summary-card-income">
       <div class="label">Income</div>
       <div class="value">+${escHtml(fmt(income, currency))}</div>
-      <div class="sublabel">${escHtml(periodLabel)}</div>
     </div>
     <div class="summary-card summary-card-expense">
       <div class="label">Expenses</div>
       <div class="value">${escHtml(fmt(Math.abs(expenses), currency))}</div>
-      <div class="sublabel">${escHtml(periodLabel)}</div>
     </div>
     <div class="summary-card ${netCardCls}">
       <div class="label">Net</div>
       <div class="value ${netValueCls}">${netSign}${escHtml(fmt(Math.abs(net), currency))}</div>
-      <div class="sublabel">${net >= 0 ? 'positive balance' : 'negative balance'}</div>
     </div>
   `;
   return cards;
 }
 
-function renderSummaryReport(report, currency, data, container, periodLabel) {
-  container.appendChild(buildSummaryCards(report.income, report.expenses, report.net, currency, periodLabel));
+function renderSummaryReport(report, currency, data, container) {
+  container.appendChild(buildSummaryCards(report.income, report.expenses, report.net, currency));
 
   // Cash flow chart for multi-month periods
   if (_mode === 'custom' && _customStart && _customEnd && _customStart.slice(0, 7) !== _customEnd.slice(0, 7)) {
@@ -491,8 +486,8 @@ function renderSummaryReport(report, currency, data, container, periodLabel) {
   renderChartAndBreakdown(report, data, currency, container);
 }
 
-function renderYearlyReport(report, currency, data, container, periodLabel) {
-  container.appendChild(buildSummaryCards(report.total.income, report.total.expenses, report.total.net, currency, periodLabel));
+function renderYearlyReport(report, currency, data, container) {
+  container.appendChild(buildSummaryCards(report.total.income, report.total.expenses, report.total.net, currency));
 
   let cum = 0;
   const cfData = report.months.map(m => ({
