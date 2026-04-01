@@ -393,17 +393,17 @@ function buildSidebar(data) {
       const endEl = periodNav.querySelector('#range-end');
       _fpInstances.push(flatpickr(startEl, {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customStart || null,
-        onChange: ([d]) => {
+        onChange: ([d], dateStr) => {
           if (!d) return;
-          _customStart = d.toISOString().slice(0, 10);
+          _customStart = dateStr;
           if (endEl.value) { _page = 0; refresh(); }
         },
       }));
       _fpInstances.push(flatpickr(endEl, {
         dateFormat: 'Y-m-d', locale: { firstDayOfWeek: 1 }, defaultDate: _customEnd || null,
-        onChange: ([d]) => {
+        onChange: ([d], dateStr) => {
           if (!d) return;
-          _customEnd = d.toISOString().slice(0, 10);
+          _customEnd = dateStr;
           if (startEl.value) { _page = 0; refresh(); }
         },
       }));

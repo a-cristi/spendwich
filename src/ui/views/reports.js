@@ -299,9 +299,9 @@ function buildReportsSidebar() {
         dateFormat: 'Y-m-d',
         locale: { firstDayOfWeek: 1 },
         defaultDate: _customStart || null,
-        onChange: ([d]) => {
+        onChange: ([d], dateStr) => {
           if (!d) return;
-          _customStart = d.toISOString().slice(0, 10);
+          _customStart = dateStr;
           if (endEl.value) refresh();
         },
       }));
@@ -309,9 +309,9 @@ function buildReportsSidebar() {
         dateFormat: 'Y-m-d',
         locale: { firstDayOfWeek: 1 },
         defaultDate: _customEnd || null,
-        onChange: ([d]) => {
+        onChange: ([d], dateStr) => {
           if (!d) return;
-          _customEnd = d.toISOString().slice(0, 10);
+          _customEnd = dateStr;
           if (startEl.value) refresh();
         },
       }));
@@ -771,7 +771,7 @@ function trendDateRange(data, categoryId) {
     const s = new Date(_customStart + 'T00:00:00Z');
     const e = new Date(_customEnd + 'T00:00:00Z');
     const spanMonths = (e.getUTCFullYear() - s.getUTCFullYear()) * 12 + e.getUTCMonth() - s.getUTCMonth();
-    return { from: _customStart, to: _customEnd, granularity: spanMonths >= 36 ? 'quarterly' : 'monthly' };
+    return { from: _customStart, to: _customEnd, granularity: spanMonths === 0 ? 'daily' : spanMonths >= 36 ? 'quarterly' : 'monthly' };
   }
   // all time
   const catTxs = data.transactions.filter(t => t.categoryId === categoryId);

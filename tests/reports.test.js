@@ -258,6 +258,22 @@ test('categoryTrendReport returns empty array for no matching data', () => {
   assert.ok(r.every(b => b.total === 0 && b.count === 0));
 });
 
+test('categoryTrendReport daily: single-month range finds transactions on all days', () => {
+  const txs = [
+    makeTx({ date: '2026-04-01', amountInDefault: -10, categoryId: 'c1' }),
+    makeTx({ date: '2026-04-02', amountInDefault: -20, categoryId: 'c1' }),
+  ];
+  const r = categoryTrendReport(makeData(txs), 'c1', '2026-04-01', '2026-04-30', 'daily');
+  assert.equal(r.length, 30);
+  assert.equal(r[0].period, '2026-04-01');
+  assert.equal(r[0].total, -10);
+  assert.equal(r[0].count, 1);
+  assert.equal(r[1].period, '2026-04-02');
+  assert.equal(r[1].total, -20);
+  assert.equal(r[1].count, 1);
+  assert.ok(r.slice(2).every(b => b.total === 0 && b.count === 0));
+});
+
 // --- detectSpikes ---
 
 test('detectSpikes: fewer than 3 values returns empty', () => {
