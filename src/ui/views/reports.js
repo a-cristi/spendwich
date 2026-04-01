@@ -903,7 +903,7 @@ function renderCategoryTrend(data, currency, container) {
   const isFuturePeriod = p =>
     granularity === 'daily' ? p > todayStr :
     granularity === 'monthly' ? p > todayMonthStr : p > todayQuarterStr;
-  const elapsedCount = Math.max(trendData.filter(b => !isFuturePeriod(b.period)).length, 1);
+  const elapsedCount = Math.max(trendData.filter(b => !isFuturePeriod(b.period) || b.count > 0).length, 1);
 
   // --- Header with back button ---
   const header = document.createElement('div');
@@ -1034,7 +1034,7 @@ function renderCategoryTrend(data, currency, container) {
     // Spike detection must run on raw values before nulling future periods — nulling
     // first would reduce the dataset and distort the mean/stddev baseline.
     spikeIndices = new Set(detectSpikes(chartData));
-    chartData = chartData.map((v, i) => isFuturePeriod(trendData[i].period) ? null : v);
+    chartData = chartData.map((v, i) => (isFuturePeriod(trendData[i].period) && trendData[i].count === 0) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
     avgVal = escHtml(fmt(Math.abs(avg), currency));
