@@ -12,7 +12,7 @@ onThemeChange(() => { if (_container) refresh(); });
 let _breakdown = 'category'; // category | label
 let _breakdownTab = 'expenses'; // expenses | income
 let _year = new Date().getFullYear();
-let _month = new Date().getMonth() + 1;
+let _month = 0; // 0 = "Last month" (rolling); 1–12 = calendar month
 let _customStart = '';
 let _customEnd = '';
 
@@ -86,12 +86,24 @@ function refresh() {
     return;
   }
 
+  const refreshNow = new Date();
+  const _todayYear = refreshNow.getUTCFullYear();
+  const _todayMonth = refreshNow.getUTCMonth() + 1;
+  const _todayDay = refreshNow.getUTCDate();
+  const _todayStr = refreshNow.toISOString().slice(0, 10);
+  const _isRollingMonth = _mode === 'monthly' && _month === 0;
+  const _isYTD = _mode === 'yearly' && _year === _todayYear;
+
   let report;
   try {
     if (_mode === 'monthly') {
-      report = monthlyReport(data, _year, _month);
+      report = _isRollingMonth
+        ? customRangeReport(data, rollingMonthStart(_todayYear, _todayMonth, _todayDay).toISOString().slice(0, 10), _todayStr)
+        : monthlyReport(data, _year, _month);
     } else if (_mode === 'yearly') {
-      report = yearlyReport(data, _year);
+      report = _isYTD
+        ? customRangeReport(data, `${_year}-01-01`, _todayStr)
+        : yearlyReport(data, _year);
     } else if (_mode === 'all') {
       report = allTimeReport(data);
     } else {
@@ -112,7 +124,7 @@ function refresh() {
     return;
   }
 
-  if (_mode === 'yearly') {
+  if (_mode === 'yearly' && !_isYTD) {
     renderYearlyReport(report, defaultCurrency, data, main);
   } else {
     renderSummaryReport(report, defaultCurrency, data, main);
@@ -251,6 +263,11 @@ function buildReportsSidebar() {
       monthRow.style.cssText = 'display:flex;gap:0.5rem';
       const monthSel = document.createElement('select');
       monthSel.style.flex = '1';
+      const rollingOpt = document.createElement('option');
+      rollingOpt.value = '0';
+      rollingOpt.textContent = 'Last month';
+      rollingOpt.selected = _month === 0;
+      monthSel.appendChild(rollingOpt);
       for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
@@ -269,6 +286,16 @@ function buildReportsSidebar() {
       monthRow.appendChild(monthSel);
       monthRow.appendChild(yearSel);
       periodSect.appendChild(monthRow);
+      if (_month === 0) {
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem';
+        const smNow = new Date();
+        const fromStr = rollingMonthStart(smNow.getUTCFullYear(), smNow.getUTCMonth() + 1, smNow.getUTCDate()).toISOString().slice(0, 10);
+        const toStr = smNow.toISOString().slice(0, 10);
+        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
+        hint.textContent = `${fmtD(fromStr)} – ${fmtD(toStr)}`;
+        periodSect.appendChild(hint);
+      }
     } else if (_mode === 'yearly') {
       const yearRow = document.createElement('div');
       yearRow.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
@@ -281,7 +308,19 @@ function buildReportsSidebar() {
       yearRow.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
       yearRow.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
       yearRow.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
+      const syNow = new Date().getUTCFullYear();
+      if (_year >= syNow) {
+        yearRow.querySelector('#next-period').disabled = true;
+      }
       periodSect.appendChild(yearRow);
+      if (_year === syNow) {
+        const hint = document.createElement('div');
+        hint.style.cssText = 'font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem';
+        const todayLabel = new Date().toISOString().slice(0, 10);
+        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+        hint.textContent = `Jan 1 – ${fmtD(todayLabel)}`;
+        periodSect.appendChild(hint);
+      }
     } else {
       const dateWrap = document.createElement('div');
       dateWrap.style.cssText = 'display:flex;gap:0.5rem;width:100%';
@@ -419,6 +458,12 @@ function renderSummaryReport(report, currency, data, container) {
     const from = report.transactions[0].date.slice(0, 7) + '-01';
     const to = new Date().toISOString().slice(0, 10);
     const cfRaw = cashFlowReport(data, from, to);
+    const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
+    const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
+    renderCashFlowChart(cfData, cfLabels, currency, container);
+  } else if (_mode === 'yearly' && _year === new Date().getUTCFullYear() && report.transactions.length > 0) {
+    const ytdTo = new Date().toISOString().slice(0, 10);
+    const cfRaw = cashFlowReport(data, `${_year}-01-01`, ytdTo);
     const cfData = cfRaw.map(m => ({ income: m.income, expenses: m.expenses, cumulative: m.cumulative }));
     const cfLabels = cfRaw.map(m => new Date(m.month + '-01T00:00:00Z').toLocaleDateString(undefined, { month: 'short', year: 'numeric', timeZone: 'UTC' }));
     renderCashFlowChart(cfData, cfLabels, currency, container);
@@ -760,11 +805,20 @@ function renderChartAndBreakdown(report, data, currency, container) {
 
 function trendDateRange(data, categoryId) {
   if (_mode === 'monthly') {
+    if (_month === 0) {
+      const tn = new Date();
+      const start = rollingMonthStart(tn.getUTCFullYear(), tn.getUTCMonth() + 1, tn.getUTCDate());
+      return { from: start.toISOString().slice(0, 10), to: tn.toISOString().slice(0, 10), granularity: 'daily' };
+    }
     const start = new Date(Date.UTC(_year, _month - 1, 1));
     const end = new Date(Date.UTC(_year, _month, 0));
     return { from: start.toISOString().slice(0, 10), to: end.toISOString().slice(0, 10), granularity: 'daily' };
   }
   if (_mode === 'yearly') {
+    const tn = new Date();
+    if (_year === tn.getUTCFullYear()) {
+      return { from: `${_year}-01-01`, to: tn.toISOString().slice(0, 10), granularity: 'monthly' };
+    }
     return { from: `${_year}-01-01`, to: `${_year}-12-31`, granularity: 'monthly' };
   }
   if (_mode === 'custom' && _customStart && _customEnd) {
@@ -806,12 +860,23 @@ function trendChartLabel(period, granularity) {
 function prevPeriodRange(from, to) {
   let prevFrom, prevTo, label, subtitle;
   if (_mode === 'monthly') {
-    const d = new Date(Date.UTC(_year, _month - 2, 1));
-    prevFrom = d.toISOString().slice(0, 10);
-    prevTo = new Date(Date.UTC(_year, _month - 1, 0)).toISOString().slice(0, 10);
-    label = `vs. ${months()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
-    const pd = new Date(prevFrom + 'T00:00:00Z');
-    subtitle = `Compared to ${months()[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
+    if (_month === 0) {
+      const s = new Date(from + 'T00:00:00Z');
+      const spanMs = new Date(to + 'T00:00:00Z') - s;
+      prevFrom = new Date(s - spanMs).toISOString().slice(0, 10);
+      prevTo = new Date(s.getTime() - 86400000).toISOString().slice(0, 10);
+      label = 'vs. prev. period';
+      const pf = new Date(prevFrom + 'T00:00:00Z');
+      const pt = new Date(prevTo + 'T00:00:00Z');
+      subtitle = `${months()[pf.getUTCMonth()]} ${pf.getUTCDate()} – ${months()[pt.getUTCMonth()]} ${pt.getUTCDate()}`;
+    } else {
+      const d = new Date(Date.UTC(_year, _month - 2, 1));
+      prevFrom = d.toISOString().slice(0, 10);
+      prevTo = new Date(Date.UTC(_year, _month - 1, 0)).toISOString().slice(0, 10);
+      label = `vs. ${months()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+      const pd = new Date(prevFrom + 'T00:00:00Z');
+      subtitle = `Compared to ${months()[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
+    }
   } else if (_mode === 'yearly') {
     prevFrom = `${_year - 1}-01-01`;
     prevTo = `${_year - 1}-12-31`;
@@ -1201,4 +1266,10 @@ function yearRange() {
   const years = [];
   for (let y = now - 10; y <= now + 2; y++) years.push(y);
   return years;
+}
+
+function rollingMonthStart(year, month, day) {
+  const prevMonthLastDay = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
+  const clampedDay = Math.min(day, prevMonthLastDay);
+  return new Date(Date.UTC(year, month - 2, clampedDay + 1));
 }
