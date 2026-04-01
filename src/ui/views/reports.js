@@ -48,9 +48,34 @@ function refresh() {
   _fpInstances = [];
   _container.innerHTML = '';
 
+  const refreshNow = new Date();
+  const _todayYear = refreshNow.getUTCFullYear();
+  const _todayMonth = refreshNow.getUTCMonth() + 1;
+  const _todayDay = refreshNow.getUTCDate();
+  const _todayStr = refreshNow.toISOString().slice(0, 10);
+  const _isRollingMonth = _mode === 'monthly' && _month === 0;
+  const _isYTD = _mode === 'yearly' && _year === _todayYear;
+
+  const fmtPeriodDate = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+  let periodSubtitle;
+  if (_mode === 'monthly' && _isRollingMonth) {
+    const fromStr = rollingMonthStart(_todayYear, _todayMonth, _todayDay).toISOString().slice(0, 10);
+    periodSubtitle = `${fmtPeriodDate(fromStr)} – ${fmtPeriodDate(_todayStr)}`;
+  } else if (_mode === 'monthly' && _month >= 1) {
+    periodSubtitle = `${monthsFull()[_month - 1]} ${_year}`;
+  } else if (_mode === 'yearly' && _isYTD) {
+    periodSubtitle = `Jan 1 – ${fmtPeriodDate(_todayStr)}`;
+  } else if (_mode === 'yearly') {
+    periodSubtitle = `${_year}`;
+  } else if (_mode === 'custom' && _customStart && _customEnd) {
+    periodSubtitle = `${fmtPeriodDate(_customStart)} – ${fmtPeriodDate(_customEnd)}`;
+  } else {
+    periodSubtitle = 'Understand your spending patterns';
+  }
+
   const header = document.createElement('div');
   header.className = 'page-header';
-  header.innerHTML = '<div class="page-title-block"><h1>Reports</h1><p class="page-subtitle">Understand your spending patterns</p></div>';
+  header.innerHTML = `<div class="page-title-block"><h1>Reports</h1><p class="page-subtitle">${escHtml(periodSubtitle)}</p></div>`;
   _container.appendChild(header);
 
   const layout = document.createElement('div');
@@ -85,14 +110,6 @@ function refresh() {
     renderCompareReport(rA, rB, _compareA, _compareB, defaultCurrency, data, main);
     return;
   }
-
-  const refreshNow = new Date();
-  const _todayYear = refreshNow.getUTCFullYear();
-  const _todayMonth = refreshNow.getUTCMonth() + 1;
-  const _todayDay = refreshNow.getUTCDate();
-  const _todayStr = refreshNow.toISOString().slice(0, 10);
-  const _isRollingMonth = _mode === 'monthly' && _month === 0;
-  const _isYTD = _mode === 'yearly' && _year === _todayYear;
 
   let report;
   try {
@@ -840,8 +857,13 @@ function trendDateRange(data, categoryId) {
 function trendPeriodLabel(from, to, granularity) {
   const MONTHS = months();
   if (granularity === 'daily') {
-    const d = new Date(from + 'T00:00:00Z');
-    return `${monthsFull()[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+    const df = new Date(from + 'T00:00:00Z');
+    const dt = new Date(to + 'T00:00:00Z');
+    if (df.getUTCMonth() === dt.getUTCMonth() && df.getUTCFullYear() === dt.getUTCFullYear()) {
+      return `${monthsFull()[df.getUTCMonth()]} ${df.getUTCFullYear()}`;
+    }
+    const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    return `${fmtD(from)} – ${fmtD(to)}`;
   }
   const sf = new Date(from + 'T00:00:00Z');
   const st = new Date(to + 'T00:00:00Z');
