@@ -123,18 +123,32 @@ function refresh() {
     const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
     const netSign = net >= 0 ? '+' : '';
 
+    const _fmtDate = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+    let periodLabel;
+    if (_dateMode === 'month') {
+      periodLabel = new Date(_year, _month - 1, 1).toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+    } else if (_dateMode === 'year') {
+      periodLabel = String(_year);
+    } else if (_dateMode === 'custom' && _customStart && _customEnd) {
+      periodLabel = `${_fmtDate(_customStart)} – ${_fmtDate(_customEnd)}`;
+    } else if (_dateMode === 'all') {
+      periodLabel = 'all time';
+    } else {
+      periodLabel = 'this period';
+    }
+
     summaryCards = document.createElement('div');
     summaryCards.className = 'summary-cards';
     summaryCards.innerHTML = `
       <div class="summary-card summary-card-income">
         <div class="label">Income</div>
         <div class="value">+${escHtml(formatAmount(income, defaultCurrency))}</div>
-        <div class="sublabel">this period</div>
+        <div class="sublabel">${escHtml(periodLabel)}</div>
       </div>
       <div class="summary-card summary-card-expense">
         <div class="label">Expenses</div>
         <div class="value">${escHtml(formatAmount(Math.abs(expenses), defaultCurrency))}</div>
-        <div class="sublabel">this period</div>
+        <div class="sublabel">${escHtml(periodLabel)}</div>
       </div>
       <div class="summary-card ${netCardCls}">
         <div class="label">Net</div>
