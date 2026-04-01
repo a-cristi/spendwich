@@ -128,7 +128,7 @@ function refresh() {
     summaryCards.innerHTML = `
       <div class="summary-card summary-card-income">
         <div class="label">Income</div>
-        <div class="value">+${escHtml(formatAmount(income, defaultCurrency))}</div>
+        <div class="value">${escHtml(formatAmount(income, defaultCurrency))}</div>
       </div>
       <div class="summary-card summary-card-expense">
         <div class="label">Expenses</div>

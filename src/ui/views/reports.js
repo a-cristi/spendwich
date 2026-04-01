@@ -445,7 +445,7 @@ function buildSummaryCards(income, expenses, net, currency) {
   cards.innerHTML = `
     <div class="summary-card summary-card-income">
       <div class="label">Income</div>
-      <div class="value">+${escHtml(fmt(income, currency))}</div>
+      <div class="value">${escHtml(fmt(income, currency))}</div>
     </div>
     <div class="summary-card summary-card-expense">
       <div class="label">Expenses</div>
