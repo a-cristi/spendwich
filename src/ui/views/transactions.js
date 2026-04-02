@@ -1214,9 +1214,9 @@ function confirmDeleteTx(tx) {
 
 function handleCsvFile(file, data) {
   const reader = new FileReader();
-  reader.onload = evt => {
+  reader.onload = async evt => {
     try {
-      const { categories, labels, transactions } = importTransactions(evt.target.result, data);
+      const { categories, labels, transactions } = await importTransactions(evt.target.result, data);
       importBulk(categories, labels, transactions);
       toast(`Imported ${transactions.length} transaction(s)`, 'success');
       refresh();
@@ -1251,9 +1251,9 @@ function openCsvImport(data) {
     const file = e.target.files[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = evt => {
+    reader.onload = async evt => {
       try {
-        const { categories, labels, transactions } = importTransactions(evt.target.result, data);
+        const { categories, labels, transactions } = await importTransactions(evt.target.result, data);
         importBulk(categories, labels, transactions);
         toast(`Imported ${transactions.length} transaction(s)`, 'success');
         close();

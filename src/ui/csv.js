@@ -1,11 +1,11 @@
-import { inferSchema, initParser } from 'udsv';
 import { makeCategory, makeLabel, makeTransaction } from '../schema.js';
 
 const REQUIRED_COLS = ['date', 'amount', 'currency', 'category', 'description'];
 
-export function importTransactions(csvText, data) {
+export async function importTransactions(csvText, data) {
   if (!csvText || csvText.trim() === '') throw new Error('CSV is empty');
 
+  const { inferSchema, initParser } = await import('udsv');
   const schema = inferSchema(csvText);
   const parser = initParser(schema);
   const rows = parser.stringObjs(csvText);

@@ -224,9 +224,9 @@ function refresh() {
     if (!file) return;
     const statusEl = ioSection.querySelector('#csv-status');
     const reader = new FileReader();
-    reader.onload = evt => {
+    reader.onload = async evt => {
       try {
-        const { categories, labels, transactions } = importTransactions(evt.target.result, getData());
+        const { categories, labels, transactions } = await importTransactions(evt.target.result, getData());
         importBulk(categories, labels, transactions);
         statusEl.innerHTML = '';
         toast(`Imported ${transactions.length} transaction(s)`, 'success');
