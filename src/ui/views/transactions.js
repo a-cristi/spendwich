@@ -5,7 +5,8 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
-import { escHtml, formatAmount } from '../utils.js';
+import { escHtml, formatAmount, comparisonChip, buildSparklinePath } from '../utils.js';
+import { customRangeReport } from '../../reports.js';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -119,24 +120,99 @@ function refresh() {
     const income   = txs.reduce((s, t) => t.amountInDefault > 0 ? s + t.amountInDefault : s, 0);
     const expenses = txs.reduce((s, t) => t.amountInDefault < 0 ? s + t.amountInDefault : s, 0);
     const net = income + expenses;
-    const netCardCls = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
+
+    // Period dates for sparklines, daily avg, comparison
+    const todayStr = new Date().toISOString().slice(0, 10);
+    let txFrom, txTo;
+    if (_dateMode === 'all') {
+      const dates = txs.map(t => t.date).sort();
+      txFrom = dates[0];
+      txTo   = todayStr;
+    } else {
+      ({ start: txFrom, end: txTo } = getDateRange());
+    }
+
+    const days      = Math.max(1, Math.round((new Date(txTo + 'T00:00:00Z') - new Date(txFrom + 'T00:00:00Z')) / 86400000) + 1);
+    const incomeAmt = Math.abs(income);
+    const expAmt    = Math.abs(expenses);
+    const incomeAvg = formatAmount(incomeAmt / days, defaultCurrency);
+    const expAvg    = formatAmount(expAmt / days, defaultCurrency);
+    const expCount      = txs.filter(t => t.amountInDefault < 0).length;
+    const efficiencyPct = income > 0 ? Math.round(expAmt / income * 100) : null;
+    const savingsRate   = income > 0 ? Math.round((income + expenses) / income * 100) : null;
+    const incPath   = buildSparklinePath(txs, txFrom, txTo, true);
+    const expPath   = buildSparklinePath(txs, txFrom, txTo, false);
+
+    const netCardCls  = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
     const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
-    const netSign = net >= 0 ? '+' : '';
+    const netSign     = net < 0 ? '-' : '';
+
+    // Period-over-period comparison (suppressed for all-time and filtered views)
+    let cmp = {};
+    if (_dateMode !== 'all' && !_filterCategoryId && !_filterLabel.trim()) {
+      try {
+        let prevFrom, prevTo;
+        if (_dateMode === 'month') {
+          prevFrom = new Date(Date.UTC(_year, _month - 2, 1)).toISOString().slice(0, 10);
+          prevTo   = new Date(Date.UTC(_year, _month - 1, 0)).toISOString().slice(0, 10);
+        } else if (_dateMode === 'year') {
+          prevFrom = `${_year - 1}-01-01`;
+          prevTo   = `${_year - 1}-12-31`;
+        } else if (_dateMode === 'custom' && txFrom && txTo) {
+          const s = new Date(txFrom + 'T00:00:00Z');
+          const spanMs = new Date(txTo + 'T00:00:00Z') - s;
+          prevFrom = new Date(s.getTime() - spanMs).toISOString().slice(0, 10);
+          prevTo   = new Date(s.getTime() - 86400000).toISOString().slice(0, 10);
+        }
+        if (prevFrom && prevTo) {
+          const prevRep = customRangeReport(getData(), prevFrom, prevTo);
+          const pct = (cur, prev) => prev === 0 ? null : Math.round((cur - prev) / Math.abs(prev) * 100);
+          cmp = {
+            income:   pct(income, prevRep.income),
+            expenses: pct(expAmt, Math.abs(prevRep.expenses)),
+            net:      pct(net, prevRep.net),
+          };
+        }
+      } catch { /* no comparison */ }
+    }
+
+    let netBottom;
+    if (net < 0) {
+      netBottom = `<span class="card-overspent">Overspent by ${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span>`;
+    } else if (savingsRate !== null) {
+      netBottom = `<div style="width:100%"><div class="card-sr-row"><span>${savingsRate}% savings rate</span></div><div class="card-progress"><div class="card-progress-fill" style="width:${Math.min(savingsRate, 100)}%"></div></div></div>`;
+    } else {
+      netBottom = '';
+    }
 
     summaryCards = document.createElement('div');
     summaryCards.className = 'summary-cards';
     summaryCards.innerHTML = `
       <div class="summary-card summary-card-income">
-        <div class="label">Income</div>
-        <div class="value">${escHtml(formatAmount(income, defaultCurrency))}</div>
+        <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>
+        <div class="value">${escHtml(formatAmount(incomeAmt, defaultCurrency))}</div>
+        <div class="card-bottom">
+          <span class="card-avg">${escHtml(incomeAvg)}/day</span>
+        </div>
+        <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
+          <path d="${incPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
       </div>
       <div class="summary-card summary-card-expense">
-        <div class="label">Expenses</div>
-        <div class="value">${escHtml(formatAmount(Math.abs(expenses), defaultCurrency))}</div>
+        <div class="card-top"><span class="label">Expenses</span>${comparisonChip(cmp.expenses)}</div>
+        <div class="value">${escHtml(formatAmount(expAmt, defaultCurrency))}</div>
+        <div class="card-bottom">
+          <span class="card-avg">${escHtml(expAvg)}/day</span>
+          <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
+        </div>
+        <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
+          <path d="${expPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+        </svg>
       </div>
       <div class="summary-card ${netCardCls}">
-        <div class="label">Net</div>
-        <div class="value ${netValueCls}">${netSign}${escHtml(formatAmount(net, defaultCurrency))}</div>
+        <div class="card-top"><span class="label">Net</span>${comparisonChip(cmp.net)}</div>
+        <div class="value ${netValueCls}">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</div>
+        <div class="card-bottom">${netBottom}</div>
       </div>
     `;
   }

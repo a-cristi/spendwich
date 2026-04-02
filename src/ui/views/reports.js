@@ -1,6 +1,6 @@
 import { getData } from '../../store.js';
 import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes, incomeTrendReport } from '../../reports.js';
-import { escHtml } from '../utils.js';
+import { escHtml, comparisonChip, buildSparklinePath } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
@@ -141,10 +141,55 @@ function refresh() {
     return;
   }
 
-  if (_mode === 'yearly' && !_isYTD) {
-    renderYearlyReport(report, defaultCurrency, data, main);
+  // Derive current period dates (for sparklines, daily avg, comparison)
+  let currentFrom, currentTo;
+  if (_mode === 'monthly') {
+    if (_isRollingMonth) {
+      currentFrom = rollingMonthStart(_todayYear, _todayMonth, _todayDay).toISOString().slice(0, 10);
+      currentTo   = _todayStr;
+    } else {
+      currentFrom = new Date(Date.UTC(_year, _month - 1, 1)).toISOString().slice(0, 10);
+      currentTo   = new Date(Date.UTC(_year, _month, 0)).toISOString().slice(0, 10);
+    }
+  } else if (_mode === 'yearly') {
+    currentFrom = `${_year}-01-01`;
+    currentTo   = _isYTD ? _todayStr : `${_year}-12-31`;
+  } else if (_mode === 'custom') {
+    currentFrom = _customStart;
+    currentTo   = _customEnd;
   } else {
-    renderSummaryReport(report, defaultCurrency, data, main);
+    const allTxs = report.transactions;
+    currentFrom = allTxs.length ? allTxs[0].date : _todayStr;
+    currentTo   = _todayStr;
+  }
+
+  // Transactions for sparklines (yearlyReport doesn't include them)
+  const reportTxs = report.transactions !== null && report.transactions !== undefined
+    ? report.transactions
+    : customRangeReport(data, currentFrom, currentTo).transactions;
+
+  // Period-over-period comparison (suppressed in all-time mode)
+  let comparison = null;
+  if (_mode !== 'all') {
+    try {
+      const { prevFrom, prevTo } = prevPeriodRange(currentFrom, currentTo);
+      const prevReport = customRangeReport(data, prevFrom, prevTo);
+      const curIncome   = report.income   !== undefined ? report.income   : report.total.income;
+      const curExpenses = report.expenses !== undefined ? report.expenses : report.total.expenses;
+      const curNet      = report.net      !== undefined ? report.net      : report.total.net;
+      const pct = (cur, prev) => prev === 0 ? null : Math.round((cur - prev) / Math.abs(prev) * 100);
+      comparison = {
+        income:   pct(curIncome, prevReport.income),
+        expenses: pct(Math.abs(curExpenses), Math.abs(prevReport.expenses)),
+        net:      pct(curNet, prevReport.net),
+      };
+    } catch { /* no comparison if data unavailable */ }
+  }
+
+  if (_mode === 'yearly' && !_isYTD) {
+    renderYearlyReport(report, defaultCurrency, data, main, reportTxs, currentFrom, currentTo, comparison);
+  } else {
+    renderSummaryReport(report, defaultCurrency, data, main, reportTxs, currentFrom, currentTo, comparison);
   }
 }
 
@@ -436,31 +481,69 @@ function filterItems(items) {
   return items.filter(b => _breakdownTab === 'expenses' ? b.total < 0 : b.total > 0);
 }
 
-function buildSummaryCards(income, expenses, net, currency) {
-  const netCardCls = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
+function buildSummaryCards(income, expenses, net, currency, transactions, from, to, comparison) {
+  const cmp        = comparison || {};
+  const startMs    = new Date(from + 'T00:00:00Z').getTime();
+  const endMs      = new Date(to   + 'T00:00:00Z').getTime();
+  const days       = Math.max(1, Math.round((endMs - startMs) / 86400000) + 1);
+  const incomeAmt  = Math.abs(income);
+  const expAmt     = Math.abs(expenses);
+  const incomeAvg  = fmt(incomeAmt / days, currency);
+  const expAvg     = fmt(expAmt / days, currency);
+  const expCount     = transactions.filter(t => t.amountInDefault < 0).length;
+  const efficiencyPct = income > 0 ? Math.round(expAmt / income * 100) : null;
+  const savingsRate   = income > 0 ? Math.round((income + expenses) / income * 100) : null;
+  const incPath    = buildSparklinePath(transactions, from, to, true);
+  const expPath    = buildSparklinePath(transactions, from, to, false);
+
+  const netCardCls  = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
   const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
-  const netSign = net >= 0 ? '+' : '-';
+  const netSign     = net < 0 ? '-' : '';
+
+  let netBottom;
+  if (net < 0) {
+    netBottom = `<span class="card-overspent">Overspent by ${escHtml(fmt(Math.abs(net), currency))}</span>`;
+  } else if (savingsRate !== null) {
+    netBottom = `<div style="width:100%"><div class="card-sr-row"><span>${savingsRate}% savings rate</span></div><div class="card-progress"><div class="card-progress-fill" style="width:${Math.min(savingsRate, 100)}%"></div></div></div>`;
+  } else {
+    netBottom = '';
+  }
+
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
   cards.innerHTML = `
     <div class="summary-card summary-card-income">
-      <div class="label">Income</div>
-      <div class="value">${escHtml(fmt(income, currency))}</div>
+      <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>
+      <div class="value">${escHtml(fmt(incomeAmt, currency))}</div>
+      <div class="card-bottom">
+        <span class="card-avg">${escHtml(incomeAvg)}/day</span>
+      </div>
+      <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
+        <path d="${incPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
     </div>
     <div class="summary-card summary-card-expense">
-      <div class="label">Expenses</div>
-      <div class="value">${escHtml(fmt(Math.abs(expenses), currency))}</div>
+      <div class="card-top"><span class="label">Expenses</span>${comparisonChip(cmp.expenses)}</div>
+      <div class="value">${escHtml(fmt(expAmt, currency))}</div>
+      <div class="card-bottom">
+        <span class="card-avg">${escHtml(expAvg)}/day</span>
+        <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
+      </div>
+      <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
+        <path d="${expPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
     </div>
     <div class="summary-card ${netCardCls}">
-      <div class="label">Net</div>
+      <div class="card-top"><span class="label">Net</span>${comparisonChip(cmp.net)}</div>
       <div class="value ${netValueCls}">${netSign}${escHtml(fmt(Math.abs(net), currency))}</div>
+      <div class="card-bottom">${netBottom}</div>
     </div>
   `;
   return cards;
 }
 
-function renderSummaryReport(report, currency, data, container) {
-  container.appendChild(buildSummaryCards(report.income, report.expenses, report.net, currency));
+function renderSummaryReport(report, currency, data, container, transactions, from, to, comparison) {
+  container.appendChild(buildSummaryCards(report.income, report.expenses, report.net, currency, transactions, from, to, comparison));
 
   // Cash flow chart for multi-month periods
   if (_mode === 'custom' && _customStart && _customEnd && _customStart.slice(0, 7) !== _customEnd.slice(0, 7)) {
@@ -486,8 +569,8 @@ function renderSummaryReport(report, currency, data, container) {
   renderChartAndBreakdown(report, data, currency, container);
 }
 
-function renderYearlyReport(report, currency, data, container) {
-  container.appendChild(buildSummaryCards(report.total.income, report.total.expenses, report.total.net, currency));
+function renderYearlyReport(report, currency, data, container, transactions, from, to, comparison) {
+  container.appendChild(buildSummaryCards(report.total.income, report.total.expenses, report.total.net, currency, transactions, from, to, comparison));
 
   let cum = 0;
   const cfData = report.months.map(m => ({
@@ -899,10 +982,17 @@ function prevPeriodRange(from, to) {
       subtitle = `Compared to ${months()[pd.getUTCMonth()]} ${pd.getUTCFullYear()}`;
     }
   } else if (_mode === 'yearly') {
-    prevFrom = `${_year - 1}-01-01`;
-    prevTo = `${_year - 1}-12-31`;
-    label = `vs. ${_year - 1}`;
-    subtitle = `Compared to ${_year - 1}`;
+    if (to !== `${_year}-12-31`) {
+      prevFrom = `${_year - 1}-01-01`;
+      prevTo   = `${_year - 1}-${to.slice(5)}`;
+      label    = `vs. ${_year - 1} YTD`;
+      subtitle = `Compared to ${_year - 1} YTD`;
+    } else {
+      prevFrom = `${_year - 1}-01-01`;
+      prevTo   = `${_year - 1}-12-31`;
+      label    = `vs. ${_year - 1}`;
+      subtitle = `Compared to ${_year - 1}`;
+    }
   } else {
     const s = new Date(from + 'T00:00:00Z');
     const spanMs = new Date(to + 'T00:00:00Z') - s;
