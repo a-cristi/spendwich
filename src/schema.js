@@ -58,8 +58,12 @@ export function makeTransaction(fields) {
   };
 }
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const FREQUENCIES = ['daily', 'weekly', 'monthly', 'yearly'];
+
+function isRealDate(str) {
+  const d = new Date(str + 'T00:00:00Z');
+  return !isNaN(d) && d.toISOString().slice(0, 10) === str;
+}
 
 export function validate(data) {
   if (!data || typeof data !== 'object') throw new Error('Data must be an object');
@@ -71,7 +75,7 @@ export function validate(data) {
 
   for (const tx of data.transactions) {
     if (!tx.id) throw new Error(`Transaction missing id`);
-    if (!DATE_RE.test(tx.date)) throw new Error(`Transaction ${tx.id}: invalid date "${tx.date}"`);
+    if (!isRealDate(tx.date)) throw new Error(`Transaction ${tx.id}: invalid date "${tx.date}"`);
     if (typeof tx.amount !== 'number') throw new Error(`Transaction ${tx.id}: amount must be a number`);
     if (typeof tx.currency !== 'string') throw new Error(`Transaction ${tx.id}: currency must be a string`);
     if (typeof tx.amountInDefault !== 'number') throw new Error(`Transaction ${tx.id}: amountInDefault must be a number`);
@@ -81,7 +85,7 @@ export function validate(data) {
       const r = tx.recurrence;
       if (!FREQUENCIES.includes(r.frequency)) throw new Error(`Transaction ${tx.id}: unknown recurrence frequency "${r.frequency}"`);
       if (typeof r.interval !== 'number' || r.interval < 1) throw new Error(`Transaction ${tx.id}: recurrence interval must be a positive number`);
-      if (r.endDate !== null && r.endDate !== undefined && !DATE_RE.test(r.endDate)) throw new Error(`Transaction ${tx.id}: recurrence endDate must be YYYY-MM-DD`);
+      if (r.endDate !== null && r.endDate !== undefined && !isRealDate(r.endDate)) throw new Error(`Transaction ${tx.id}: recurrence endDate must be YYYY-MM-DD`);
     }
   }
 

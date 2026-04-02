@@ -129,3 +129,33 @@ test('validate rejects invalid recurrence endDate format', () => {
   d.transactions.push({ id: 't1', date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: { frequency: 'monthly', interval: 1, endDate: 'not-a-date' } });
   assert.throws(() => validate(d), /recurrence endDate must be YYYY-MM-DD/);
 });
+
+test('validate rejects impossible date Feb 31', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-02-31', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: null });
+  assert.throws(() => validate(d), /invalid date/);
+});
+
+test('validate rejects impossible date Apr 31', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-04-31', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: null });
+  assert.throws(() => validate(d), /invalid date/);
+});
+
+test('validate accepts Feb 28 in non-leap year', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-02-28', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: null });
+  assert.doesNotThrow(() => validate(d));
+});
+
+test('validate accepts Feb 29 in leap year', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2024-02-29', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: null });
+  assert.doesNotThrow(() => validate(d));
+});
+
+test('validate rejects impossible recurrence endDate Feb 31', () => {
+  const d = emptyData();
+  d.transactions.push({ id: 't1', date: '2026-01-01', amount: -10, currency: 'USD', amountInDefault: -10, exchangeRate: 1, labelIds: [], recurrence: { frequency: 'monthly', interval: 1, endDate: '2026-02-31' } });
+  assert.throws(() => validate(d), /recurrence endDate must be YYYY-MM-DD/);
+});
