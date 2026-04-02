@@ -318,6 +318,7 @@ function buildReportsSidebar() {
   periodSect.appendChild(modeSelect);
 
   if (_mode !== 'all') {
+    const isMobile = window.matchMedia('(max-width: 600px)').matches;
     if (_mode === 'monthly') {
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
@@ -327,7 +328,15 @@ function buildReportsSidebar() {
       monthSel.style.flex = '1';
       const rollingOpt = document.createElement('option');
       rollingOpt.value = '0';
-      rollingOpt.textContent = 'Last month';
+      if (isMobile) {
+        const smNow = new Date();
+        const fromStr = rollingMonthStart(smNow.getUTCFullYear(), smNow.getUTCMonth() + 1, smNow.getUTCDate()).toISOString().slice(0, 10);
+        const toStr = smNow.toISOString().slice(0, 10);
+        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' });
+        rollingOpt.textContent = `Last month · ${fmtD(fromStr)}–${fmtD(toStr)}`;
+      } else {
+        rollingOpt.textContent = 'Last month';
+      }
       rollingOpt.selected = _month === 0;
       monthSel.appendChild(rollingOpt);
       for (let i = 1; i <= 12; i++) {
@@ -346,43 +355,28 @@ function buildReportsSidebar() {
       monthSel.addEventListener('change', onMonthYearChange);
       yearSel.addEventListener('change', onMonthYearChange);
       monthRow.appendChild(monthSel);
-      monthRow.appendChild(yearSel);
+      if (!(isMobile && _month === 0)) monthRow.appendChild(yearSel);
       periodSect.appendChild(monthRow);
-      if (_month === 0) {
-        const hint = document.createElement('div');
-        hint.style.cssText = 'font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem';
-        const smNow = new Date();
-        const fromStr = rollingMonthStart(smNow.getUTCFullYear(), smNow.getUTCMonth() + 1, smNow.getUTCDate()).toISOString().slice(0, 10);
-        const toStr = smNow.toISOString().slice(0, 10);
-        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: 'UTC' });
-        hint.textContent = `${fmtD(fromStr)} – ${fmtD(toStr)}`;
-        periodSect.appendChild(hint);
-      }
     } else if (_mode === 'yearly') {
       const yearRow = document.createElement('div');
       yearRow.style.cssText = 'display:flex;align-items:center;gap:0.5rem';
+      const syNow = new Date().getUTCFullYear();
       yearRow.innerHTML = `
         <button class="btn btn-sm btn-secondary" id="prev-period">‹</button>
         <select id="sel-year" style="flex:1">
-          ${yearRange().map(y => `<option ${_year === y ? 'selected' : ''}>${y}</option>`).join('')}
+          ${yearRange().map(y => {
+            const label = (isMobile && y === syNow) ? `YTD · ${y}` : y;
+            return `<option value="${y}" ${_year === y ? 'selected' : ''}>${label}</option>`;
+          }).join('')}
         </select>
         <button class="btn btn-sm btn-secondary" id="next-period">›</button>`;
       yearRow.querySelector('#sel-year').addEventListener('change', e => { _year = +e.target.value; refresh(); });
       yearRow.querySelector('#prev-period').addEventListener('click', () => { _year--; refresh(); });
       yearRow.querySelector('#next-period').addEventListener('click', () => { _year++; refresh(); });
-      const syNow = new Date().getUTCFullYear();
       if (_year >= syNow) {
         yearRow.querySelector('#next-period').disabled = true;
       }
       periodSect.appendChild(yearRow);
-      if (_year === syNow) {
-        const hint = document.createElement('div');
-        hint.style.cssText = 'font-size:0.7rem;color:var(--text-muted);margin-top:0.25rem';
-        const todayLabel = new Date().toISOString().slice(0, 10);
-        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
-        hint.textContent = `Jan 1 – ${fmtD(todayLabel)}`;
-        periodSect.appendChild(hint);
-      }
     } else {
       const dateWrap = document.createElement('div');
       dateWrap.style.cssText = 'display:flex;gap:0.5rem;width:100%';
