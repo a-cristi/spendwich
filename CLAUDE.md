@@ -40,6 +40,7 @@
 - Always pin CDN resources to an exact version and include a matching SRI `integrity` attribute (`sha256-…`) with `crossorigin="anonymous"`. Fetch the hash from `https://data.jsdelivr.com/v1/package/npm/<pkg>@<version>/flat` when adding or upgrading.
 - **remotestoragejs 1.2.3** — cross-device sync via the remoteStorage protocol (users connect their own provider — 5apps, self-hosted). Requires serving over HTTP/HTTPS; `file://` degrades gracefully (widget shows a plain note, app still works).
 - **remotestorage-widget 1.8.0** — connect/disconnect UI for remoteStorage.
+- **uDSV 0.7.3** — RFC 4180-compliant CSV parser used in `src/ui/csv.js`. Use only `stringArrs()`, `stringObjs()`, or `stringCols()` — never the `.typed*()` variants. The typed methods use `new Function()` (dynamically generated code) which breaks under strict CSP (`unsafe-eval` not allowed) and is unnecessary since we do our own type coercion.
 - **Chart.js 4.4.9** — charts throughout Reports.
 - **chartjs-plugin-annotation 3.1.0** — UMD build auto-registers with Chart.js (no `Chart.register()` needed).
 - **Flatpickr 4.6.13** — date picker (week starts Monday, keyboard-navigable, clear close UX).
