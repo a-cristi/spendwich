@@ -2,7 +2,7 @@ import { getData, addTransaction, updateTransaction, deleteTransaction, importBu
 import { confirmLoadIfConnected } from '../remotestorage.js';
 import { expandAndFilter, groupByCategory, groupByLabel } from '../../filters.js';
 import { fetchRate, convertAmount } from '../../currency.js';
-import { importTransactions } from '../../csv.js';
+import { importTransactions } from '../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { escHtml, formatAmount, comparisonChip, buildSparklinePath } from '../utils.js';

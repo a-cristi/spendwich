@@ -2,7 +2,7 @@ import { getData, loadData, exportData, updateSettings, importBulk, updateTransa
          addLabel, updateLabel, deleteLabel,
          addCategory, updateCategory, deleteCategory, reassignCategory } from '../../store.js';
 import { fetchRate, convertAmount } from '../../currency.js';
-import { importTransactions } from '../../csv.js';
+import { importTransactions } from '../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
 import { escHtml } from '../utils.js';
