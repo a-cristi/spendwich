@@ -511,6 +511,17 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
 
   const cards = document.createElement('div');
   cards.className = 'summary-cards';
+  cards.addEventListener('click', e => {
+    const card = e.target.closest('.summary-card');
+    if (!card) return;
+    const alreadyFocused = card.classList.contains('card-focused');
+    cards.classList.remove('cards-has-focus');
+    cards.querySelectorAll('.summary-card').forEach(c => c.classList.remove('card-focused'));
+    if (!alreadyFocused) {
+      card.classList.add('card-focused');
+      cards.classList.add('cards-has-focus');
+    }
+  });
   cards.innerHTML = `
     <div class="summary-card summary-card-income">
       <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>

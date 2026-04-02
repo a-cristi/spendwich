@@ -215,6 +215,17 @@ function refresh() {
         <div class="card-bottom">${netBottom}</div>
       </div>
     `;
+    summaryCards.addEventListener('click', e => {
+      const card = e.target.closest('.summary-card');
+      if (!card) return;
+      const alreadyFocused = card.classList.contains('card-focused');
+      summaryCards.classList.remove('cards-has-focus');
+      summaryCards.querySelectorAll('.summary-card').forEach(c => c.classList.remove('card-focused'));
+      if (!alreadyFocused) {
+        card.classList.add('card-focused');
+        summaryCards.classList.add('cards-has-focus');
+      }
+    });
   }
 
   const isMobile = window.matchMedia('(max-width: 600px)').matches;
