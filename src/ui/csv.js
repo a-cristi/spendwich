@@ -10,7 +10,7 @@ export function importTransactions(csvText, data) {
   const parser = initParser(schema);
   const rows = parser.stringObjs(csvText);
 
-  if (rows.length === 0) throw new Error('CSV is empty');
+  if (rows.length === 0) return { categories: [], labels: [], transactions: [] };
 
   const headers = Object.keys(rows[0]);
   for (const col of REQUIRED_COLS) {
