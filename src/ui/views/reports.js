@@ -530,7 +530,8 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
         <span class="card-avg">${escHtml(incomeAvg)}/day</span>
       </div>
       <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
-        <path d="${incPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="${incPath} L100 40 L0 40 Z" fill="currentColor" fill-opacity="0.18"/>
+        <path d="${incPath}" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.55"/>
       </svg>
     </div>
     <div class="summary-card summary-card-expense">
@@ -541,7 +542,8 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
         <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
       </div>
       <svg class="card-sparkline" viewBox="0 0 100 40" preserveAspectRatio="none">
-        <path d="${expPath}" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="${expPath} L100 40 L0 40 Z" fill="currentColor" fill-opacity="0.18"/>
+        <path d="${expPath}" fill="none" stroke="currentColor" stroke-width="1" stroke-opacity="0.55"/>
       </svg>
     </div>
     <div class="summary-card ${netCardCls}">
