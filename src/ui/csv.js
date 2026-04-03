@@ -8,7 +8,15 @@ export async function importTransactions(csvText, data) {
   const { inferSchema, initParser } = await import('udsv');
   const schema = inferSchema(csvText);
   const parser = initParser(schema);
-  const rows = parser.stringObjs(csvText);
+  const rows = parser.stringObjs(csvText).map(row => {
+    const out = {};
+    for (const [k, v] of Object.entries(row)) {
+      const key = k.toLowerCase();
+      if (key in out) throw new Error(`Duplicate column after case normalization: "${key}"`);
+      out[key] = v;
+    }
+    return out;
+  });
 
   if (rows.length === 0) return { categories: [], labels: [], transactions: [] };
 
