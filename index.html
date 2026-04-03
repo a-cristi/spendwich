@@ -12,6 +12,19 @@
     href="https://cdn.jsdelivr.net/npm/@fontsource/plus-jakarta-sans@5.2.8/index.css"
     integrity="sha256-dPhkiQBYqOObOEox66EErpofOVeI8HkNfXzE/tMZ1jc="
     crossorigin="anonymous">
+  <script type="importmap">
+  {
+    "imports": {
+      "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
+      "/src/ui/modal.js": "/src/ui/modal.js?v=3",
+      "/src/ui/utils.js": "/src/ui/utils.js?v=2",
+      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=31",
+      "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=18",
+      "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
+    }
+  }
+  </script>
   <link rel="modulepreload"
     href="https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs"
     integrity="sha256-za/kJwAqyQ/FalHoxDSdq3+S8BQ5C96zWQaSePUfn88="
@@ -1600,19 +1613,6 @@
     </a>
   </nav>
 
-  <script type="importmap">
-  {
-    "imports": {
-      "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
-      "/src/ui/modal.js": "/src/ui/modal.js?v=3",
-      "/src/ui/utils.js": "/src/ui/utils.js?v=2",
-      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=31",
-      "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=18",
-      "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
-    }
-  }
-  </script>
   <script type="module">
     import { init } from './src/ui/router.js';
     init(document.getElementById('app'));
