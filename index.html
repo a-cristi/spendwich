@@ -17,7 +17,7 @@
     "imports": {
       "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
       "/src/ui/modal.js": "/src/ui/modal.js?v=3",
-      "/src/ui/utils.js": "/src/ui/utils.js?v=7",
+      "/src/ui/utils.js": "/src/ui/utils.js?v=8",
       "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=33",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
       "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=25",
@@ -564,7 +564,7 @@
     input.cat-search::placeholder { color: var(--text-muted); }
     input.cat-search:focus { border-color: var(--primary); }
     .cat-grid {
-      display: grid; grid-template-columns: repeat(3, 1fr);
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
       gap: 0.25rem; padding: 0.5rem;
       max-height: 280px; overflow-y: auto;
     }
