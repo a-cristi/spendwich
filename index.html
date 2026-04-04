@@ -20,7 +20,7 @@
       "/src/ui/utils.js": "/src/ui/utils.js?v=3",
       "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=32",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=20",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=24",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
     }
   }
@@ -610,6 +610,7 @@
     }
     :root.dark .list-row { border-bottom-color: var(--border); }
     .list-row:last-child { border-bottom: none; }
+    .list-row:has(+ .tx-date-header) { border-bottom: none; }
     .list-row:hover { background: var(--surface-low); }
 
     .group-header {
@@ -624,15 +625,26 @@
     }
 
     .tx-date-header {
-      padding: 0.5rem 1rem 0.2rem;
-      font-size: 0.72rem;
-      font-weight: 600;
-      color: var(--text-muted);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 0.625rem;
+      padding: 0.75rem 1rem 0.25rem;
     }
-    .tx-date-header:first-child { border-top: none; }
+    .tx-date-header:first-child { padding-top: 0.25rem; }
+    .tx-date-header-label {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .tx-date-header-line {
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
 
     .list-empty {
       padding: 3rem;
@@ -1231,6 +1243,9 @@
       /* ── Hide desktop edit/delete, show three-dot menu ── */
       .tx-actions { display: none !important; }
       .tx-actions-mobile { display: flex; align-items: center; flex-shrink: 0; }
+
+      /* ── Date group headers ── */
+      .tx-date-header { padding: 0.75rem 0.75rem 0.25rem; }
 
       /* ── Sticky header wrapper — bleed edge-to-edge ── */
       .tx-sticky-header {

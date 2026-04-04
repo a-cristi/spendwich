@@ -373,9 +373,9 @@ function refresh() {
     empty.textContent = 'No transactions in this period.';
     main.appendChild(empty);
   } else if (_viewMode === 'flat') {
-    const pageSlice = txs.slice(_page * PAGE_SIZE, (_page + 1) * PAGE_SIZE);
-    renderFlatList(list, pageSlice, catMap, lblMap, defaultCurrency, data);
-    if (txs.length > PAGE_SIZE) list.appendChild(buildPaginationBar(txs.length));
+    const pages = buildDayPages(txs, PAGE_SIZE);
+    renderFlatList(list, pages[_page] || [], catMap, lblMap, defaultCurrency, data);
+    if (pages.length > 1) list.appendChild(buildPaginationBar(pages.length));
   } else if (_viewMode === 'by-category') {
     renderGrouped(list, groupByCategory(txs, data.categories), 'category', catMap, lblMap, defaultCurrency, data);
   } else {
@@ -671,17 +671,44 @@ function buildSidebar(data) {
   return sidebar;
 }
 
-function renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data) {
-  let lastDate = null;
+function buildDayPages(txs, pageSize) {
+  const days = [];
   for (const tx of txs) {
-    if (tx.date !== lastDate) {
-      const hdr = document.createElement('div');
-      hdr.className = 'tx-date-header';
-      hdr.textContent = formatTxDate(tx.date);
-      list.appendChild(hdr);
-      lastDate = tx.date;
+    if (!days.length || days[days.length - 1].date !== tx.date) {
+      days.push({ date: tx.date, txs: [], total: 0 });
     }
-    list.appendChild(buildTxRow(tx, catMap, lblMap, defaultCurrency, data));
+    const d = days[days.length - 1];
+    d.txs.push(tx);
+    d.total += tx.amountInDefault;
+  }
+  const pages = [];
+  let page = [], count = 0;
+  for (const day of days) {
+    if (count + day.txs.length > pageSize && page.length > 0) {
+      pages.push(page); page = []; count = 0;
+    }
+    page.push(day);
+    count += day.txs.length;
+  }
+  if (page.length > 0) pages.push(page);
+  return pages;
+}
+
+function renderFlatList(list, days, catMap, lblMap, defaultCurrency, data) {
+  for (const day of days) {
+    const hdr = document.createElement('div');
+    hdr.className = 'tx-date-header';
+    const lbl = document.createElement('span');
+    lbl.className = 'tx-date-header-label';
+    lbl.textContent = formatTxDate(day.date);
+    const line = document.createElement('div');
+    line.className = 'tx-date-header-line';
+    hdr.appendChild(lbl);
+    hdr.appendChild(line);
+    list.appendChild(hdr);
+    for (const tx of day.txs) {
+      list.appendChild(buildTxRow(tx, catMap, lblMap, defaultCurrency, data));
+    }
   }
 }
 
@@ -1306,8 +1333,7 @@ function openCsvImport(data) {
   });
 }
 
-function buildPaginationBar(total) {
-  const totalPages = Math.ceil(total / PAGE_SIZE);
+function buildPaginationBar(totalPages) {
   const bar = document.createElement('div');
   bar.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.75rem;'
     + 'padding:0.75rem 1rem;border-top:1px solid var(--border)';
