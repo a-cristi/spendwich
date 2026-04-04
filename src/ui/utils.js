@@ -23,6 +23,27 @@ export function rollingMonthStart(year, month, day) {
   return new Date(Date.UTC(year, month - 2, clampedDay + 1));
 }
 
+export function formatAmountShort(absAmount, currency) {
+  let currencySymbol = currency;
+  try {
+    currencySymbol = new Intl.NumberFormat(undefined, { style: 'currency', currency })
+      .formatToParts(0).find(p => p.type === 'currency')?.value ?? currency;
+  } catch { /* fall back to raw code */ }
+
+  if (absAmount === 0) {
+    return `0<span class="approx-currency">${escHtml(currencySymbol)}</span>`;
+  }
+
+  const UNITS = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
+  for (const [threshold, suffix] of UNITS) {
+    if (absAmount >= threshold) {
+      const n = (absAmount / threshold).toFixed(2);
+      return `${n}<span class="approx-unit">${suffix}</span><span class="approx-currency">${escHtml(currencySymbol)}</span>`;
+    }
+  }
+  return escHtml(formatAmount(absAmount, currency));
+}
+
 export function buildSparklinePath(transactions, from, to, isIncome) {
   const startMs = new Date(from + 'T00:00:00Z').getTime();
   const endMs   = new Date(to   + 'T00:00:00Z').getTime();

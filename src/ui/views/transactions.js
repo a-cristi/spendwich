@@ -5,7 +5,7 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
-import { escHtml, formatAmount, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
+import { escHtml, formatAmount, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { customRangeReport } from '../../reports.js';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -266,7 +266,7 @@ function refresh() {
     summaryCards.innerHTML = `
       <div class="summary-card summary-card-income">
         <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>
-        <div class="value">${escHtml(formatAmount(incomeAmt, defaultCurrency))}</div>
+        <div class="value"><span class="value-short">${formatAmountShort(incomeAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(incomeAmt, defaultCurrency))}</span></div>
         <div class="card-bottom">
           <span class="card-avg">${escHtml(incomeAvg)}/day</span>
         </div>
@@ -277,7 +277,7 @@ function refresh() {
       </div>
       <div class="summary-card summary-card-expense">
         <div class="card-top"><span class="label">Expenses</span>${comparisonChip(cmp.expenses)}</div>
-        <div class="value">${escHtml(formatAmount(expAmt, defaultCurrency))}</div>
+        <div class="value"><span class="value-short">${formatAmountShort(expAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(expAmt, defaultCurrency))}</span></div>
         <div class="card-bottom">
           <span class="card-avg">${escHtml(expAvg)}/day</span>
           <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
@@ -289,7 +289,7 @@ function refresh() {
       </div>
       <div class="summary-card ${netCardCls}">
         <div class="card-top"><span class="label">Net</span>${comparisonChip(cmp.net)}</div>
-        <div class="value ${netValueCls}">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</div>
+        <div class="value ${netValueCls}"><span class="value-short">${netSign}${formatAmountShort(Math.abs(net), defaultCurrency)}</span><span class="value-full">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span></div>
         <div class="card-bottom">${netBottom}</div>
       </div>
     `;

@@ -17,10 +17,10 @@
     "imports": {
       "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
       "/src/ui/modal.js": "/src/ui/modal.js?v=3",
-      "/src/ui/utils.js": "/src/ui/utils.js?v=3",
-      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=32",
+      "/src/ui/utils.js": "/src/ui/utils.js?v=7",
+      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=33",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=24",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=25",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
     }
   }
@@ -678,6 +678,10 @@
 
     .summary-card .label { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-muted); }
     .summary-card .value { font-family: var(--font-sans); font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0.35rem 0; }
+    .value-short { display: none; }
+    .value-full  { display: inline; }
+    .approx-unit     { font-size: 0.6em; font-weight: 700; margin-left: 0.05em; }
+    .approx-currency { font-size: 0.55em; font-weight: 400; margin-left: 0.3em; opacity: 0.45; }
     .summary-card .card-top { display: flex; justify-content: space-between; align-items: center; }
     .summary-card .card-bottom { font-size: 0.7rem; font-weight: 500; color: var(--text); opacity: 0.65; display: flex; justify-content: space-between; align-items: flex-end; min-height: 1.5em; }
     .summary-card .card-delta { font-size: 0.68rem; font-weight: 600; color: var(--text); opacity: 0.6; flex-shrink: 0; }
@@ -1223,6 +1227,10 @@
       .summary-card.card-focused .card-sparkline { display: block; height: 65px; }
       .summary-card .label { font-size: 0.6rem; }
       .summary-card .value { font-size: 0.95rem; margin: 0.2rem 0; }
+      .value-short { display: inline; }
+      .value-full  { display: none; }
+      .card-focused .value-short { display: none; }
+      .card-focused .value-full  { display: inline; }
       .card-sparkline { height: 28px; }
 
       /* ── Summary bar — compact ── */
