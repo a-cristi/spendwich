@@ -23,6 +23,7 @@ export function rollingMonthStart(year, month, day) {
   return new Date(Date.UTC(year, month - 2, clampedDay + 1));
 }
 
+// absAmount must be non-negative — caller strips the sign. Returns an HTML string; inject via innerHTML.
 export function formatAmountShort(absAmount, currency) {
   let currencySymbol = currency;
   let currencyFirst = false;

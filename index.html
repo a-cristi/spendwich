@@ -610,6 +610,7 @@
     }
     :root.dark .list-row { border-bottom-color: var(--border); }
     .list-row:last-child { border-bottom: none; }
+    /* suppress border on the last row before a date header to avoid double-line */
     .list-row:has(+ .tx-date-header) { border-bottom: none; }
     .list-row:hover { background: var(--surface-low); }
 
