@@ -1301,22 +1301,17 @@ function openCsvImport(data) {
 
 function buildPaginationBar(total) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
-  const start = _page * PAGE_SIZE + 1;
-  const end   = Math.min((_page + 1) * PAGE_SIZE, total);
   const bar = document.createElement('div');
-  bar.style.cssText = 'display:flex;align-items:center;gap:0.75rem;padding:0.75rem 1rem;'
-    + 'border-top:1px solid var(--border);font-size:0.875rem;flex-wrap:wrap';
+  bar.style.cssText = 'display:flex;align-items:center;justify-content:center;gap:0.75rem;'
+    + 'padding:0.75rem 1rem;border-top:1px solid var(--border)';
   bar.innerHTML = `
-    <span style="color:var(--text-muted)">Showing ${start}–${end} of ${total}</span>
-    <div style="display:flex;gap:0.25rem;margin-left:auto;align-items:center">
-      <button class="btn btn-sm btn-secondary" id="pg-prev"
-              ${_page === 0 ? 'disabled' : ''}>‹ Prev</button>
-      <span style="padding:0 0.4rem;color:var(--text-muted)">
-        Page ${_page + 1} of ${totalPages}
-      </span>
-      <button class="btn btn-sm btn-secondary" id="pg-next"
-              ${_page >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>
-    </div>
+    <button class="btn btn-sm btn-secondary" id="pg-prev" style="min-width:5rem"
+            ${_page === 0 ? 'disabled' : ''}>‹ Prev</button>
+    <span style="font-size:0.875rem;color:var(--text-muted);min-width:3.5rem;text-align:center">
+      ${_page + 1} / ${totalPages}
+    </span>
+    <button class="btn btn-sm btn-secondary" id="pg-next" style="min-width:5rem"
+            ${_page >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>
   `;
   bar.querySelector('#pg-prev').addEventListener('click', () => { _page--; refresh(); });
   bar.querySelector('#pg-next').addEventListener('click', () => { _page++; refresh(); });
