@@ -25,20 +25,26 @@ export function rollingMonthStart(year, month, day) {
 
 export function formatAmountShort(absAmount, currency) {
   let currencySymbol = currency;
+  let currencyFirst = false;
   try {
-    currencySymbol = new Intl.NumberFormat(undefined, { style: 'currency', currency })
-      .formatToParts(0).find(p => p.type === 'currency')?.value ?? currency;
-  } catch { /* fall back to raw code */ }
+    const parts = new Intl.NumberFormat(undefined, { style: 'currency', currency }).formatToParts(0);
+    currencySymbol = parts.find(p => p.type === 'currency')?.value ?? currency;
+    currencyFirst = parts.findIndex(p => p.type === 'currency') < parts.findIndex(p => p.type === 'integer');
+  } catch { /* fall back to raw code, suffix position */ }
+
+  const cSpan = `<span class="approx-currency">${escHtml(currencySymbol)}</span>`;
 
   if (absAmount === 0) {
-    return `0<span class="approx-currency">${escHtml(currencySymbol)}</span>`;
+    return currencyFirst ? `${cSpan}0` : `0${cSpan}`;
   }
 
   const UNITS = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
   for (const [threshold, suffix] of UNITS) {
     if (absAmount >= threshold) {
-      const n = (absAmount / threshold).toFixed(2);
-      return `${n}<span class="approx-unit">${suffix}</span><span class="approx-currency">${escHtml(currencySymbol)}</span>`;
+      const n = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        .format(absAmount / threshold);
+      const uSpan = `<span class="approx-unit">${suffix}</span>`;
+      return currencyFirst ? `${cSpan}${n}${uSpan}` : `${n}${uSpan}${cSpan}`;
     }
   }
   return escHtml(formatAmount(absAmount, currency));
