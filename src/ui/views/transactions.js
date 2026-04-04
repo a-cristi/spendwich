@@ -5,7 +5,7 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
-import { escHtml, formatAmount, comparisonChip, buildSparklinePath } from '../utils.js';
+import { escHtml, formatAmount, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { customRangeReport } from '../../reports.js';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -27,7 +27,7 @@ let _filterCategoryId = null;
 let _filterLabel = '';
 let _dateMode = 'month'; // month | year | custom | all
 let _year = new Date().getFullYear();
-let _month = new Date().getMonth() + 1;
+let _month = 0; // 0 = rolling "Last month"; 1–12 = calendar month
 let _customStart = '';
 let _customEnd = '';
 let _page = 0;
@@ -43,6 +43,14 @@ export function render(container) {
 
 function getDateRange() {
   if (_dateMode === 'month') {
+    if (_month === 0) {
+      const now = new Date();
+      const y = now.getUTCFullYear(), mo = now.getUTCMonth() + 1, d = now.getUTCDate();
+      return {
+        start: rollingMonthStart(y, mo, d).toISOString().slice(0, 10),
+        end:   now.toISOString().slice(0, 10),
+      };
+    }
     const lastDay = new Date(Date.UTC(_year, _month, 0)).getUTCDate();
     const m = String(_month).padStart(2, '0');
     const d = String(lastDay).padStart(2, '0');
@@ -152,7 +160,12 @@ function refresh() {
     if (_dateMode !== 'all' && !_filterCategoryId && !_filterLabel.trim()) {
       try {
         let prevFrom, prevTo;
-        if (_dateMode === 'month') {
+        if (_dateMode === 'month' && _month === 0) {
+          const s = new Date(txFrom + 'T00:00:00Z');
+          const spanMs = new Date(txTo + 'T00:00:00Z') - s;
+          prevFrom = new Date(s.getTime() - spanMs).toISOString().slice(0, 10);
+          prevTo   = new Date(s.getTime() - 86400000).toISOString().slice(0, 10);
+        } else if (_dateMode === 'month') {
           prevFrom = new Date(Date.UTC(_year, _month - 2, 1)).toISOString().slice(0, 10);
           prevTo   = new Date(Date.UTC(_year, _month - 1, 0)).toISOString().slice(0, 10);
         } else if (_dateMode === 'year') {
@@ -427,6 +440,7 @@ function buildSidebar(data) {
     const periodNav = document.createElement('div');
 
     if (_dateMode === 'month') {
+      const isMobile = window.matchMedia('(max-width: 600px)').matches;
       const MONTHS = ['January','February','March','April','May','June',
                       'July','August','September','October','November','December'];
       const monthRow = document.createElement('div');
@@ -434,6 +448,19 @@ function buildSidebar(data) {
       monthRow.style.cssText = 'display:flex;gap:0.5rem';
       const monthSel = document.createElement('select');
       monthSel.style.flex = '1';
+      const rollingOpt = document.createElement('option');
+      rollingOpt.value = '0';
+      if (isMobile) {
+        const now = new Date();
+        const fromStr = rollingMonthStart(now.getUTCFullYear(), now.getUTCMonth() + 1, now.getUTCDate()).toISOString().slice(0, 10);
+        const toStr = now.toISOString().slice(0, 10);
+        const fmtD = s => new Date(s + 'T00:00:00Z').toLocaleDateString(undefined, { month: 'long', day: 'numeric', timeZone: 'UTC' });
+        rollingOpt.textContent = `Last month · ${fmtD(fromStr)}–${fmtD(toStr)}`;
+      } else {
+        rollingOpt.textContent = 'Last month';
+      }
+      rollingOpt.selected = _month === 0;
+      monthSel.appendChild(rollingOpt);
       for (let i = 1; i <= 12; i++) {
         const opt = document.createElement('option');
         opt.value = i; opt.textContent = MONTHS[i - 1]; opt.selected = i === _month;
@@ -450,7 +477,7 @@ function buildSidebar(data) {
       monthSel.addEventListener('change', onMonthYearChange);
       yearSel.addEventListener('change', onMonthYearChange);
       monthRow.appendChild(monthSel);
-      monthRow.appendChild(yearSel);
+      if (!(isMobile && _month === 0)) monthRow.appendChild(yearSel);
       periodNav.appendChild(monthRow);
     } else if (_dateMode === 'year') {
       periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';

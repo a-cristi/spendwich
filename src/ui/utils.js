@@ -17,6 +17,12 @@ export function comparisonChip(pct) {
   return `<span class="card-delta">${arrow} ${absPct}%</span>`;
 }
 
+export function rollingMonthStart(year, month, day) {
+  const prevMonthLastDay = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
+  const clampedDay = Math.min(day, prevMonthLastDay);
+  return new Date(Date.UTC(year, month - 2, clampedDay + 1));
+}
+
 export function buildSparklinePath(transactions, from, to, isIncome) {
   const startMs = new Date(from + 'T00:00:00Z').getTime();
   const endMs   = new Date(to   + 'T00:00:00Z').getTime();

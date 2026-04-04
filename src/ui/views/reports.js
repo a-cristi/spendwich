@@ -1,6 +1,6 @@
 import { getData } from '../../store.js';
 import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes, incomeTrendReport } from '../../reports.js';
-import { escHtml, comparisonChip, buildSparklinePath } from '../utils.js';
+import { escHtml, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
@@ -1384,10 +1384,4 @@ function yearRange() {
   const years = [];
   for (let y = now - 10; y <= now + 2; y++) years.push(y);
   return years;
-}
-
-function rollingMonthStart(year, month, day) {
-  const prevMonthLastDay = new Date(Date.UTC(year, month - 1, 0)).getUTCDate();
-  const clampedDay = Math.min(day, prevMonthLastDay);
-  return new Date(Date.UTC(year, month - 2, clampedDay + 1));
 }
