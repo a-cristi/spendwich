@@ -482,7 +482,7 @@ function buildSidebar(data) {
       monthSel.addEventListener('change', onMonthYearChange);
       yearSel.addEventListener('change', onMonthYearChange);
       monthRow.appendChild(monthSel);
-      if (!(isMobile && _month === 0)) monthRow.appendChild(yearSel);
+      if (_month !== 0) monthRow.appendChild(yearSel);
       periodNav.appendChild(monthRow);
     } else if (_dateMode === 'year') {
       periodNav.style.cssText = 'display:flex;align-items:center;gap:0.5rem';

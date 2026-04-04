@@ -355,7 +355,7 @@ function buildReportsSidebar() {
       monthSel.addEventListener('change', onMonthYearChange);
       yearSel.addEventListener('change', onMonthYearChange);
       monthRow.appendChild(monthSel);
-      if (!(isMobile && _month === 0)) monthRow.appendChild(yearSel);
+      if (_month !== 0) monthRow.appendChild(yearSel);
       periodSect.appendChild(monthRow);
     } else if (_mode === 'yearly') {
       const yearRow = document.createElement('div');
