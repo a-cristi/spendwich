@@ -102,7 +102,71 @@ function refresh() {
   const main = document.createElement('div');
   main.className = 'view-main';
 
+  header.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
+  header.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
+  header.querySelector('#export-btn').addEventListener('click', () => {
+    const json = exportData();
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  });
+
+  const overflowMenu = document.querySelector('.nav-overflow-menu');
+  const overflowTrigger = document.querySelector('.nav-overflow-trigger');
+  if (overflowMenu) {
+    overflowMenu.innerHTML = '';
+    if (overflowTrigger) overflowTrigger.style.display = '';
+    const importItem = document.createElement('button');
+    importItem.className = 'nav-overflow-item';
+    importItem.textContent = 'Import CSV';
+    importItem.addEventListener('click', () => {
+      overflowMenu.classList.remove('active');
+      openCsvImport(getData());
+    });
+    const exportItem = document.createElement('button');
+    exportItem.className = 'nav-overflow-item';
+    exportItem.textContent = 'Export JSON';
+    exportItem.addEventListener('click', () => {
+      overflowMenu.classList.remove('active');
+      const json = exportData();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+    overflowMenu.appendChild(importItem);
+    overflowMenu.appendChild(exportItem);
+  }
+
+  const fab = document.createElement('button');
+  fab.className = 'tx-fab';
+  fab.textContent = '+';
+  fab.setAttribute('aria-label', 'Add transaction');
+  fab.addEventListener('click', () => openTxModal(null, data));
+  _container.appendChild(fab);
+
+  document.addEventListener('click', _closeTxMenus);
+
   const range = getDateRange();
+
+  if (_dateMode === 'custom' && (!_customStart || !_customEnd)) {
+    layout.appendChild(sidebar);
+    layout.appendChild(main);
+    main.appendChild(Object.assign(document.createElement('p'), { className: 'placeholder', textContent: 'Select a date range.' }));
+    return;
+  }
+
   const windowEnd = range.end
     ? new Date(range.end + 'T23:59:59Z')
     : (() => { const d = new Date(); d.setUTCHours(23, 59, 59, 999); return d; })();
@@ -123,22 +187,21 @@ function refresh() {
   const lblMap = new Map(data.labels.map(l => [l.id, l]));
   const { defaultCurrency } = data.settings;
 
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let txFrom, txTo;
+  if (_dateMode === 'all') {
+    const dates = txs.map(t => t.date).sort();
+    txFrom = dates[0] ?? todayStr;
+    txTo   = todayStr;
+  } else {
+    ({ start: txFrom, end: txTo } = getDateRange());
+  }
+
   let summaryCards = null;
-  if (txs.length > 0) {
+  if (txs.length > 0 && txFrom && txTo) {
     const income   = txs.reduce((s, t) => t.amountInDefault > 0 ? s + t.amountInDefault : s, 0);
     const expenses = txs.reduce((s, t) => t.amountInDefault < 0 ? s + t.amountInDefault : s, 0);
     const net = income + expenses;
-
-    // Period dates for sparklines, daily avg, comparison
-    const todayStr = new Date().toISOString().slice(0, 10);
-    let txFrom, txTo;
-    if (_dateMode === 'all') {
-      const dates = txs.map(t => t.date).sort();
-      txFrom = dates[0];
-      txTo   = todayStr;
-    } else {
-      ({ start: txFrom, end: txTo } = getDateRange());
-    }
 
     const days      = Math.max(1, Math.round((new Date(txTo + 'T00:00:00Z') - new Date(txFrom + 'T00:00:00Z')) / 86400000) + 1);
     const incomeAmt = Math.abs(income);
@@ -332,64 +395,6 @@ function refresh() {
     main.appendChild(listCard);
   }
 
-  header.querySelector('#add-tx-btn').addEventListener('click', () => openTxModal(null, data));
-  header.querySelector('#import-csv-btn').addEventListener('click', () => openCsvImport(getData()));
-  header.querySelector('#export-btn').addEventListener('click', () => {
-    const json = exportData();
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  });
-
-  // Populate nav overflow menu on mobile
-  const overflowMenu = document.querySelector('.nav-overflow-menu');
-  const overflowTrigger = document.querySelector('.nav-overflow-trigger');
-  if (overflowMenu) {
-    overflowMenu.innerHTML = '';
-    if (overflowTrigger) overflowTrigger.style.display = '';
-    const importItem = document.createElement('button');
-    importItem.className = 'nav-overflow-item';
-    importItem.textContent = 'Import CSV';
-    importItem.addEventListener('click', () => {
-      overflowMenu.classList.remove('active');
-      openCsvImport(getData());
-    });
-    const exportItem = document.createElement('button');
-    exportItem.className = 'nav-overflow-item';
-    exportItem.textContent = 'Export JSON';
-    exportItem.addEventListener('click', () => {
-      overflowMenu.classList.remove('active');
-      const json = exportData();
-      const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `spendwich-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    });
-    overflowMenu.appendChild(importItem);
-    overflowMenu.appendChild(exportItem);
-  }
-
-  // FAB for mobile "+ Add"
-  const fab = document.createElement('button');
-  fab.className = 'tx-fab';
-  fab.textContent = '+';
-  fab.setAttribute('aria-label', 'Add transaction');
-  fab.addEventListener('click', () => openTxModal(null, data));
-  _container.appendChild(fab);
-
-  // Close any open three-dot menus on outside click
-  document.addEventListener('click', _closeTxMenus);
 }
 
 function buildSidebar(data) {
