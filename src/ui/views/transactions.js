@@ -672,7 +672,15 @@ function buildSidebar(data) {
 }
 
 function renderFlatList(list, txs, catMap, lblMap, defaultCurrency, data) {
+  let lastDate = null;
   for (const tx of txs) {
+    if (tx.date !== lastDate) {
+      const hdr = document.createElement('div');
+      hdr.className = 'tx-date-header';
+      hdr.textContent = formatTxDate(tx.date);
+      list.appendChild(hdr);
+      lastDate = tx.date;
+    }
     list.appendChild(buildTxRow(tx, catMap, lblMap, defaultCurrency, data));
   }
 }
@@ -813,7 +821,6 @@ function buildTxRow(tx, catMap, lblMap, defaultCurrency, data) {
 
   row.innerHTML = `
     <div class="tx-row-content">
-      <span class="tx-date">${escHtml(formatTxDate(tx.date))}</span>
       ${catDot}
       <div class="tx-info">
         ${primaryHtml}

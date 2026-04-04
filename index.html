@@ -20,7 +20,7 @@
       "/src/ui/utils.js": "/src/ui/utils.js?v=3",
       "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=32",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=19",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=20",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
     }
   }
@@ -623,6 +623,17 @@
       user-select: none;
     }
 
+    .tx-date-header {
+      padding: 0.5rem 1rem 0.2rem;
+      font-size: 0.72rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      border-top: 1px solid var(--border);
+    }
+    .tx-date-header:first-child { border-top: none; }
+
     .list-empty {
       padding: 3rem;
       text-align: center;
@@ -883,13 +894,6 @@
       flex: 1;
       min-width: 0;
       gap: 0.875rem;
-    }
-    .tx-date {
-      flex-shrink: 0;
-      font-size: 0.8rem;
-      color: var(--text-muted);
-      text-align: right;
-      white-space: nowrap;
     }
     .tx-info {
       flex: 1;
