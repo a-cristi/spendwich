@@ -20,7 +20,7 @@
       "/src/ui/utils.js": "/src/ui/utils.js?v=8",
       "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=33",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=10",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=28",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=29",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
     }
   }
@@ -411,6 +411,65 @@
       display: flex;
       justify-content: flex-end;
       gap: 0.5rem;
+    }
+
+    /* Sample data banner */
+    #sample-banner {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.45rem 1.5rem;
+      background: var(--surface);
+      border-bottom: 2px solid var(--primary);
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+    .sample-banner-pill {
+      background: var(--primary-light);
+      color: var(--primary);
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 999px;
+      white-space: nowrap;
+    }
+    .sample-banner-text { flex: 1; }
+    #clear-sample-btn { flex-shrink: 0; }
+
+    /* Empty state sample CTA */
+    .empty-or-divider {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin: 1.25rem 0 1rem;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+    .empty-or-divider::before,
+    .empty-or-divider::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+    .empty-sample-cta { display: flex; flex-direction: column; align-items: center; }
+    .btn-sample-explore {
+      background: transparent;
+      border: 1.5px solid var(--primary);
+      color: var(--primary);
+      border-radius: var(--radius);
+      font-size: 0.875rem;
+      font-family: var(--font-sans);
+      padding: 0.5rem 1.25rem;
+      cursor: pointer;
+      transition: background-color 0.15s;
+    }
+    .btn-sample-explore:hover { background-color: var(--primary-light); }
+    .empty-sample-note {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 0.5rem;
+      text-align: center;
     }
 
     /* Toast */
@@ -1650,6 +1709,12 @@
     <button class="nav-overflow-trigger" aria-label="More options">&#8942;</button>
     <div class="nav-overflow-menu"></div>
   </nav>
+
+  <div id="sample-banner" style="display:none">
+    <span class="sample-banner-pill">● Exploring</span>
+    <span class="sample-banner-text">Not your real data.</span>
+    <button id="clear-sample-btn" class="btn btn-sm btn-secondary">Start fresh</button>
+  </div>
 
   <main id="app"></main>
 

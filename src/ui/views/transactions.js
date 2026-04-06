@@ -1,4 +1,5 @@
-import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData, deleteOccurrenceAt, truncateSeries, overrideOccurrence, splitSeries } from '../../store.js';
+import { getData, addTransaction, updateTransaction, deleteTransaction, importBulk, loadData, exportData, deleteOccurrenceAt, truncateSeries, overrideOccurrence, splitSeries, updateSettings } from '../../store.js';
+import { generateSampleData } from '../../sample.js';
 import { confirmLoadIfConnected } from '../remotestorage.js';
 import { expandAndFilter, groupByCategory, groupByLabel } from '../../filters.js';
 import { fetchRate, convertAmount } from '../../currency.js';
@@ -366,6 +367,33 @@ function refresh() {
       reader.readAsText(file);
       e.target.value = '';
     });
+
+    const orDivider = document.createElement('div');
+    orDivider.className = 'empty-or-divider';
+    orDivider.innerHTML = '<span>or</span>';
+    emptyCard.appendChild(orDivider);
+
+    const sampleCta = document.createElement('div');
+    sampleCta.className = 'empty-sample-cta';
+    const sampleBtn = document.createElement('button');
+    sampleBtn.id = 'empty-sample-btn';
+    sampleBtn.className = 'btn btn-sample-explore';
+    sampleBtn.textContent = '✦ Take it for a spin';
+    const sampleNote = document.createElement('p');
+    sampleNote.className = 'empty-sample-note';
+    sampleNote.textContent = '2.5 years of realistic spending — no signup, clears instantly.';
+    sampleCta.appendChild(sampleBtn);
+    sampleCta.appendChild(sampleNote);
+    emptyCard.appendChild(sampleCta);
+
+    sampleBtn.addEventListener('click', () => {
+      const { categories, labels, transactions } = generateSampleData();
+      importBulk(categories, labels, transactions);
+      updateSettings({ sampleData: true });
+      toast('Sample data loaded — take a look around!', 'success');
+      refresh();
+    });
+
     main.appendChild(emptyCard);
   } else if (txs.length === 0) {
     const empty = document.createElement('p');

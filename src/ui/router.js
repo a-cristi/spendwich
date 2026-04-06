@@ -1,8 +1,16 @@
 import { render as renderTransactions } from './views/transactions.js';
 import { render as renderReports } from './views/reports.js';
 import { render as renderSettings } from './views/settings.js';
-import { initRemoteStorage } from './remotestorage.js';
+import { initRemoteStorage, confirmLoadIfConnected } from './remotestorage.js';
 import { initTheme } from './theme.js';
+import { getData, onDataChange, loadData } from '../store.js';
+import { emptyData } from '../schema.js';
+
+function updateSampleBanner() {
+  const banner = document.querySelector('#sample-banner');
+  if (!banner) return;
+  banner.style.display = getData().settings?.sampleData ? 'flex' : 'none';
+}
 
 const ROUTES = {
   '#transactions': renderTransactions,
@@ -25,10 +33,18 @@ export function init(container) {
     });
 
     render(container);
+    updateSampleBanner();
   }
 
   initTheme();
   initRemoteStorage(navigate);
+  onDataChange(updateSampleBanner);
+  document.querySelector('#clear-sample-btn')?.addEventListener('click', () => {
+    confirmLoadIfConnected(null, () => {
+      loadData(JSON.stringify(emptyData()));
+      navigate();
+    });
+  });
   window.addEventListener('hashchange', navigate);
   navigate();
 }
