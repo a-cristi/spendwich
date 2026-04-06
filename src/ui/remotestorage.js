@@ -167,12 +167,13 @@ function _showFirstConnectConflict(localRaw, remoteRaw) {
 export function pauseAutosave() { _paused = true; }
 export function resumeAutosave() { _paused = false; saveToRemote(); }
 
-// Used by import handlers: if connected, shows a confirmation before replacing
-// all local data with a JSON import. Calls onConfirm() if user proceeds.
-export function confirmLoadIfConnected(raw, onConfirm) {
+// Used before any destructive data replacement (JSON import, clear, etc.): if
+// connected, shows a confirmation dialog with an optional custom message, then
+// calls onConfirm() if the user proceeds (or immediately if not connected).
+export function confirmLoadIfConnected(raw, onConfirm, message) {
   if (!_rs?.remote.connected) { onConfirm(); return; }
   const body = document.createElement('p');
-  body.textContent = 'You\'re connected to remote storage. This import will overwrite your remote data too. Continue?';
+  body.textContent = message ?? 'You\'re connected to remote storage. This import will overwrite your remote data too. Continue?';
   const footer = document.createElement('div');
   footer.innerHTML = `
     <button class="btn btn-secondary" id="rs-cancel">Cancel</button>

@@ -43,7 +43,7 @@ export function init(container) {
     confirmLoadIfConnected(null, () => {
       loadData(JSON.stringify(emptyData()));
       navigate();
-    });
+    }, 'Starting fresh will clear your local data and overwrite the copy in remote storage too. Continue?');
   });
   window.addEventListener('hashchange', navigate);
   navigate();
