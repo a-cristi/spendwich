@@ -907,6 +907,10 @@ function openTxModal(tx, data, saveOverride = null) {
   const dialog = document.createElement('dialog');
   dialog.className = 'tx-dialog';
 
+  const initialCat = tx
+    ? data.categories.find(c => c.id === tx.categoryId)
+    : data.categories[0];
+
   const catCards = data.categories.map((c, i) => {
     const selected = tx ? tx.categoryId === c.id : i === 0;
     return `<div class="cat-card${selected ? ' selected' : ''}" data-cat-id="${escHtml(c.id)}">
@@ -915,13 +919,9 @@ function openTxModal(tx, data, saveOverride = null) {
     </div>`;
   }).join('');
 
-  const labelChips = data.labels.map(l => {
+  const labelInputs = data.labels.map(l => {
     const checked = tx?.labelIds?.includes(l.id);
-    return `
-      <label class="tx-label-chip${checked ? ' selected' : ''}">
-        <input type="checkbox" value="${escHtml(l.id)}" ${checked ? 'checked' : ''} style="display:none">
-        ${escHtml(l.name)}
-      </label>`;
+    return `<input type="checkbox" value="${escHtml(l.id)}" ${checked ? 'checked' : ''}>`;
   }).join('');
 
   dialog.innerHTML = `
@@ -943,7 +943,12 @@ function openTxModal(tx, data, saveOverride = null) {
             <input type="number" id="tx-amount" class="tx-amount-input" step="0.01" min="0"
               placeholder="0.00" value="${tx ? Math.abs(tx.amount) : ''}">
             <span class="tx-field-label">Category</span>
-            <div class="tx-cat-picker" id="tx-cat">
+            <div class="tx-cat-header" id="tx-cat-header" ${!isEdit ? 'style="display:none"' : ''}>
+              <span class="tx-cat-header-emoji">${initialCat?.icon ?? '🏷️'}</span>
+              <span class="tx-cat-header-name">${escHtml(initialCat?.name ?? '')}</span>
+              <span class="tx-cat-header-chevron">&#9660;</span>
+            </div>
+            <div class="tx-cat-picker" id="tx-cat" ${isEdit ? 'style="display:none"' : ''}>
               <div class="cat-search-wrap">
                 <svg class="cat-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 <input class="cat-search" type="text" placeholder="Search categories…">
@@ -959,7 +964,11 @@ function openTxModal(tx, data, saveOverride = null) {
             ${data.labels.length > 0 ? `
             <div class="form-group">
               <span class="tx-field-label">Labels</span>
-              <div class="tx-labels-wrap" id="tx-labels">${labelChips}</div>
+              <div id="tx-labels" style="display:none">${labelInputs}</div>
+              <div class="tx-label-trigger" id="tx-label-trigger">
+                <span class="tx-label-names" style="opacity:0.5">Add labels\u2026</span>
+                <span class="tx-label-chevron">&#9660;</span>
+              </div>
             </div>` : ''}
           </div>
           <div class="tx-body-right">
@@ -1089,18 +1098,118 @@ function openTxModal(tx, data, saveOverride = null) {
       card.style.display = !q || name.includes(q) ? '' : 'none';
     });
   });
+  const catHeader = dialog.querySelector('#tx-cat-header');
+  const catPicker = dialog.querySelector('#tx-cat');
+
+  function collapseCat() {
+    const selected = catPicker.querySelector('.cat-card.selected');
+    if (!selected) return;
+    catHeader.querySelector('.tx-cat-header-emoji').textContent = selected.querySelector('.cat-card-emoji').textContent;
+    catHeader.querySelector('.tx-cat-header-name').textContent = selected.querySelector('.cat-card-name').textContent;
+    catPicker.style.display = 'none';
+    catHeader.style.display = '';
+    catPicker.querySelector('.cat-search').value = '';
+    catPicker.querySelectorAll('.cat-card').forEach(c => { c.style.display = ''; });
+  }
+
+  catHeader.addEventListener('click', () => {
+    catHeader.style.display = 'none';
+    catPicker.style.display = '';
+  });
+
   dialog.querySelector('#tx-cat .cat-grid').addEventListener('click', e => {
     const card = e.target.closest('.cat-card');
     if (!card) return;
     dialog.querySelectorAll('#tx-cat .cat-card').forEach(c => c.classList.remove('selected'));
     card.classList.add('selected');
+    collapseCat();
   });
 
   if (data.labels.length > 0) {
-    dialog.querySelector('#tx-labels').addEventListener('change', e => {
-      if (!e.target.matches('input[type="checkbox"]')) return;
-      const chip = e.target.closest('.tx-label-chip');
-      if (chip) chip.classList.toggle('selected', e.target.checked);
+    const trigger = dialog.querySelector('#tx-label-trigger');
+    const hiddenWrap = dialog.querySelector('#tx-labels');
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'tx-label-dropdown';
+
+    data.labels.forEach(l => {
+      const hiddenCb = hiddenWrap.querySelector(`input[value="${CSS.escape(l.id)}"]`);
+      const chip = document.createElement('label');
+      chip.className = 'tx-label-chip' + (hiddenCb.checked ? ' selected' : '');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.style.display = 'none';
+      cb.value = l.id;
+      cb.checked = hiddenCb.checked;
+      chip.appendChild(cb);
+      chip.appendChild(document.createTextNode(l.name));
+      chip.addEventListener('change', () => {
+        hiddenCb.checked = cb.checked;
+        chip.classList.toggle('selected', cb.checked);
+        updateTrigger();
+      });
+      dropdown.appendChild(chip);
+    });
+
+    dialog.appendChild(dropdown);
+
+    function updateTrigger() {
+      const sel = data.labels.filter(
+        l => hiddenWrap.querySelector(`input[value="${CSS.escape(l.id)}"]`).checked
+      );
+      const chevron = trigger.querySelector('.tx-label-chevron');
+      const names = trigger.querySelector('.tx-label-names');
+      let countEl = trigger.querySelector('.tx-label-count');
+      if (sel.length === 0) {
+        if (countEl) countEl.remove();
+        names.textContent = 'Add labels\u2026';
+        names.style.opacity = '0.5';
+      } else {
+        if (!countEl) {
+          countEl = document.createElement('span');
+          countEl.className = 'tx-label-count';
+          trigger.insertBefore(countEl, names);
+        }
+        countEl.textContent = sel.length;
+        names.textContent = sel.map(l => l.name).join(', ');
+        names.style.opacity = '';
+      }
+      if (chevron) chevron.textContent = dropOpen ? '\u25b2' : '\u25bc';
+    }
+
+    let dropOpen = false;
+
+    function openDrop() {
+      const rect = trigger.getBoundingClientRect();
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.minWidth = rect.width + 'px';
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      dropdown.style.maxHeight = Math.max(80, spaceBelow) + 'px';
+      dropdown.style.overflowY = 'auto';
+      dropdown.style.top = (rect.bottom + 4) + 'px';
+      dropdown.classList.add('open');
+      trigger.classList.add('open');
+      dropOpen = true;
+      updateTrigger();
+    }
+
+    function closeDrop() {
+      dropdown.classList.remove('open');
+      trigger.classList.remove('open');
+      dropOpen = false;
+      updateTrigger();
+    }
+
+    trigger.addEventListener('click', () => dropOpen ? closeDrop() : openDrop());
+
+    function onOutside(e) {
+      if (!trigger.contains(e.target) && !dropdown.contains(e.target)) closeDrop();
+    }
+    document.addEventListener('pointerdown', onOutside);
+
+    dialog.addEventListener('close', () => {
+      dropdown.remove();
+      document.removeEventListener('pointerdown', onOutside);
     });
   }
 
