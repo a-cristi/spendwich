@@ -1178,6 +1178,7 @@ function openTxModal(tx, data, saveOverride = null) {
     }
 
     let dropOpen = false;
+    updateTrigger();
 
     function openDrop() {
       const rect = trigger.getBoundingClientRect();
