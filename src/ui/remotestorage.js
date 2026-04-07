@@ -12,8 +12,7 @@ let _syncing = false;        // guard: prevents loadData → _notifyChange → s
 let _paused = false;         // paused during currency migration batch
 let _pendingRefresh = false; // refresh deferred to next sync-done to avoid mid-sync widget recreate
 let _widgetContainer = null; // tracked so onSyncDone can recreate the widget in-place
-let _hasConnected = false;   // true after first successful connect; suppresses reconnect conflict dialog
-let _readyConnected = false; // true when onReady found an existing connection (auto-reconnect on page load)
+let _reconciling = false;    // prevents concurrent reconciliation on rapid-fire connect events
 
 export function initRemoteStorage(refreshFn) {
   _refreshFn = refreshFn;
@@ -54,42 +53,40 @@ function _rawHasData(raw) {
   } catch { return false; }
 }
 
-// Shared handler for both onReady (redirect OAuth) and onConnected (popup OAuth).
-// Compares localStorage vs remote and takes the appropriate action.
-async function _handleFirstSync(raw) {
-  const localRaw = localStorage.getItem(_LS_KEY);
-  const localHasData = _rawHasData(localRaw);
-
-  if (raw && localHasData && !isSameData(localRaw, raw)) {
-    _showFirstConnectConflict(localRaw, raw);
-  } else if (raw && !isSameData(localRaw, raw)) {
-    _syncing = true;
-    try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
-    _syncing = false;
-    _refreshFn();
-  } else if (!raw && localHasData) {
-    await saveToRemote();
+// Runs on every successful connection (initial, reconnect, redirect OAuth).
+// Fetches remote, compares with local, and takes the appropriate action.
+// _reconciling prevents double-running when onReady and onConnected both fire.
+async function _reconcile() {
+  if (_reconciling) return;
+  _reconciling = true;
+  try {
+    const raw = await fetchRemote();
+    const localRaw = localStorage.getItem(_LS_KEY);
+    const localHasData = _rawHasData(localRaw);
+    if (raw && localHasData && !isSameData(localRaw, raw)) {
+      _showFirstConnectConflict(localRaw, raw);
+    } else if (raw && !isSameData(localRaw, raw)) {
+      _syncing = true;
+      try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
+      _syncing = false;
+      _refreshFn();
+    } else if (!raw && localHasData) {
+      await saveToRemote();
+    }
+    // raw && isSameData: already in sync; onSyncDone handles widget refresh
+  } finally {
+    _reconciling = false;
   }
-  // raw && isSameData: data already loaded from localStorage; onSyncDone handles widget
 }
 
 async function onReady() {
   if (!_rs.remote.connected) return;
-  _hasConnected = true;      // prevent onConnected from entering first-sync logic
-  _readyConnected = true;    // prevent onConnected from saving the (still-empty) store
-  const raw = await fetchRemote();
-  await _handleFirstSync(raw);
+  await _reconcile();
 }
 
 async function onConnected() {
   toast('Storage connected', 'success');
-  if (_hasConnected) {
-    if (!_readyConnected) await saveToRemote();
-    return;
-  }
-  _hasConnected = true;
-  const raw = await fetchRemote();
-  await _handleFirstSync(raw);
+  await _reconcile();
 }
 
 function onDisconnected() {
