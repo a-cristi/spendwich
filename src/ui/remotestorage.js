@@ -167,6 +167,8 @@ export function resumeAutosave() { _paused = false; saveToRemote(); }
 // Used before any destructive data replacement (JSON import, clear, etc.): if
 // connected, shows a confirmation dialog with an optional custom message, then
 // calls onConfirm() if the user proceeds (or immediately if not connected).
+export function isConnected() { return !!(_rs?.remote.connected); }
+
 export function confirmLoadIfConnected(raw, onConfirm, message) {
   if (!_rs?.remote.connected) { onConfirm(); return; }
   const body = document.createElement('p');

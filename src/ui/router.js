@@ -1,7 +1,8 @@
 import { render as renderTransactions } from './views/transactions.js';
 import { render as renderReports } from './views/reports.js';
 import { render as renderSettings } from './views/settings.js';
-import { initRemoteStorage, confirmLoadIfConnected } from './remotestorage.js';
+import { initRemoteStorage, isConnected } from './remotestorage.js';
+import { openModal } from './modal.js';
 import { initTheme } from './theme.js';
 import { getData, onDataChange, loadData } from '../store.js';
 import { emptyData } from '../schema.js';
@@ -40,10 +41,23 @@ export function init(container) {
   initRemoteStorage(navigate);
   onDataChange(updateSampleBanner);
   document.querySelector('#clear-sample-btn')?.addEventListener('click', () => {
-    confirmLoadIfConnected(null, () => {
+    const connected = isConnected();
+    const body = document.createElement('p');
+    body.textContent = connected
+      ? 'Starting fresh will clear your local data and overwrite the copy in remote storage too. Continue?'
+      : 'This will permanently delete all your local data and cannot be undone.';
+    const footer = document.createElement('div');
+    footer.innerHTML = `
+      <button class="btn btn-secondary" id="warn-cancel">Cancel</button>
+      <button class="btn btn-primary" id="warn-confirm">Start fresh</button>
+    `;
+    const { close } = openModal({ title: connected ? 'Overwrite remote data?' : 'Delete data permanently?', body, footer });
+    footer.querySelector('#warn-cancel').addEventListener('click', close);
+    footer.querySelector('#warn-confirm').addEventListener('click', () => {
+      close();
       loadData(JSON.stringify(emptyData()));
       navigate();
-    }, 'Starting fresh will clear your local data and overwrite the copy in remote storage too. Continue?');
+    });
   });
   window.addEventListener('hashchange', navigate);
   navigate();
