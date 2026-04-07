@@ -146,6 +146,7 @@ test('rawHasData: has labels only → true', () => {
 // decideReconcileAction
 const withData = canonical; // has transactions + categories + labels
 const withData2 = (() => { const d = JSON.parse(canonical); d.transactions[0].amount = -99; return JSON.stringify(d); })();
+const settingsOnly = JSON.stringify({ version: 2, settings: { defaultCurrency: 'EUR' }, categories: [], labels: [], transactions: [] });
 
 test('decideReconcileAction: both null → in-sync', () => {
   assert.equal(decideReconcileAction(null, null), 'in-sync');
@@ -153,11 +154,18 @@ test('decideReconcileAction: both null → in-sync', () => {
 test('decideReconcileAction: local has data, remote null → push-local', () => {
   assert.equal(decideReconcileAction(withData, null), 'push-local');
 });
-test('decideReconcileAction: local empty, remote has data → load-remote', () => {
-  assert.equal(decideReconcileAction(empty, withData), 'load-remote');
-});
 test('decideReconcileAction: local null, remote has data → load-remote', () => {
   assert.equal(decideReconcileAction(null, withData), 'load-remote');
+});
+test('decideReconcileAction: local empty (non-null), remote has data → conflict', () => {
+  assert.equal(decideReconcileAction(empty, withData), 'conflict');
+});
+test('decideReconcileAction: settings-only local change, remote has different data → conflict', () => {
+  assert.equal(decideReconcileAction(settingsOnly, withData), 'conflict');
+});
+test('decideReconcileAction: settings-only local change, remote has same settings but no data → conflict', () => {
+  const remoteEur = JSON.stringify({ version: 2, settings: { defaultCurrency: 'USD' }, categories: [], labels: [], transactions: [] });
+  assert.equal(decideReconcileAction(settingsOnly, remoteEur), 'conflict');
 });
 test('decideReconcileAction: both have same data → in-sync', () => {
   assert.equal(decideReconcileAction(withData, withData), 'in-sync');
@@ -168,6 +176,12 @@ test('decideReconcileAction: both have different data → conflict', () => {
 test('decideReconcileAction: both empty → in-sync', () => {
   assert.equal(decideReconcileAction(empty, empty), 'in-sync');
 });
-test('decideReconcileAction: local cleared (empty), remote empty → in-sync', () => {
+test('decideReconcileAction: local cleared (empty non-null), remote null → in-sync', () => {
   assert.equal(decideReconcileAction(empty, null), 'in-sync');
+});
+test('decideReconcileAction: local null, remote null → in-sync', () => {
+  assert.equal(decideReconcileAction(null, null), 'in-sync');
+});
+test('decideReconcileAction: local invalid JSON, remote has data → load-remote', () => {
+  assert.equal(decideReconcileAction('{bad json}', withData), 'load-remote');
 });

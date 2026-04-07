@@ -26,14 +26,24 @@ export function rawHasData(raw) {
   } catch { return false; }
 }
 
+// Returns the parsed object, or null if raw is null or not valid JSON.
+function tryParse(raw) {
+  if (raw === null) return null;
+  try { return JSON.parse(raw); } catch { return null; }
+}
+
 // Given two JSON strings (local and remote), returns the action that reconciliation
 // should take: 'conflict' | 'load-remote' | 'push-local' | 'in-sync'.
+//
+// 'load-remote' fires when local has no usable state (null or unparseable JSON).
+// Any valid non-null local state that differs from remote returns 'conflict',
+// including settings-only differences, so the user is always asked rather than
+// having local changes silently overwritten.
 export function decideReconcileAction(localRaw, remoteRaw) {
-  const localHasData = rawHasData(localRaw);
-  if (remoteRaw && localHasData && !isSameData(localRaw, remoteRaw)) return 'conflict';
-  if (remoteRaw && !isSameData(localRaw, remoteRaw)) return 'load-remote';
-  if (!remoteRaw && localHasData) return 'push-local';
-  return 'in-sync';
+  if (isSameData(localRaw, remoteRaw)) return 'in-sync';
+  if (!remoteRaw) return rawHasData(localRaw) ? 'push-local' : 'in-sync';
+  if (tryParse(localRaw) === null) return 'load-remote';
+  return 'conflict';
 }
 
 // Returns true if two JSON strings represent semantically equivalent data,
