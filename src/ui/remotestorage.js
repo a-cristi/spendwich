@@ -1,5 +1,5 @@
 import { loadData, exportData, onDataChange } from '../store.js';
-import { isSameData } from '../sync.js';
+import { rawHasData, decideReconcileAction } from '../sync.js';
 import { toast } from './toast.js';
 import { openModal } from './modal.js';
 
@@ -45,14 +45,6 @@ function _saveToLocalStorage() {
   localStorage.setItem(_LS_KEY, exportData());
 }
 
-function _rawHasData(raw) {
-  if (!raw) return false;
-  try {
-    const d = JSON.parse(raw);
-    return d.transactions?.length > 0 || d.categories?.length > 0 || d.labels?.length > 0;
-  } catch { return false; }
-}
-
 // Runs on every successful connection (initial, reconnect, redirect OAuth).
 // Fetches remote, compares with local, and takes the appropriate action.
 // _reconciling prevents double-running when onReady and onConnected both fire.
@@ -60,20 +52,20 @@ async function _reconcile() {
   if (_reconciling) return;
   _reconciling = true;
   try {
-    const raw = await fetchRemote();
+    const remoteRaw = await fetchRemote();
     const localRaw = localStorage.getItem(_LS_KEY);
-    const localHasData = _rawHasData(localRaw);
-    if (raw && localHasData && !isSameData(localRaw, raw)) {
-      _showFirstConnectConflict(localRaw, raw);
-    } else if (raw && !isSameData(localRaw, raw)) {
+    const action = decideReconcileAction(localRaw, remoteRaw);
+    if (action === 'conflict') {
+      _showFirstConnectConflict(localRaw, remoteRaw);
+    } else if (action === 'load-remote') {
       _syncing = true;
-      try { loadData(raw); } catch { /* invalid remote data — leave local as-is */ }
+      try { loadData(remoteRaw); } catch { /* invalid remote data — leave local as-is */ }
       _syncing = false;
       _refreshFn();
-    } else if (!raw && localHasData) {
+    } else if (action === 'push-local') {
       await saveToRemote();
     }
-    // raw && isSameData: already in sync; onSyncDone handles widget refresh
+    // 'in-sync': already up to date; onSyncDone handles widget refresh
   } finally {
     _reconciling = false;
   }

@@ -17,6 +17,25 @@ export function normalizeForCompare(v) {
   return v;
 }
 
+// Returns true if a JSON string contains any user data (transactions, categories, or labels).
+export function rawHasData(raw) {
+  if (!raw) return false;
+  try {
+    const d = JSON.parse(raw);
+    return d.transactions?.length > 0 || d.categories?.length > 0 || d.labels?.length > 0;
+  } catch { return false; }
+}
+
+// Given two JSON strings (local and remote), returns the action that reconciliation
+// should take: 'conflict' | 'load-remote' | 'push-local' | 'in-sync'.
+export function decideReconcileAction(localRaw, remoteRaw) {
+  const localHasData = rawHasData(localRaw);
+  if (remoteRaw && localHasData && !isSameData(localRaw, remoteRaw)) return 'conflict';
+  if (remoteRaw && !isSameData(localRaw, remoteRaw)) return 'load-remote';
+  if (!remoteRaw && localHasData) return 'push-local';
+  return 'in-sync';
+}
+
 // Returns true if two JSON strings represent semantically equivalent data,
 // regardless of key order or entity array order.
 export function isSameData(a, b) {

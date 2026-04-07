@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { isSameData, normalizeForCompare } from '../src/sync.js';
+import { isSameData, normalizeForCompare, rawHasData, decideReconcileAction } from '../src/sync.js';
 
 const base = {
   version: 2,
@@ -122,4 +122,52 @@ test('isSameData: transaction with reordered recurrence object keys → true', (
   const reordered = JSON.parse(canonical);
   reordered.transactions[0].recurrence = { endDate: null, interval: 1, frequency: 'monthly' };
   assert.equal(isSameData(JSON.stringify(withRec), JSON.stringify(reordered)), true);
+});
+
+// rawHasData
+const empty = JSON.stringify({ version: 2, settings: {}, categories: [], labels: [], transactions: [] });
+
+test('rawHasData: null → false', () => { assert.equal(rawHasData(null), false); });
+test('rawHasData: invalid JSON → false', () => { assert.equal(rawHasData('{bad'), false); });
+test('rawHasData: empty data → false', () => { assert.equal(rawHasData(empty), false); });
+test('rawHasData: has transactions → true', () => {
+  const d = JSON.parse(empty); d.transactions.push({ id: 'tx-1' });
+  assert.equal(rawHasData(JSON.stringify(d)), true);
+});
+test('rawHasData: has categories only → true', () => {
+  const d = JSON.parse(empty); d.categories.push({ id: 'cat-1' });
+  assert.equal(rawHasData(JSON.stringify(d)), true);
+});
+test('rawHasData: has labels only → true', () => {
+  const d = JSON.parse(empty); d.labels.push({ id: 'lbl-1' });
+  assert.equal(rawHasData(JSON.stringify(d)), true);
+});
+
+// decideReconcileAction
+const withData = canonical; // has transactions + categories + labels
+const withData2 = (() => { const d = JSON.parse(canonical); d.transactions[0].amount = -99; return JSON.stringify(d); })();
+
+test('decideReconcileAction: both null → in-sync', () => {
+  assert.equal(decideReconcileAction(null, null), 'in-sync');
+});
+test('decideReconcileAction: local has data, remote null → push-local', () => {
+  assert.equal(decideReconcileAction(withData, null), 'push-local');
+});
+test('decideReconcileAction: local empty, remote has data → load-remote', () => {
+  assert.equal(decideReconcileAction(empty, withData), 'load-remote');
+});
+test('decideReconcileAction: local null, remote has data → load-remote', () => {
+  assert.equal(decideReconcileAction(null, withData), 'load-remote');
+});
+test('decideReconcileAction: both have same data → in-sync', () => {
+  assert.equal(decideReconcileAction(withData, withData), 'in-sync');
+});
+test('decideReconcileAction: both have different data → conflict', () => {
+  assert.equal(decideReconcileAction(withData, withData2), 'conflict');
+});
+test('decideReconcileAction: both empty → in-sync', () => {
+  assert.equal(decideReconcileAction(empty, empty), 'in-sync');
+});
+test('decideReconcileAction: local cleared (empty), remote empty → in-sync', () => {
+  assert.equal(decideReconcileAction(empty, null), 'in-sync');
 });
