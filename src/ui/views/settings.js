@@ -378,7 +378,11 @@ function confirmDeleteCategory(cat) {
       ${data.labels.length > 0 ? `
       <div class="form-group">
         <span class="tx-field-label">Add label</span>
-        <div class="tx-labels-wrap" id="reassign-labels">${labelChips}</div>
+        <div id="reassign-labels" style="display:none">${labelChips}</div>
+        <div class="tx-label-trigger" id="reassign-label-trigger">
+          <span class="tx-label-names" style="opacity:0.5">Add labels\u2026</span>
+          <span class="tx-label-chevron">&#9660;</span>
+        </div>
         <div style="font-size:0.75rem;color:var(--text-muted);margin-top:0.25rem">Optional — tag affected transactions for easy filtering</div>
       </div>` : ''}
     `;
@@ -410,20 +414,15 @@ function confirmDeleteCategory(cat) {
       });
     }
 
-    // Label chip toggle
-    const labelsWrap = body.querySelector('#reassign-labels');
-    if (labelsWrap) {
-      labelsWrap.addEventListener('change', e => {
-        const chip = e.target.closest('.tx-label-chip');
-        if (chip) chip.classList.toggle('selected', e.target.checked);
-      });
-    }
+    // Store refs for label picker setup after openModal (needs dialog element for top-layer appending)
+    body._labelsWrap = body.querySelector('#reassign-labels');
+    body._labelTrigger = body.querySelector('#reassign-label-trigger');
 
     // Store selection getter for the confirm handler
     body._getSelection = () => {
       const labelIds = [];
-      if (labelsWrap) {
-        labelsWrap.querySelectorAll('input:checked').forEach(cb => labelIds.push(cb.value));
+      if (body._labelsWrap) {
+        body._labelsWrap.querySelectorAll('input:checked').forEach(cb => labelIds.push(cb.value));
       }
       return { catId: selectedCatId, labelIds };
     };
@@ -435,7 +434,91 @@ function confirmDeleteCategory(cat) {
     <button class="btn btn-danger confirm-btn">Delete</button>
   `;
 
-  const { close } = openModal({ title: 'Delete category', subtitle: 'Category', deco: 'CATEGORY', body, footer });
+  const { close, dialog } = openModal({ title: 'Delete category', subtitle: 'Category', deco: 'CATEGORY', body, footer });
+
+  // Label picker — appended to dialog so it renders in the top layer above the backdrop
+  const labelsWrap = body._labelsWrap;
+  const trigger = body._labelTrigger;
+  if (labelsWrap && trigger) {
+    const dropdown = document.createElement('div');
+    dropdown.className = 'tx-label-dropdown';
+
+    data.labels.forEach(l => {
+      const hiddenCb = labelsWrap.querySelector(`input[value="${CSS.escape(l.id)}"]`);
+      const chip = document.createElement('label');
+      chip.className = 'tx-label-chip';
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.style.display = 'none';
+      cb.value = l.id;
+      chip.appendChild(cb);
+      chip.appendChild(document.createTextNode(l.name));
+      chip.addEventListener('change', () => {
+        hiddenCb.checked = cb.checked;
+        chip.classList.toggle('selected', cb.checked);
+        updateTrigger();
+      });
+      dropdown.appendChild(chip);
+    });
+
+    dialog.appendChild(dropdown);
+
+    function updateTrigger() {
+      const sel = data.labels.filter(
+        l => labelsWrap.querySelector(`input[value="${CSS.escape(l.id)}"]`).checked
+      );
+      const chevron = trigger.querySelector('.tx-label-chevron');
+      const names = trigger.querySelector('.tx-label-names');
+      let countEl = trigger.querySelector('.tx-label-count');
+      if (sel.length === 0) {
+        if (countEl) countEl.remove();
+        names.textContent = 'Add labels\u2026';
+        names.style.opacity = '0.5';
+      } else {
+        if (!countEl) {
+          countEl = document.createElement('span');
+          countEl.className = 'tx-label-count';
+          trigger.insertBefore(countEl, names);
+        }
+        countEl.textContent = sel.length;
+        names.textContent = sel.map(l => l.name).join(', ');
+        names.style.opacity = '';
+      }
+      if (chevron) chevron.textContent = dropOpen ? '\u25b2' : '\u25bc';
+    }
+
+    let dropOpen = false;
+    updateTrigger();
+
+    function openDrop() {
+      const rect = trigger.getBoundingClientRect();
+      dropdown.style.left = rect.left + 'px';
+      dropdown.style.minWidth = rect.width + 'px';
+      const spaceBelow = window.innerHeight - rect.bottom - 8;
+      dropdown.style.maxHeight = Math.max(80, spaceBelow) + 'px';
+      dropdown.style.overflowY = 'auto';
+      dropdown.style.top = (rect.bottom + 4) + 'px';
+      dropdown.classList.add('open');
+      trigger.classList.add('open');
+      dropOpen = true;
+      updateTrigger();
+    }
+
+    function closeDrop() {
+      dropdown.classList.remove('open');
+      trigger.classList.remove('open');
+      dropOpen = false;
+      updateTrigger();
+    }
+
+    trigger.addEventListener('click', () => dropOpen ? closeDrop() : openDrop());
+
+    function onOutside(e) {
+      if (!trigger.contains(e.target) && !dropdown.contains(e.target)) closeDrop();
+    }
+    document.addEventListener('pointerdown', onOutside);
+    dialog.addEventListener('close', () => document.removeEventListener('pointerdown', onOutside));
+  }
   footer.querySelector('.cancel-btn').addEventListener('click', close);
   footer.querySelector('.confirm-btn').addEventListener('click', () => {
     let reassigned = false;
