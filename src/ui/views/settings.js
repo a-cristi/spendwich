@@ -621,8 +621,15 @@ function openLabelModal(lbl) {
 }
 
 function confirmDeleteLabel(lbl) {
+  const data = getData();
+  const affected = data.transactions.filter(t => t.labelIds.includes(lbl.id)).length;
+
   const body = document.createElement('p');
-  body.textContent = `Delete "${lbl.name}"? Existing transactions will keep a reference to it (shown as deleted).`;
+  if (affected === 0) {
+    body.textContent = `Delete "${lbl.name}"? No transactions use this label.`;
+  } else {
+    body.textContent = `Delete "${lbl.name}"? ${affected} transaction${affected === 1 ? '' : 's'} use${affected === 1 ? 's' : ''} this label. Existing transactions will keep a reference to it (shown as deleted).`;
+  }
 
   const footer = document.createElement('div');
   footer.innerHTML = `
