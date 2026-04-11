@@ -1185,8 +1185,7 @@ function renderCategoryTrend(data, currency, container) {
     pctCeiling = hasOverspend ? Math.max(stepCeil, 100) : stepCeil;
     chartData = rawPcts.map(p => p === null ? null : Math.min(p, pctCeiling));
     ceilingIndices = new Set(rawPcts.map((p, i) => (p !== null && p > pctCeiling) ? i : -1).filter(i => i !== -1));
-    const forSpikes = rawPcts.map(p => p === null ? 0 : Math.min(p, pctCeiling));
-    spikeIndices = new Set([...detectSpikes(forSpikes), ...ceilingIndices]);
+    spikeIndices = ceilingIndices;
 
     const avgPct = finitePcts.length > 0 ? finitePcts.reduce((a, b) => a + b, 0) / finitePcts.length : 0;
     avgLabel = `Avg. ${granLabel} % of Inc.`;
@@ -1202,7 +1201,7 @@ function renderCategoryTrend(data, currency, container) {
         return `${fmt(Math.abs(trendData[idx].total), currency)} (Funded by Savings)`;
       }
       const pctVal = rawPcts[idx].toFixed(1) + '%';
-      return spikeIndices.has(idx) ? `${pctVal} (Spike)` : pctVal;
+      return pctVal;
     };
     yScale = { position: 'right', min: 0, max: pctCeiling, border: { display: false },
       grid: { color: gridColor, drawTicks: false },
