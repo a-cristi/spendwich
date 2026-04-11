@@ -35,6 +35,7 @@ let _page = 0;
 let _filtersExpanded = false;
 let _catPanelOpen = false;
 let _catSearch = '';
+let _lastUsedDate = null; // last date used when adding a transaction this session
 const PAGE_SIZE = 100;
 
 export function render(container) {
@@ -1056,7 +1057,7 @@ function openTxModal(tx, data, saveOverride = null) {
   flatpickr(dialog.querySelector('#tx-date'), {
     dateFormat: 'Y-m-d',
     locale: { firstDayOfWeek: 1 },
-    defaultDate: tx?.date ?? new Date().toISOString().slice(0, 10),
+    defaultDate: tx?.date ?? _lastUsedDate ?? new Date().toISOString().slice(0, 10),
     appendTo: dialog,
     onChange: () => updateRate(),
   });
@@ -1294,6 +1295,7 @@ function openTxModal(tx, data, saveOverride = null) {
       toast('Transaction updated', 'success');
     } else {
       addTransaction(fields);
+      _lastUsedDate = date;
       toast('Transaction added', 'success');
     }
     close();
