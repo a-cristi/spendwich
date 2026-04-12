@@ -482,6 +482,13 @@ function filterItems(items) {
   return items.filter(b => _breakdownTab === 'expenses' ? b.total < 0 : b.total > 0);
 }
 
+function abbrevValueClass(absAmt) {
+  if (absAmt >= 1_000_000_000) return 'value-abbrev-sm';
+  if (absAmt >= 10_000_000)    return 'value-abbrev-md';
+  if (absAmt >= 10_000)        return 'value-abbrev-lg';
+  return '';
+}
+
 function buildSummaryCards(income, expenses, net, currency, transactions, from, to, comparison) {
   const cmp        = comparison || {};
   const startMs    = new Date(from + 'T00:00:00Z').getTime();
@@ -500,6 +507,10 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
   const netCardCls  = net >= 0 ? 'summary-card-net-pos' : 'summary-card-net-neg';
   const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
   const netSign     = net < 0 ? '-' : '';
+
+  const incAbbrev  = abbrevValueClass(incomeAmt);
+  const expAbbrev  = abbrevValueClass(expAmt);
+  const netAbbrev  = abbrevValueClass(Math.abs(net));
 
   let netBottom;
   if (net < 0) {
@@ -526,7 +537,7 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
   cards.innerHTML = `
     <div class="summary-card summary-card-income">
       <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>
-      <div class="value"><span class="value-short">${formatAmountShort(incomeAmt, currency)}</span><span class="value-full">${escHtml(fmt(incomeAmt, currency))}</span></div>
+      <div class="value ${incAbbrev}"><span class="value-short">${formatAmountShort(incomeAmt, currency)}</span><span class="value-full">${escHtml(fmt(incomeAmt, currency))}</span></div>
       <div class="card-bottom">
         <span class="card-avg">${escHtml(incomeAvg)}/day</span>
       </div>
@@ -537,7 +548,7 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
     </div>
     <div class="summary-card summary-card-expense">
       <div class="card-top"><span class="label">Expenses</span>${comparisonChip(cmp.expenses)}</div>
-      <div class="value"><span class="value-short">${formatAmountShort(expAmt, currency)}</span><span class="value-full">${escHtml(fmt(expAmt, currency))}</span></div>
+      <div class="value ${expAbbrev}"><span class="value-short">${formatAmountShort(expAmt, currency)}</span><span class="value-full">${escHtml(fmt(expAmt, currency))}</span></div>
       <div class="card-bottom">
         <span class="card-avg">${escHtml(expAvg)}/day</span>
         <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
@@ -549,7 +560,7 @@ function buildSummaryCards(income, expenses, net, currency, transactions, from, 
     </div>
     <div class="summary-card ${netCardCls}">
       <div class="card-top"><span class="label">Net</span>${comparisonChip(cmp.net)}</div>
-      <div class="value ${netValueCls}"><span class="value-short">${netSign}${formatAmountShort(Math.abs(net), currency)}</span><span class="value-full">${netSign}${escHtml(fmt(Math.abs(net), currency))}</span></div>
+      <div class="value ${netValueCls} ${netAbbrev}"><span class="value-short">${netSign}${formatAmountShort(Math.abs(net), currency)}</span><span class="value-full">${netSign}${escHtml(fmt(Math.abs(net), currency))}</span></div>
       <div class="card-bottom">${netBottom}</div>
     </div>
   `;

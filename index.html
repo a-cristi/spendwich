@@ -18,9 +18,9 @@
       "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
       "/src/ui/modal.js": "/src/ui/modal.js?v=3",
       "/src/ui/utils.js": "/src/ui/utils.js?v=8",
-      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=34",
+      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=35",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=11",
-      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=29",
+      "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=30",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
     }
   }
@@ -740,6 +740,12 @@
     .summary-card .value { font-family: var(--font-sans); font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; margin: 0.35rem 0; }
     .value-short { display: none; }
     .value-full  { display: inline; }
+    /* Desktop: shrink font for large amounts to prevent overflow */
+    @media (min-width: 601px) {
+      .value.value-abbrev-lg { font-size: 1.1rem; }
+      .value.value-abbrev-md { font-size: 0.95rem; }
+      .value.value-abbrev-sm { font-size: 0.8rem; }
+    }
     .approx-unit     { font-size: 0.6em; font-weight: 700; margin-left: 0.05em; }
     .approx-currency { font-size: 0.55em; font-weight: 400; margin-left: 0.3em; opacity: 0.45; }
     .summary-card .card-top { display: flex; justify-content: space-between; align-items: center; }

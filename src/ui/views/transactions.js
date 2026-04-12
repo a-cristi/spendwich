@@ -11,6 +11,13 @@ import { customRangeReport } from '../../reports.js';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
+function abbrevValueClass(absAmt) {
+  if (absAmt >= 1_000_000_000) return 'value-abbrev-sm';
+  if (absAmt >= 10_000_000)    return 'value-abbrev-md';
+  if (absAmt >= 10_000)        return 'value-abbrev-lg';
+  return '';
+}
+
 function formatTxDate(dateStr) {
   const y = +dateStr.slice(0, 4);
   const m = MONTH_NAMES[+dateStr.slice(5, 7) - 1];
@@ -220,6 +227,10 @@ function refresh() {
     const netValueCls = net === 0 ? '' : (net > 0 ? 'amount-income' : 'amount-expense');
     const netSign     = net < 0 ? '-' : '';
 
+    const incAbbrev  = abbrevValueClass(incomeAmt);
+    const expAbbrev  = abbrevValueClass(expAmt);
+    const netAbbrev  = abbrevValueClass(Math.abs(net));
+
     // Period-over-period comparison (suppressed for all-time and filtered views)
     let cmp = {};
     if (_dateMode !== 'all' && !_filterCategoryId && !_filterLabel.trim()) {
@@ -268,7 +279,7 @@ function refresh() {
     summaryCards.innerHTML = `
       <div class="summary-card summary-card-income">
         <div class="card-top"><span class="label">Income</span>${comparisonChip(cmp.income)}</div>
-        <div class="value"><span class="value-short">${formatAmountShort(incomeAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(incomeAmt, defaultCurrency))}</span></div>
+        <div class="value ${incAbbrev}"><span class="value-short">${formatAmountShort(incomeAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(incomeAmt, defaultCurrency))}</span></div>
         <div class="card-bottom">
           <span class="card-avg">${escHtml(incomeAvg)}/day</span>
         </div>
@@ -279,7 +290,7 @@ function refresh() {
       </div>
       <div class="summary-card summary-card-expense">
         <div class="card-top"><span class="label">Expenses</span>${comparisonChip(cmp.expenses)}</div>
-        <div class="value"><span class="value-short">${formatAmountShort(expAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(expAmt, defaultCurrency))}</span></div>
+        <div class="value ${expAbbrev}"><span class="value-short">${formatAmountShort(expAmt, defaultCurrency)}</span><span class="value-full">${escHtml(formatAmount(expAmt, defaultCurrency))}</span></div>
         <div class="card-bottom">
           <span class="card-avg">${escHtml(expAvg)}/day</span>
           <span>${efficiencyPct !== null ? `${efficiencyPct}% of income` : `${expCount} transaction${expCount !== 1 ? 's' : ''}`}</span>
@@ -291,7 +302,7 @@ function refresh() {
       </div>
       <div class="summary-card ${netCardCls}">
         <div class="card-top"><span class="label">Net</span>${comparisonChip(cmp.net)}</div>
-        <div class="value ${netValueCls}"><span class="value-short">${netSign}${formatAmountShort(Math.abs(net), defaultCurrency)}</span><span class="value-full">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span></div>
+        <div class="value ${netValueCls} ${netAbbrev}"><span class="value-short">${netSign}${formatAmountShort(Math.abs(net), defaultCurrency)}</span><span class="value-full">${netSign}${escHtml(formatAmount(Math.abs(net), defaultCurrency))}</span></div>
         <div class="card-bottom">${netBottom}</div>
       </div>
     `;
