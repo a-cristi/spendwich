@@ -94,6 +94,37 @@ export function categoryTrendReport(data, categoryId, from, to, granularity) {
   return results;
 }
 
+export function labelTrendReport(data, labelId, from, to, granularity) {
+  const end = new Date(to + 'T00:00:00Z');
+  const txs = expandAndFilter(data.transactions, { windowEnd: end })
+    .filter(tx => tx.date >= from && tx.date <= to)
+    .filter(tx => labelId === null ? tx.labelIds.length === 0 : tx.labelIds.includes(labelId));
+
+  const buckets = new Map();
+  for (const tx of txs) {
+    const key = bucketKey(tx.date, granularity);
+    const b = buckets.get(key) || { total: 0, count: 0 };
+    b.total += tx.amountInDefault;
+    b.count++;
+    buckets.set(key, b);
+  }
+
+  const results = [];
+  const cursor = new Date(from + 'T00:00:00Z');
+  const endD = new Date(to + 'T00:00:00Z');
+  while (cursor <= endD) {
+    const key = bucketKey(cursor.toISOString().slice(0, 10), granularity);
+    if (results.length === 0 || results[results.length - 1].period !== key) {
+      const b = buckets.get(key) || { total: 0, count: 0 };
+      results.push({ period: key, total: b.total, count: b.count });
+    }
+    if (granularity === 'daily') cursor.setUTCDate(cursor.getUTCDate() + 1);
+    else if (granularity === 'monthly') cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+    else cursor.setUTCMonth(cursor.getUTCMonth() + 3);
+  }
+  return results;
+}
+
 export function detectSpikes(values, sensitivity = 2.0) {
   if (values.length < 3) return [];
   const mean = values.reduce((a, b) => a + b, 0) / values.length;

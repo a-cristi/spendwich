@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, detectSpikes, incomeTrendReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -272,6 +272,95 @@ test('categoryTrendReport daily: single-month range finds transactions on all da
   assert.equal(r[1].total, -20);
   assert.equal(r[1].count, 1);
   assert.ok(r.slice(2).every(b => b.total === 0 && b.count === 0));
+});
+
+// --- labelTrendReport ---
+
+test('labelTrendReport monthly: groups by month with gap-filling', () => {
+  const lbl = { id: 'lbl-1', name: 'Coffee' };
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -15, labelIds: ['lbl-1'] }),
+    makeTx({ date: '2026-01-20', amountInDefault: -10, labelIds: ['lbl-1'] }),
+    makeTx({ date: '2026-03-05', amountInDefault: -20, labelIds: ['lbl-1'] }),
+  ];
+  const r = labelTrendReport(makeData(txs, [], [lbl]), 'lbl-1', '2026-01-01', '2026-03-31', 'monthly');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-01');
+  assert.equal(r[0].total, -25);
+  assert.equal(r[0].count, 2);
+  assert.equal(r[1].period, '2026-02');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[1].count, 0);
+  assert.equal(r[2].period, '2026-03');
+  assert.equal(r[2].total, -20);
+  assert.equal(r[2].count, 1);
+});
+
+test('labelTrendReport daily: one entry per day', () => {
+  const txs = [
+    makeTx({ date: '2026-01-01', amountInDefault: -5, labelIds: ['l1'] }),
+    makeTx({ date: '2026-01-03', amountInDefault: -10, labelIds: ['l1'] }),
+  ];
+  const r = labelTrendReport(makeData(txs, [], [{ id: 'l1', name: 'X' }]), 'l1', '2026-01-01', '2026-01-03', 'daily');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-01-01');
+  assert.equal(r[0].total, -5);
+  assert.equal(r[1].period, '2026-01-02');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[2].total, -10);
+});
+
+test('labelTrendReport quarterly: groups into Q1-Q4', () => {
+  const txs = [
+    makeTx({ date: '2026-02-15', amountInDefault: -30, labelIds: ['l1'] }),
+    makeTx({ date: '2026-07-10', amountInDefault: -50, labelIds: ['l1'] }),
+  ];
+  const r = labelTrendReport(makeData(txs, [], [{ id: 'l1', name: 'X' }]), 'l1', '2026-01-01', '2026-09-30', 'quarterly');
+  assert.equal(r.length, 3);
+  assert.equal(r[0].period, '2026-Q1');
+  assert.equal(r[0].total, -30);
+  assert.equal(r[1].period, '2026-Q2');
+  assert.equal(r[1].total, 0);
+  assert.equal(r[2].total, -50);
+});
+
+test('labelTrendReport filters to specified label only', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -15, labelIds: ['lbl-a'] }),
+    makeTx({ date: '2026-01-15', amountInDefault: -99, labelIds: ['lbl-b'] }),
+  ];
+  const r = labelTrendReport(makeData(txs, [], [{ id: 'lbl-a', name: 'A' }, { id: 'lbl-b', name: 'B' }]), 'lbl-a', '2026-01-01', '2026-01-31', 'monthly');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].total, -15);
+  assert.equal(r[0].count, 1);
+});
+
+test('labelTrendReport null labelId returns unlabeled transactions only', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -15, labelIds: ['lbl-1'] }),
+    makeTx({ date: '2026-01-15', amountInDefault: -40, labelIds: [] }),
+  ];
+  const r = labelTrendReport(makeData(txs, [], [{ id: 'lbl-1', name: 'A' }]), null, '2026-01-01', '2026-01-31', 'monthly');
+  assert.equal(r.length, 1);
+  assert.equal(r[0].total, -40);
+  assert.equal(r[0].count, 1);
+});
+
+test('labelTrendReport multi-label tx counted in both labels', () => {
+  const txs = [
+    makeTx({ date: '2026-01-10', amountInDefault: -50, labelIds: ['l1', 'l2'] }),
+  ];
+  const lbls = [{ id: 'l1', name: 'A' }, { id: 'l2', name: 'B' }];
+  const r1 = labelTrendReport(makeData(txs, [], lbls), 'l1', '2026-01-01', '2026-01-31', 'monthly');
+  const r2 = labelTrendReport(makeData(txs, [], lbls), 'l2', '2026-01-01', '2026-01-31', 'monthly');
+  assert.equal(r1[0].total, -50);
+  assert.equal(r2[0].total, -50);
+});
+
+test('labelTrendReport returns zeroed array for no matching data', () => {
+  const r = labelTrendReport(makeData([]), 'nonexistent', '2026-01-01', '2026-03-31', 'monthly');
+  assert.equal(r.length, 3);
+  assert.ok(r.every(b => b.total === 0 && b.count === 0));
 });
 
 // --- detectSpikes ---
