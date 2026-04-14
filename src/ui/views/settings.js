@@ -24,6 +24,14 @@ const EMOJI_SET = [
   '👶','🐶','🐱','🌿','⚽','💼','💻','📱','🎓',
 ];
 
+const ICON_EDIT = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+const ICON_DEL  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4h6v2"/></svg>`;
+
+let _menuListenerAdded = false;
+function _closeSettingsMenus() {
+  document.querySelectorAll('.tx-action-menu.active').forEach(m => m.classList.remove('active'));
+}
+
 let _container = null;
 
 export function render(container) {
@@ -258,26 +266,79 @@ function renderCategoriesSection(parent, categories) {
   if (categories.length === 0) {
     section.insertAdjacentHTML('beforeend', '<div class="list-empty">No categories yet. Add one to get started.</div>');
   } else {
-    const list = document.createElement('div');
-    list.className = 'list';
+    const searchRow = document.createElement('div');
+    searchRow.className = 'settings-section-search';
+    searchRow.innerHTML = `
+      <div class="settings-search-inner">
+        <svg class="settings-section-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="settings-filter-input" type="text" placeholder="Find category…" autocomplete="off">
+      </div>
+    `;
+    section.appendChild(searchRow);
+
+    const grid = document.createElement('div');
+    grid.className = 'settings-entity-grid';
+
     for (const cat of categories) {
       const row = document.createElement('div');
       row.className = 'list-row';
+      row.dataset.name = cat.name.toLowerCase();
       row.innerHTML = `
         <span style="font-size:1.1rem;width:2rem;text-align:center;flex-shrink:0">${cat.icon ?? '🏷️'}</span>
         <span style="flex:1;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(cat.name)}</span>
-        <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
-        <button class="btn btn-sm btn-danger del-btn">Delete</button>
+        <div class="tx-actions">
+          <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
+          <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
+        </div>
+        <div class="tx-actions-mobile">
+          <button class="tx-menu-trigger" aria-label="Actions">&#8942;</button>
+          <div class="tx-action-menu">
+            <button class="tx-menu-item tx-menu-edit edit-btn">Edit</button>
+            <button class="tx-menu-item tx-menu-delete del-btn">Delete</button>
+          </div>
+        </div>
       `;
-      row.querySelector('.edit-btn').addEventListener('click', () => openCategoryModal(cat));
-      row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteCategory(cat));
-      list.appendChild(row);
+      const editHandler = () => openCategoryModal(cat);
+      const deleteHandler = () => confirmDeleteCategory(cat);
+      row.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', editHandler));
+      row.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', deleteHandler));
+      row.querySelector('.tx-menu-trigger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = row.querySelector('.tx-action-menu');
+        const wasActive = menu.classList.contains('active');
+        _closeSettingsMenus();
+        if (!wasActive) menu.classList.add('active');
+      });
+      grid.appendChild(row);
     }
-    section.appendChild(list);
+
+    const noResults = document.createElement('div');
+    noResults.className = 'settings-entity-grid-empty';
+    noResults.style.display = 'none';
+    noResults.textContent = 'No matching categories.';
+    grid.appendChild(noResults);
+
+    section.appendChild(grid);
+
+    searchRow.querySelector('.settings-filter-input').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      let visible = 0;
+      grid.querySelectorAll('.list-row').forEach(r => {
+        const match = r.dataset.name.includes(q);
+        r.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      noResults.style.display = visible === 0 ? '' : 'none';
+    });
   }
 
   parent.appendChild(section);
   section.querySelector('#add-cat-btn').addEventListener('click', () => openCategoryModal(null));
+
+  if (!_menuListenerAdded) {
+    document.addEventListener('click', _closeSettingsMenus);
+    _menuListenerAdded = true;
+  }
 }
 
 function openCategoryModal(cat) {
@@ -556,21 +617,69 @@ function renderLabelsSection(parent, labels) {
   if (labels.length === 0) {
     section.insertAdjacentHTML('beforeend', '<div class="list-empty">No labels yet. Add one to get started.</div>');
   } else {
-    const list = document.createElement('div');
-    list.className = 'list';
+    const searchRow = document.createElement('div');
+    searchRow.className = 'settings-section-search';
+    searchRow.innerHTML = `
+      <div class="settings-search-inner">
+        <svg class="settings-section-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <input class="settings-filter-input" type="text" placeholder="Find label…" autocomplete="off">
+      </div>
+    `;
+    section.appendChild(searchRow);
+
+    const grid = document.createElement('div');
+    grid.className = 'settings-entity-grid';
+
     for (const lbl of labels) {
       const row = document.createElement('div');
       row.className = 'list-row';
+      row.dataset.name = lbl.name.toLowerCase();
       row.innerHTML = `
-        <span style="flex:1;font-weight:500">${escHtml(lbl.name)}</span>
-        <button class="btn btn-sm btn-secondary edit-btn">Edit</button>
-        <button class="btn btn-sm btn-danger del-btn">Delete</button>
+        <span style="flex:1;font-weight:500;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escHtml(lbl.name)}</span>
+        <div class="tx-actions">
+          <button class="btn btn-sm btn-secondary btn-icon edit-btn" title="Edit" aria-label="Edit">${ICON_EDIT}</button>
+          <button class="btn btn-sm btn-danger btn-icon del-btn" title="Delete" aria-label="Delete">${ICON_DEL}</button>
+        </div>
+        <div class="tx-actions-mobile">
+          <button class="tx-menu-trigger" aria-label="Actions">&#8942;</button>
+          <div class="tx-action-menu">
+            <button class="tx-menu-item tx-menu-edit edit-btn">Edit</button>
+            <button class="tx-menu-item tx-menu-delete del-btn">Delete</button>
+          </div>
+        </div>
       `;
-      row.querySelector('.edit-btn').addEventListener('click', () => openLabelModal(lbl));
-      row.querySelector('.del-btn').addEventListener('click', () => confirmDeleteLabel(lbl));
-      list.appendChild(row);
+      const editHandler = () => openLabelModal(lbl);
+      const deleteHandler = () => confirmDeleteLabel(lbl);
+      row.querySelectorAll('.edit-btn').forEach(b => b.addEventListener('click', editHandler));
+      row.querySelectorAll('.del-btn').forEach(b => b.addEventListener('click', deleteHandler));
+      row.querySelector('.tx-menu-trigger').addEventListener('click', (e) => {
+        e.stopPropagation();
+        const menu = row.querySelector('.tx-action-menu');
+        const wasActive = menu.classList.contains('active');
+        _closeSettingsMenus();
+        if (!wasActive) menu.classList.add('active');
+      });
+      grid.appendChild(row);
     }
-    section.appendChild(list);
+
+    const noResults = document.createElement('div');
+    noResults.className = 'settings-entity-grid-empty';
+    noResults.style.display = 'none';
+    noResults.textContent = 'No matching labels.';
+    grid.appendChild(noResults);
+
+    section.appendChild(grid);
+
+    searchRow.querySelector('.settings-filter-input').addEventListener('input', function () {
+      const q = this.value.toLowerCase();
+      let visible = 0;
+      grid.querySelectorAll('.list-row').forEach(r => {
+        const match = r.dataset.name.includes(q);
+        r.style.display = match ? '' : 'none';
+        if (match) visible++;
+      });
+      noResults.style.display = visible === 0 ? '' : 'none';
+    });
   }
 
   parent.appendChild(section);
