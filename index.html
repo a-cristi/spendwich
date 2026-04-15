@@ -1746,6 +1746,32 @@
       outline: none;
     }
     input.settings-filter-input:focus { border-color: var(--primary); }
+    :root .list-row .btn-icon {
+      background: transparent;
+      color: var(--text-muted);
+      border-color: transparent;
+    }
+    :root .list-row .btn-icon:hover { color: var(--text); }
+    .list-row .btn-icon.del-btn:hover {
+      background-color: #fef2f2;
+      color: var(--expense);
+      border-color: #fecaca;
+    }
+    :root.dark .list-row .btn-icon.del-btn:hover {
+      background-color: #2d1515;
+      color: #fca5a5;
+      border-color: #5c2020;
+    }
+    .list-row .btn-icon.edit-btn:hover {
+      background-color: rgba(80, 85, 216, 0.08);
+      color: var(--primary);
+      border-color: rgba(80, 85, 216, 0.12);
+    }
+    :root.dark .list-row .btn-icon.edit-btn:hover {
+      background-color: rgba(129, 140, 248, 0.12);
+      color: var(--primary);
+      border-color: rgba(129, 140, 248, 0.18);
+    }
     .settings-entity-grid-empty {
       grid-column: 1 / -1;
       padding: 1rem;
