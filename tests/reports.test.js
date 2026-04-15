@@ -381,13 +381,80 @@ test('detectSpikes: finds obvious spike', () => {
 });
 
 test('detectSpikes: sensitivity adjusts threshold', () => {
-  const values = [10, 12, 11, 10, 30, 11, 10];
+  // Series with natural variance so the rolling spread is meaningful
+  const values = [8, 14, 12, 10, 20, 11, 10];
   assert.equal(detectSpikes(values, 1.0).length, 1, 'low sensitivity catches it');
   assert.equal(detectSpikes(values, 5.0).length, 0, 'high sensitivity ignores it');
 });
 
 test('detectSpikes: empty array returns empty', () => {
   assert.deepEqual(detectSpikes([]), []);
+});
+
+test('detectSpikes: trailing-only — past spike does not inflate later baseline', () => {
+  // index 2 is a big spike; index 5 should still be caught as a local spike vs the recent calm
+  const values = [10, 10, 80, 10, 10, 10, 10, 10, 60, 10];
+  const spikes = detectSpikes(values);
+  assert.ok(spikes.includes(2), 'index 2 (80) should be flagged');
+  assert.ok(spikes.includes(8), 'index 8 (60) should still be flagged vs its calm trailing window');
+});
+
+test('detectSpikes: global fallback does not include current value in its own baseline', () => {
+  // index 2 has only 2 non-zero priors → global fallback.
+  // If 50 is included in global stats: mean=18, stdDev=16, threshold=50 → 50 barely misses (self-suppression bug).
+  // With leave-one-out: remaining [10,10,10,10] → mean=10, stdDev=0 → percentage rule: 50 > 10×1.5 → SPIKE.
+  assert.ok(detectSpikes([10, 10, 50, 10, 10]).includes(2), '[10,10,50,10,10]: index 2 must be a spike');
+});
+
+test('detectSpikes: global fallback applies for first points with < 3 non-zero priors', () => {
+  // index 2 has only 2 non-zero priors → global fallback path.
+  // Leave-one-out: remaining [10×7] → mean=10, stdDev=0 → percentage rule: 50>15 → SPIKE.
+  const values = [10, 10, 50, 10, 10, 10, 10, 10];
+  const spikes = detectSpikes(values);
+  assert.ok(spikes.includes(2), 'index 2 should be caught via global fallback');
+});
+
+test('detectSpikes: series with fewer than 5 non-zero values produces no spikes', () => {
+  // Not enough evidence — honest to return nothing rather than a statistically flimsy dot
+  assert.deepEqual(detectSpikes([0, 0, 20, 0, 200]), []);
+  assert.deepEqual(detectSpikes([10, 10, 10, 80]), []);
+});
+
+test('detectSpikes: MAD=0 above floor — flat stable series spikes correctly', () => {
+  // All prior values are 12 (MAD=0), base=12 >= FLOOR=5, 30 > 12*1.5=18
+  const values = [12, 12, 12, 12, 30];
+  const spikes = detectSpikes(values);
+  assert.ok(spikes.includes(4), 'index 4 (30) should be flagged via MAD=0 percentage rule');
+});
+
+test('detectSpikes: MAD=0 below floor — trivial flat series does not spike', () => {
+  // base=2 < FLOOR=5, so percentage rule suppressed
+  const values = [2, 2, 2, 2, 4];
+  const spikes = detectSpikes(values);
+  assert.equal(spikes.length, 0, 'trivial series below floor should produce no spikes');
+});
+
+test('detectSpikes: non-zero filtering — zeros excluded from trailing window', () => {
+  // 6 non-zero values total (≥ MIN_SERIES=5). The window for the last point skips zeros
+  // and compares against actual spend levels [80,90,85,100,90] (median≈90, MAD=5),
+  // not a diluted average pulled toward zero by the empty months.
+  const values = [0, 80, 0, 90, 0, 85, 0, 100, 0, 90, 0, 0, 400];
+  const spikes = detectSpikes(values);
+  assert.ok(spikes.includes(12), 'index 12 (400) should be flagged vs non-zero baseline of ~90');
+});
+
+test('detectSpikes: daily granularity uses 21-period window', () => {
+  // 20 calm values then a spike — rolling window of 21 should still catch it
+  const values = Array(20).fill(10).concat([80]);
+  const spikes = detectSpikes(values, 2.0, 'daily');
+  assert.ok(spikes.includes(20), 'spike at index 20 should be detected with 21-period daily window');
+});
+
+test('detectSpikes: monthly granularity uses 6-period window', () => {
+  // 6 calm values then a spike — rolling window of 6 should catch it
+  const values = [10, 10, 10, 10, 10, 10, 80];
+  const spikes = detectSpikes(values, 2.0, 'monthly');
+  assert.ok(spikes.includes(6), 'spike at index 6 should be detected with 6-period monthly window');
 });
 
 // --- incomeTrendReport ---

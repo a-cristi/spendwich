@@ -1240,8 +1240,8 @@ function renderCategoryTrend(data, currency, container) {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
     // Spike detection must run on raw values before nulling future periods — nulling
-    // first would reduce the dataset and distort the mean/stddev baseline.
-    spikeIndices = new Set(detectSpikes(chartData));
+    // first would shrink the series and distort the rolling baseline.
+    spikeIndices = new Set(detectSpikes(chartData, 2.0, granularity));
     chartData = chartData.map((v, i) => (isFuturePeriod(trendData[i].period) && trendData[i].count === 0) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
@@ -1518,7 +1518,7 @@ function renderLabelTrend(data, currency, container) {
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
-    spikeIndices = new Set(detectSpikes(chartData));
+    spikeIndices = new Set(detectSpikes(chartData, 2.0, granularity));
     chartData = chartData.map((v, i) => (isFuturePeriod(trendData[i].period) && trendData[i].count === 0) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;

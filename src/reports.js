@@ -125,15 +125,63 @@ export function labelTrendReport(data, labelId, from, to, granularity) {
   return results;
 }
 
-export function detectSpikes(values, sensitivity = 2.0) {
-  if (values.length < 3) return [];
-  const mean = values.reduce((a, b) => a + b, 0) / values.length;
-  const squareDiffs = values.map(v => Math.pow(v - mean, 2));
-  const stdDev = Math.sqrt(squareDiffs.reduce((a, b) => a + b, 0) / values.length);
-  if (stdDev === 0) return [];
-  return values
-    .map((val, i) => (val > mean + sensitivity * stdDev ? i : -1))
-    .filter(i => i !== -1);
+export function detectSpikes(values, sensitivity = 2.0, granularity = 'monthly') {
+  const W = granularity === 'daily' ? 21 : 6;
+  const MIN_SERIES = 5; // hard gate: fewer non-zero values than this → no detection (not enough evidence)
+  const MIN_WINDOW = 3; // non-zero priors required for rolling path; fewer → global fallback
+  const FLOOR = 5;
+
+  const allNonZero = values.filter(v => v != null && v > 0);
+  if (allNonZero.length < MIN_SERIES) return [];
+
+  function median(arr) {
+    const s = [...arr].sort((a, b) => a - b);
+    const m = s.length >> 1;
+    return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+  }
+
+  // Precompute sums for O(1) leave-one-out stats in the global fallback path.
+  // Excluding the current value from its own baseline prevents self-contamination
+  // (a spike can otherwise inflate the global mean/stdDev and suppress itself).
+  const gN = allNonZero.length;
+  const gSum = allNonZero.reduce((a, b) => a + b, 0);
+  const gSumSq = allNonZero.reduce((a, b) => a + b * b, 0);
+
+  const spikes = [];
+  for (let i = 0; i < values.length; i++) {
+    const v = values[i];
+    if (v == null || v <= 0) continue;
+
+    const window = [];
+    for (let j = i - 1; j >= 0 && window.length < W; j--) {
+      if (values[j] != null && values[j] > 0) window.unshift(values[j]);
+    }
+
+    if (window.length < MIN_WINDOW) {
+      // Leave-one-out global baseline: exclude v so it cannot inflate its own threshold.
+      const en = gN - 1;
+      const eMean = (gSum - v) / en;
+      const eVariance = (gSumSq - v * v) / en - eMean * eMean;
+      const eStdDev = eVariance > 0 ? Math.sqrt(eVariance) : 0;
+      if (eStdDev > 0) {
+        if (v > eMean + sensitivity * eStdDev) spikes.push(i);
+      } else if (eMean >= FLOOR && v > eMean * 1.5) {
+        spikes.push(i);
+      }
+      continue;
+    }
+
+    const base = median(window);
+    const spread = median(window.map(x => Math.abs(x - base)));
+
+    if (spread > 0) {
+      if (v > base + sensitivity * spread * 1.4826) spikes.push(i);
+    } else if (base >= FLOOR && v > base * 1.5) {
+      spikes.push(i);
+    }
+  }
+
+  return spikes;
 }
 
 export function incomeTrendReport(data, from, to, granularity) {
