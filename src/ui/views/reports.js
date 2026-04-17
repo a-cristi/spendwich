@@ -914,7 +914,7 @@ function renderChartAndBreakdown(report, data, currency, container, from, to) {
       const trendData = categoryTrendReport(data, b.categoryId, from, to, stabilityGranularity);
       const totalExpenses = report.expenses ?? report.total?.expenses ?? 0;
       if (computeStabilityLabel(trendData, totalExpenses) === 'erratic') {
-        stabilityBadge = ' <span class="badge badge-erratic">Erratic</span>';
+        stabilityBadge = ' <span class="badge badge-erratic" title="Spending in this category fluctuates significantly">Erratic</span>';
       }
     }
 
@@ -924,8 +924,8 @@ function renderChartAndBreakdown(report, data, currency, container, from, to) {
     row.innerHTML = `
       <span style="width:12px;height:12px;border-radius:3px;background:${color};flex-shrink:0;margin-right:0.75rem"></span>
       <span style="flex:1;min-width:0">
-        <span style="display:block">${icon ? icon + ' ' : ''}${escHtml(name)}</span>
-        <span style="display:block;font-size:0.75rem;color:var(--text-muted)">${b.count} transaction${b.count !== 1 ? 's' : ''} &bull; ${pct}%${stabilityBadge}</span>
+        <span style="display:block">${icon ? icon + ' ' : ''}${escHtml(name)}${stabilityBadge}</span>
+        <span style="display:block;font-size:0.75rem;color:var(--text-muted)">${b.count} transaction${b.count !== 1 ? 's' : ''} &bull; ${pct}%</span>
       </span>
       <span class="${b.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600;flex-shrink:0">${fmt(b.total, currency)}</span>
       <span style="flex-shrink:0;margin-left:0.5rem;color:var(--text-muted);font-size:0.9rem">›</span>
