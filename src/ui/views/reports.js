@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport, computeStabilityLabel } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel } from '../../reports.js';
 import { escHtml, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -1260,9 +1260,11 @@ function renderCategoryTrend(data, currency, container) {
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
-    // Spike detection must run on raw values before nulling future periods — nulling
-    // first would shrink the series and distort the rolling baseline.
-    spikeIndices = new Set(detectSpikes(chartData, 2.0, granularity));
+    // Spike detection runs on raw values before nulling future periods — nulling first
+    // would shrink the series and distort the rolling baseline. Skipped for daily
+    // granularity: within a single month the view is small enough that outliers are
+    // visually obvious, and the rolling MAD baseline is too shallow to be reliable.
+    spikeIndices = shouldDetectSpikes(granularity) ? new Set(detectSpikes(chartData, 2.0, granularity)) : new Set();
     chartData = chartData.map((v, i) => (isFuturePeriod(trendData[i].period) && trendData[i].count === 0) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
@@ -1539,7 +1541,7 @@ function renderLabelTrend(data, currency, container) {
   } else {
     chartData = trendData.map(b => Math.abs(b.total));
     ceilingIndices = new Set();
-    spikeIndices = new Set(detectSpikes(chartData, 2.0, granularity));
+    spikeIndices = shouldDetectSpikes(granularity) ? new Set(detectSpikes(chartData, 2.0, granularity)) : new Set();
     chartData = chartData.map((v, i) => (isFuturePeriod(trendData[i].period) && trendData[i].count === 0) ? null : v);
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;

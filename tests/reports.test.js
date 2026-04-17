@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport, computeStabilityLabel } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -455,6 +455,17 @@ test('detectSpikes: monthly granularity uses 6-period window', () => {
   const values = [10, 10, 10, 10, 10, 10, 80];
   const spikes = detectSpikes(values, 2.0, 'monthly');
   assert.ok(spikes.includes(6), 'spike at index 6 should be detected with 6-period monthly window');
+});
+
+// --- shouldDetectSpikes ---
+
+test('shouldDetectSpikes: false for daily (single-month drill-down), true for monthly and quarterly', () => {
+  // Daily granularity means a single-month view (≤31 data points). The rolling MAD
+  // window is too shallow at that scale to distinguish genuine outliers from ordinary
+  // day-to-day variation — callers must skip spike detection for daily series.
+  assert.equal(shouldDetectSpikes('daily'), false);
+  assert.equal(shouldDetectSpikes('monthly'), true);
+  assert.equal(shouldDetectSpikes('quarterly'), true);
 });
 
 // --- computeStabilityLabel ---

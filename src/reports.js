@@ -184,6 +184,14 @@ export function detectSpikes(values, sensitivity = 2.0, granularity = 'monthly')
   return spikes;
 }
 
+// Daily granularity is used for single-month drill-downs (≤31 data points). The
+// rolling MAD window never fills enough to form a reliable baseline at that scale —
+// ordinary shopping variation triggers false positives. Monthly and quarterly
+// aggregates have enough history for the algorithm to be meaningful.
+export function shouldDetectSpikes(granularity) {
+  return granularity !== 'daily';
+}
+
 export function computeStabilityLabel(trendData, totalExpenses) {
   // Minimum evidence gates — fewer data points → no conclusion
   const MIN_PERIODS = 5;   // total periods in range
