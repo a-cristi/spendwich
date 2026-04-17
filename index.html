@@ -18,7 +18,8 @@
       "udsv": "https://cdn.jsdelivr.net/npm/udsv@0.7.3/dist/uDSV.mjs",
       "/src/ui/modal.js": "/src/ui/modal.js?v=3",
       "/src/ui/utils.js": "/src/ui/utils.js?v=8",
-      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=35",
+      "/src/reports.js": "/src/reports.js?v=1",
+      "/src/ui/views/reports.js": "/src/ui/views/reports.js?v=36",
       "/src/ui/views/settings.js": "/src/ui/views/settings.js?v=12",
       "/src/ui/views/transactions.js": "/src/ui/views/transactions.js?v=30",
       "/src/ui/remotestorage.js": "/src/ui/remotestorage.js?v=2"
@@ -511,11 +512,13 @@
     .badge-category { background: #e0e7ff; color: #3730a3; }
     .badge-label { background: #ede9fe; color: #5b21b6; }
     .badge-more { background: var(--surface-hover); color: var(--text-muted); font-size: 0.6875rem; cursor: default; }
+    .badge-erratic { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
 
     :root.dark .badge-deleted   { background: #3d2d0d; color: #fcd34d; }
     :root.dark .badge-recurring { background: #2d1f5e; color: #c4b5fd; }
     :root.dark .badge-category  { background: #1e2a5e; color: #a5b4fc; }
     :root.dark .badge-label     { background: #2d1f5e; color: #c4b5fd; }
+    :root.dark .badge-erratic   { background: rgba(251, 191, 36, 0.12); color: #fbbf24; border-color: rgba(251, 191, 36, 0.25); }
 
     :root.dark .btn-danger { background: #2d1515; color: #fca5a5; border-color: #5c2020; }
     :root.dark .btn-danger:hover { background: #3a1a1a; }

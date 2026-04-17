@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport, computeStabilityLabel } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -455,6 +455,54 @@ test('detectSpikes: monthly granularity uses 6-period window', () => {
   const values = [10, 10, 10, 10, 10, 10, 80];
   const spikes = detectSpikes(values, 2.0, 'monthly');
   assert.ok(spikes.includes(6), 'spike at index 6 should be detected with 6-period monthly window');
+});
+
+// --- computeStabilityLabel ---
+
+function makeTrend(activeTotals, totalPeriods) {
+  // Fill with active periods at the start, gaps at the end
+  const buckets = [];
+  for (let i = 0; i < totalPeriods; i++) {
+    if (i < activeTotals.length) buckets.push({ period: `2025-${String(i + 1).padStart(2, '0')}`, total: -activeTotals[i], count: 1 });
+    else buckets.push({ period: `2025-${String(i + 1).padStart(2, '0')}`, total: 0, count: 0 });
+  }
+  return buckets;
+}
+
+test('computeStabilityLabel: too few total periods returns null', () => {
+  const td = makeTrend([100, 200, 150], 4); // 4 < MIN_PERIODS=5
+  assert.strictEqual(computeStabilityLabel(td, -2000), null);
+});
+
+test('computeStabilityLabel: too few active periods returns null', () => {
+  const td = makeTrend([100, 300], 8); // only 2 active < MIN_ACTIVE=3
+  assert.strictEqual(computeStabilityLabel(td, -2000), null);
+});
+
+test('computeStabilityLabel: tiny hobby noise does not flag (materiality gate)', () => {
+  // 4 active out of 10 — active values are very small vs total expenses
+  const td = makeTrend([5, 8, 3, 20], 10);
+  assert.strictEqual(computeStabilityLabel(td, -2000), null, 'MAD too small vs avg period spend');
+});
+
+test('computeStabilityLabel: sparse high-variance flags via Path A', () => {
+  // 3 active out of 12 (ratio=0.25 < 0.5), high RMAD, material MAD
+  const td = makeTrend([50, 800, 120], 12);
+  assert.strictEqual(computeStabilityLabel(td, -500), 'erratic');
+});
+
+test('computeStabilityLabel: high-activity extreme-variance flags via Path B', () => {
+  // 8 active out of 12 (ratio=0.67 < 0.75), bimodal: 4 × $5 routine + 4 × $500 procedure
+  // med=252.5, mad=247.5, rmad≈0.98 ≥ RMAD_EXTREME=0.9
+  // Note: RMAD for positive values is mathematically bounded at ~1.0; 0.9 is the "very high bar"
+  const td = makeTrend([5, 5, 5, 5, 500, 500, 500, 500], 12);
+  assert.strictEqual(computeStabilityLabel(td, -2000), 'erratic');
+});
+
+test('computeStabilityLabel: dense smooth category does not flag (subscription)', () => {
+  // 12 active out of 12 (ratio=1.0 ≥ 0.5 and ≥ 0.75), near-constant values
+  const td = makeTrend([300, 305, 295, 302, 298, 301, 299, 303, 297, 304, 296, 300], 12);
+  assert.strictEqual(computeStabilityLabel(td, -3600), null, 'stable subscription should not be erratic');
 });
 
 // --- incomeTrendReport ---

@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, incomeTrendReport, computeStabilityLabel } from '../../reports.js';
 import { escHtml, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -591,7 +591,7 @@ function renderSummaryReport(report, currency, data, container, transactions, fr
     renderCashFlowChart(cfData, cfLabels, currency, container);
   }
 
-  renderChartAndBreakdown(report, data, currency, container);
+  renderChartAndBreakdown(report, data, currency, container, from, to);
 }
 
 function renderYearlyReport(report, currency, data, container, transactions, from, to, comparison) {
@@ -605,7 +605,7 @@ function renderYearlyReport(report, currency, data, container, transactions, fro
   }));
   renderCashFlowChart(cfData, months(), currency, container);
 
-  renderChartAndBreakdown(report, data, currency, container);
+  renderChartAndBreakdown(report, data, currency, container, from, to);
 }
 
 function renderCashFlowChart(cfData, labels, currency, container) {
@@ -851,7 +851,7 @@ function buildPieChartData(items, nameKey, fallback, catsByName) {
   };
 }
 
-function renderChartAndBreakdown(report, data, currency, container) {
+function renderChartAndBreakdown(report, data, currency, container, from, to) {
   const isCat = _breakdown === 'category';
   const rawItems = isCat ? report.byCategory : (report.byLabel ?? []);
   const items = filterItems(rawItems);
@@ -868,6 +868,17 @@ function renderChartAndBreakdown(report, data, currency, container) {
   const colors = dark ? PIE_COLORS_DARK : PIE_COLORS_LIGHT;
   const sorted = [...items].filter(b => b.total !== 0).sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
   const totalAbs = sorted.reduce((s, b) => s + Math.abs(b.total), 0);
+
+  // Stability badge: only for category breakdown, monthly/quarterly granularity
+  let canShowStability = false;
+  let stabilityGranularity = 'monthly';
+  if (isCat && from && to) {
+    const fromD = new Date(from + 'T00:00:00Z');
+    const toD   = new Date(to   + 'T00:00:00Z');
+    const spanMonths = (toD.getUTCFullYear() - fromD.getUTCFullYear()) * 12 + toD.getUTCMonth() - fromD.getUTCMonth();
+    stabilityGranularity = spanMonths === 0 ? 'daily' : spanMonths >= 36 ? 'quarterly' : 'monthly';
+    canShowStability = stabilityGranularity !== 'daily';
+  }
 
   const card = document.createElement('div');
   card.className = 'card';
@@ -897,6 +908,16 @@ function renderChartAndBreakdown(report, data, currency, container) {
     const icon = isCat ? (catsByName.get(name)?.icon ?? '') : '';
     const pct = totalAbs > 0 ? Math.round(Math.abs(b.total) / totalAbs * 100) : 0;
     const color = colors[i % colors.length];
+
+    let stabilityBadge = '';
+    if (canShowStability && b.categoryId) {
+      const trendData = categoryTrendReport(data, b.categoryId, from, to, stabilityGranularity);
+      const totalExpenses = report.expenses ?? report.total?.expenses ?? 0;
+      if (computeStabilityLabel(trendData, totalExpenses) === 'erratic') {
+        stabilityBadge = ' <span class="badge badge-erratic">Erratic</span>';
+      }
+    }
+
     const row = document.createElement('div');
     row.style.cssText = 'display:flex;align-items:center;padding:0.625rem 0;border-bottom:1px solid var(--border)';
     if (i === sorted.length - 1) row.style.borderBottom = 'none';
@@ -904,7 +925,7 @@ function renderChartAndBreakdown(report, data, currency, container) {
       <span style="width:12px;height:12px;border-radius:3px;background:${color};flex-shrink:0;margin-right:0.75rem"></span>
       <span style="flex:1;min-width:0">
         <span style="display:block">${icon ? icon + ' ' : ''}${escHtml(name)}</span>
-        <span style="display:block;font-size:0.75rem;color:var(--text-muted)">${b.count} transaction${b.count !== 1 ? 's' : ''} &bull; ${pct}%</span>
+        <span style="display:block;font-size:0.75rem;color:var(--text-muted)">${b.count} transaction${b.count !== 1 ? 's' : ''} &bull; ${pct}%${stabilityBadge}</span>
       </span>
       <span class="${b.total >= 0 ? 'amount-income' : 'amount-expense'}" style="font-weight:600;flex-shrink:0">${fmt(b.total, currency)}</span>
       <span style="flex-shrink:0;margin-left:0.5rem;color:var(--text-muted);font-size:0.9rem">›</span>
