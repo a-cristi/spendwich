@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel } from '../src/reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel, synthesizeComparison } from '../src/reports.js';
 import { emptyData } from '../src/schema.js';
 
 function makeData(txs = [], cats = [], lbls = []) {
@@ -553,4 +553,139 @@ test('incomeTrendReport daily: spreads total period income to every day', () => 
   assert.equal(r[0].income, 3000);
   assert.equal(r[1].income, 3000);
   assert.equal(r[2].income, 3000);
+});
+
+// synthesizeComparison
+
+const catA = { id: 'c1', name: 'Dining', icon: '🍽' };
+const catB = { id: 'c2', name: 'Rent', icon: '🏠' };
+
+function makeCompareReports(opts) {
+  const { incA = 1000, incB = 1000, expA = -500, expB = -500, catExpA = -300, catExpB = -300, catId = 'c1', catName = 'Dining' } = opts ?? {};
+  const rA = {
+    income: incA, expenses: expA, net: incA + expA,
+    byCategory: incA > 0 ? [{ categoryId: catId, categoryName: catName, total: catExpA, count: 1 }] : [],
+  };
+  const rB = {
+    income: incB, expenses: expB, net: incB + expB,
+    byCategory: incB > 0 ? [{ categoryId: catId, categoryName: catName, total: catExpB, count: 1 }] : [],
+  };
+  return { rA, rB };
+}
+
+test('synthesizeComparison: returns null for different months', () => {
+  const { rA, rB } = makeCompareReports();
+  assert.equal(synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 4 }), null);
+});
+
+test('synthesizeComparison: returns null for same year monthly', () => {
+  const { rA, rB } = makeCompareReports();
+  assert.equal(synthesizeComparison(rA, rB, { year: 2025, month: 3 }, { year: 2025, month: 3 }), null);
+});
+
+test('synthesizeComparison: returns null for same year yearly', () => {
+  const { rA, rB } = makeCompareReports();
+  assert.equal(synthesizeComparison(rA, rB, { year: 2025 }, { year: 2025 }), null);
+});
+
+test('synthesizeComparison: returns null when one spec has month and other does not', () => {
+  const { rA, rB } = makeCompareReports();
+  assert.equal(synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025 }), null);
+});
+
+test('synthesizeComparison: patterns similar when nothing notable', () => {
+  const { rA, rB } = makeCompareReports({ incA: 1000, incB: 1000, expA: -500, expB: -500, catExpA: -100, catExpB: -100 });
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result.includes('March year-over-year'));
+  assert.ok(result.includes('patterns are similar'));
+});
+
+test('synthesizeComparison: monthly income up, savings rate improved', () => {
+  // incA=1000 net=-200 (rate=-20%), incB=1080 net=-40 (rate~-3.7% → delta≈16pp)
+  const rA = { income: 1000, expenses: -1200, net: -200, byCategory: [] };
+  const rB = { income: 1080, expenses: -1040, net: 40, byCategory: [] };
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result.includes('March year-over-year'));
+  assert.ok(result.includes('income up 8%'));
+  assert.ok(result.includes('savings rate improved'));
+});
+
+test('synthesizeComparison: yearly income down, savings rate fell', () => {
+  const rA = { income: 6000, expenses: -4680, net: 1320, byCategory: [] }; // rate=22%
+  const rB = { income: 3900, expenses: -3744, net: 156, byCategory: [] };  // rate=4%
+  const result = synthesizeComparison(rA, rB, { year: 2024 }, { year: 2025 });
+  assert.ok(result.includes('Year-over-year'));
+  assert.ok(result.includes('income down 35%'));
+  assert.ok(result.includes('savings rate fell 18pp'));
+});
+
+test('synthesizeComparison: income stable, savings rate held not mentioned', () => {
+  const { rA, rB } = makeCompareReports({ incA: 1000, incB: 1000, expA: -800, expB: -800 });
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 6 }, { year: 2025, month: 6 });
+  assert.ok(!result.includes('savings rate held'));
+  assert.ok(result.includes('patterns are similar'));
+});
+
+test('synthesizeComparison: income moved, savings rate held qualifier appears', () => {
+  // income up 20%, savings rate delta < 5pp
+  const rA = { income: 1000, expenses: -600, net: 400, byCategory: [] }; // rate=40%
+  const rB = { income: 1200, expenses: -740, net: 460, byCategory: [] }; // rate≈38.3%
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result.includes('income up 20%'));
+  assert.ok(result.includes('savings rate held'));
+});
+
+test('synthesizeComparison: top category shift >= 3pp appears', () => {
+  // Dining: 30% of inc A → 18% of inc B → shift = -12pp
+  const rA = { income: 1000, expenses: -300, net: 700, byCategory: [{ categoryId: 'c1', categoryName: 'Dining', total: -300, count: 1 }] };
+  const rB = { income: 1000, expenses: -180, net: 820, byCategory: [{ categoryId: 'c1', categoryName: 'Dining', total: -180, count: 1 }] };
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result.includes('Dining'));
+  assert.ok(result.includes('fell'));
+  assert.ok(result.includes('% of income'));
+});
+
+test('synthesizeComparison: both incomes zero, spending up — not similar', () => {
+  const rA = { income: 0, expenses: -1200, net: -1200, byCategory: [
+    { categoryId: 'c1', categoryName: 'Rent', total: -1100, count: 1 },
+    { categoryId: 'c2', categoryName: 'Dining', total: -100, count: 1 },
+  ]};
+  const rB = { income: 0, expenses: -2400, net: -2400, byCategory: [
+    { categoryId: 'c1', categoryName: 'Rent', total: -1100, count: 1 },
+    { categoryId: 'c2', categoryName: 'Dining', total: -1300, count: 1 },
+  ]};
+  const result = synthesizeComparison(rA, rB, { year: 2022, month: 1 }, { year: 2023, month: 1 });
+  assert.ok(result !== null);
+  assert.ok(result.includes('spending up'));
+  assert.ok(!result.includes('patterns are similar'));
+});
+
+test('synthesizeComparison: both incomes zero, spending similar — uses "spending" not "income and spending"', () => {
+  const rA = { income: 0, expenses: -1200, net: -1200, byCategory: [] };
+  const rB = { income: 0, expenses: -1230, net: -1230, byCategory: [] }; // <5% change
+  const result = synthesizeComparison(rA, rB, { year: 2022, month: 1 }, { year: 2023, month: 1 });
+  assert.ok(result !== null);
+  assert.ok(result.includes('spending patterns are similar'));
+  assert.ok(!result.includes('income'));
+});
+
+test('synthesizeComparison: both incomes zero, both expenses zero — returns null', () => {
+  const rA = { income: 0, expenses: 0, net: 0, byCategory: [] };
+  const rB = { income: 0, expenses: 0, net: 0, byCategory: [] };
+  assert.equal(synthesizeComparison(rA, rB, { year: 2022, month: 1 }, { year: 2023, month: 1 }), null);
+});
+
+test('synthesizeComparison: zero income in rA does not throw', () => {
+  const rA = { income: 0, expenses: 0, net: 0, byCategory: [] };
+  const rB = { income: 1000, expenses: -500, net: 500, byCategory: [] };
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result !== null);
+  assert.ok(result.includes('income started'));
+});
+
+test('synthesizeComparison: zero income in rB includes label', () => {
+  const rA = { income: 1000, expenses: -500, net: 500, byCategory: [] };
+  const rB = { income: 0, expenses: 0, net: 0, byCategory: [] };
+  const result = synthesizeComparison(rA, rB, { year: 2024, month: 3 }, { year: 2025, month: 3 });
+  assert.ok(result.includes('no income in March 2025'));
 });

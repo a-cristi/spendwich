@@ -1,5 +1,5 @@
 import { getData } from '../../store.js';
-import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel } from '../../reports.js';
+import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel, synthesizeComparison } from '../../reports.js';
 import { escHtml, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
@@ -718,6 +718,14 @@ function renderCompareReport(rA, rB, specA, specB, currency, data, container) {
     </div>
   `;
   container.appendChild(savingsCard);
+
+  const narrative = synthesizeComparison(rA, rB, specA, specB);
+  if (narrative) {
+    const narrativeEl = document.createElement('div');
+    narrativeEl.style.cssText = 'padding:0.875rem 1rem;margin-bottom:1.5rem;background:var(--surface-hover);border:1px solid var(--border);border-left:3px solid var(--primary);border-radius:var(--radius);font-size:0.875rem;line-height:1.6;color:var(--text)';
+    narrativeEl.textContent = narrative;
+    container.appendChild(narrativeEl);
+  }
 
   // Allocation shift cards
   const isCat = _breakdown === 'category';

@@ -277,6 +277,89 @@ function bucketKey(dateStr, granularity) {
   return `${y}-Q${Math.ceil(m / 3)}`;
 }
 
+export function synthesizeComparison(rA, rB, specA, specB) {
+  const isMonthly = specA.month != null && specB.month != null;
+  const isYearly = specA.month == null && specB.month == null;
+  if (!isMonthly && !isYearly) return null;
+
+  const isLikeLike = isMonthly
+    ? specA.month === specB.month && specA.year !== specB.year
+    : specA.year !== specB.year;
+  if (!isLikeLike) return null;
+
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const periodDesc = isMonthly ? `${MONTHS[specA.month - 1]} year-over-year` : 'Year-over-year';
+  const labelB = isMonthly ? `${MONTHS[specB.month - 1]} ${specB.year}` : String(specB.year);
+
+  const facts = [];
+
+  // Zero-income path: skip % of income metrics; compare absolute expenses directly
+  if (rA.income === 0 && rB.income === 0) {
+    const expA = Math.abs(rA.expenses);
+    const expB = Math.abs(rB.expenses);
+    if (expA === 0 && expB === 0) return null;
+    if (expA > 0 && expB > 0) {
+      const expPct = (expB - expA) / expA * 100;
+      if (Math.abs(expPct) >= 5) facts.push(`spending ${expPct > 0 ? 'up' : 'down'} ${Math.abs(Math.round(expPct))}%`);
+    } else if (expA === 0) {
+      facts.push('spending started');
+    } else {
+      facts.push(`no spending in ${labelB}`);
+    }
+    if (facts.length === 0) return `${periodDesc}: spending patterns are similar.`;
+    return `${periodDesc}: ${facts.join(', ')}.`;
+  }
+
+  let incomeNotable = false;
+
+  if (rA.income > 0 && rB.income > 0) {
+    const incPct = (rB.income - rA.income) / rA.income * 100;
+    if (Math.abs(incPct) >= 5) {
+      facts.push(`income ${incPct > 0 ? 'up' : 'down'} ${Math.abs(Math.round(incPct))}%`);
+      incomeNotable = true;
+    }
+  } else if (rA.income === 0 && rB.income > 0) {
+    facts.push('income started');
+    incomeNotable = true;
+  } else if (rA.income > 0 && rB.income === 0) {
+    facts.push(`no income in ${labelB}`);
+    incomeNotable = true;
+  }
+
+  if (rA.income > 0 && rB.income > 0) {
+    const rateA = rA.net / rA.income * 100;
+    const rateB = rB.net / rB.income * 100;
+    const delta = rateB - rateA;
+    if (Math.abs(delta) >= 5) {
+      facts.push(`savings rate ${delta > 0 ? 'improved' : 'fell'} ${Math.abs(Math.round(delta))}pp (${Math.round(rateA)}% → ${Math.round(rateB)}%)`);
+    } else if (incomeNotable) {
+      facts.push('savings rate held');
+    }
+  }
+
+  if (rA.income > 0 && rB.income > 0) {
+    const mapA = new Map(rA.byCategory.filter(c => c.total < 0).map(c => [c.categoryName, Math.abs(c.total) / rA.income * 100]));
+    const mapB = new Map(rB.byCategory.filter(c => c.total < 0).map(c => [c.categoryName, Math.abs(c.total) / rB.income * 100]));
+    let best = null;
+    for (const [name, pctA] of mapA) {
+      const pctB = mapB.get(name) ?? 0;
+      const shift = pctB - pctA;
+      if (!best || Math.abs(shift) > Math.abs(best.shift)) best = { name, pctA, pctB, shift };
+    }
+    for (const [name, pctB] of mapB) {
+      if (!mapA.has(name)) {
+        if (!best || Math.abs(pctB) > Math.abs(best.shift)) best = { name, pctA: 0, pctB, shift: pctB };
+      }
+    }
+    if (best && Math.abs(best.shift) >= 3) {
+      facts.push(`${best.name} ${best.shift > 0 ? 'rose' : 'fell'} from ${Math.round(best.pctA)}% → ${Math.round(best.pctB)}% of income`);
+    }
+  }
+
+  if (facts.length === 0) return `${periodDesc}: spending and income patterns are similar.`;
+  return `${periodDesc}: ${facts.join(', ')}.`;
+}
+
 export function cashFlowReport(data, from, to) {
   const results = [];
   let cursor = new Date(from + 'T00:00:00Z');
