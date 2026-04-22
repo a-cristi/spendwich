@@ -557,9 +557,6 @@ test('incomeTrendReport daily: spreads total period income to every day', () => 
 
 // synthesizeComparison
 
-const catA = { id: 'c1', name: 'Dining', icon: '🍽' };
-const catB = { id: 'c2', name: 'Rent', icon: '🏠' };
-
 function makeCompareReports(opts) {
   const { incA = 1000, incB = 1000, expA = -500, expB = -500, catExpA = -300, catExpB = -300, catId = 'c1', catName = 'Dining' } = opts ?? {};
   const rA = {

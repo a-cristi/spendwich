@@ -137,7 +137,7 @@ export function detectSpikes(values, sensitivity = 2.0, granularity = 'monthly')
   const MIN_WINDOW = 3; // non-zero priors required for rolling path; fewer → global fallback
   const FLOOR = 5;
 
-  const allNonZero = values.filter(v => v != null && v > 0);
+  const allNonZero = values.filter(v => v !== null && v !== undefined && v > 0);
   if (allNonZero.length < MIN_SERIES) return [];
 
   // Precompute sums for O(1) leave-one-out stats in the global fallback path.
@@ -150,11 +150,11 @@ export function detectSpikes(values, sensitivity = 2.0, granularity = 'monthly')
   const spikes = [];
   for (let i = 0; i < values.length; i++) {
     const v = values[i];
-    if (v == null || v <= 0) continue;
+    if (v === null || v === undefined || v <= 0) continue;
 
     const window = [];
     for (let j = i - 1; j >= 0 && window.length < W; j--) {
-      if (values[j] != null && values[j] > 0) window.unshift(values[j]);
+      if (values[j] !== null && values[j] !== undefined && values[j] > 0) window.unshift(values[j]);
     }
 
     if (window.length < MIN_WINDOW) {
@@ -278,8 +278,8 @@ function bucketKey(dateStr, granularity) {
 }
 
 export function synthesizeComparison(rA, rB, specA, specB) {
-  const isMonthly = specA.month != null && specB.month != null;
-  const isYearly = specA.month == null && specB.month == null;
+  const isMonthly = specA.month !== null && specA.month !== undefined && specB.month !== null && specB.month !== undefined;
+  const isYearly = (specA.month === null || specA.month === undefined) && (specB.month === null || specB.month === undefined);
   if (!isMonthly && !isYearly) return null;
 
   const isLikeLike = isMonthly
