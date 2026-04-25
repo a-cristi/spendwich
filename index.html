@@ -753,6 +753,7 @@
     .approx-currency { font-size: 0.55em; font-weight: 400; margin-left: 0.3em; opacity: 0.45; }
     .summary-card .card-top { display: flex; justify-content: space-between; align-items: center; }
     .summary-card .card-bottom { font-size: 0.7rem; font-weight: 500; color: var(--text); opacity: 0.65; display: flex; justify-content: space-between; align-items: flex-end; min-height: 1.5em; }
+    .summary-card .sublabel { font-size: 0.7rem; font-weight: 500; color: var(--text-muted); }
     .summary-card .card-delta { font-size: 0.68rem; font-weight: 600; color: var(--text); opacity: 0.6; flex-shrink: 0; }
     .card-sparkline { position: absolute; bottom: 0; left: 0; width: 100%; height: 40px; pointer-events: none; }
     .summary-card-income  .card-sparkline { color: var(--income); }
@@ -1288,11 +1289,13 @@
       }
       .summary-card { padding: 0.625rem 0.75rem; min-height: 72px; cursor: pointer; -webkit-tap-highlight-color: transparent; }
       .summary-card .card-bottom,
+      .summary-card .sublabel,
       .summary-card .card-sparkline { display: none; }
       .summary-cards.cards-has-focus .summary-card:not(.card-focused) { display: none; }
       .summary-card.card-focused { grid-column: 1 / -1; min-height: 120px; }
       .summary-card.card-focused .value { font-size: 2.25rem; }
       .summary-card.card-focused .card-bottom { display: flex; }
+      .summary-card.card-focused .sublabel { display: block; }
       .summary-card.card-focused .card-sparkline { display: block; height: 65px; }
       .summary-card .label { font-size: 0.6rem; }
       .summary-card .value { font-size: 0.95rem; margin: 0.2rem 0; }
