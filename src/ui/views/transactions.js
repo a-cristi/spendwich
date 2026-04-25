@@ -6,17 +6,11 @@ import { fetchRate, convertAmount } from '../../currency.js';
 import { importTransactions } from '../csv.js';
 import { openModal } from '../modal.js';
 import { toast } from '../toast.js';
-import { escHtml, formatAmount, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
+import { escHtml, formatAmount, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart, abbrevValueClass } from '../utils.js';
 import { customRangeReport } from '../../reports.js';
 
 const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-function abbrevValueClass(absAmt) {
-  if (absAmt >= 1_000_000_000) return 'value-abbrev-sm';
-  if (absAmt >= 10_000_000)    return 'value-abbrev-md';
-  if (absAmt >= 10_000)        return 'value-abbrev-lg';
-  return '';
-}
 
 function formatTxDate(dateStr) {
   const y = +dateStr.slice(0, 4);

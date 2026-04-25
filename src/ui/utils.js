@@ -51,6 +51,13 @@ export function formatAmountShort(absAmount, currency) {
   return escHtml(formatAmount(absAmount, currency));
 }
 
+export function abbrevValueClass(absAmt) {
+  if (absAmt >= 1_000_000_000) return 'value-abbrev-sm';
+  if (absAmt >= 10_000_000)    return 'value-abbrev-md';
+  if (absAmt >= 10_000)        return 'value-abbrev-lg';
+  return '';
+}
+
 export function buildSparklinePath(transactions, from, to, isIncome) {
   const startMs = new Date(from + 'T00:00:00Z').getTime();
   const endMs   = new Date(to   + 'T00:00:00Z').getTime();

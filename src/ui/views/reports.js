@@ -1,6 +1,6 @@
 import { getData } from '../../store.js';
 import { monthlyReport, yearlyReport, customRangeReport, allTimeReport, cashFlowReport, categoryTrendReport, labelTrendReport, detectSpikes, shouldDetectSpikes, incomeTrendReport, computeStabilityLabel, synthesizeComparison } from '../../reports.js';
-import { escHtml, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart } from '../utils.js';
+import { escHtml, formatAmountShort, comparisonChip, buildSparklinePath, rollingMonthStart, abbrevValueClass } from '../utils.js';
 import { isDark, onThemeChange } from '../theme.js';
 
 let _container = null;
@@ -480,13 +480,6 @@ function buildYearPicker(value, onChange) {
 
 function filterItems(items) {
   return items.filter(b => _breakdownTab === 'expenses' ? b.total < 0 : b.total > 0);
-}
-
-function abbrevValueClass(absAmt) {
-  if (absAmt >= 1_000_000_000) return 'value-abbrev-sm';
-  if (absAmt >= 10_000_000)    return 'value-abbrev-md';
-  if (absAmt >= 10_000)        return 'value-abbrev-lg';
-  return '';
 }
 
 function buildSummaryCards(income, expenses, net, currency, transactions, from, to, comparison) {
@@ -1185,7 +1178,7 @@ function renderCategoryTrend(data, currency, container) {
   const granLabel = granularity === 'daily' ? 'Daily' : granularity === 'quarterly' ? 'Quarterly' : 'Monthly';
 
   // --- Mode-dependent values (single branch) ---
-  let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, comparison, chartTitleText, tooltipCb, yScale;
+  let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, avgRawAmt = null, comparison, chartTitleText, tooltipCb, yScale;
   let incomeData, rawPcts, pctCeiling, noIncomeIndices = new Set(), hasOverspend = false;
 
   const dark = isDark();
@@ -1277,6 +1270,7 @@ function renderCategoryTrend(data, currency, container) {
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
     avgVal = escHtml(fmt(Math.abs(avg), currency));
+    avgRawAmt = Math.abs(avg);
     comparison = computeDynamicComparison(data, (d, f, t, g) => categoryTrendReport(d, _trendCategoryId, f, t, g), from, to, granularity, total, elapsedCount);
     chartTitleText = `${granLabel} Spending`;
     tooltipCb = ctx => {
@@ -1291,13 +1285,18 @@ function renderCategoryTrend(data, currency, container) {
 
   // --- Insight cards (branch-free) ---
   const totalCardClass = isExpenseCat ? 'summary-card-expense' : 'summary-card-income';
+  const totalAbs = Math.abs(total);
+  const avgValueDiv = avgRawAmt !== null
+    ? `<div class="value ${abbrevValueClass(avgRawAmt)}" style="color:var(--primary)"><span class="value-short">${formatAmountShort(avgRawAmt, currency)}</span><span class="value-full">${avgVal}</span></div>`
+    : `<div class="value" style="color:var(--primary)">${avgVal}</div>`;
+  const totalValueDiv = `<div class="value ${abbrevValueClass(totalAbs)}"><span class="value-short">${formatAmountShort(totalAbs, currency)}</span><span class="value-full">${escHtml(fmt(totalAbs, currency))}</span></div>`;
   const grid = document.createElement('div');
   grid.className = 'summary-cards';
   grid.style.marginBottom = '1.25rem';
   grid.innerHTML = `
     <div class="summary-card">
       <div class="label">${avgLabel}</div>
-      <div class="value" style="color:var(--primary)">${avgVal}</div>
+      ${avgValueDiv}
       <div class="sublabel">Based on ${elapsedCount} ${periodWord}</div>
     </div>
     <div class="summary-card">
@@ -1309,10 +1308,21 @@ function renderCategoryTrend(data, currency, container) {
     </div>
     <div class="summary-card ${totalCardClass}">
       <div class="label">Total in Period</div>
-      <div class="value">${escHtml(fmt(Math.abs(total), currency))}</div>
+      ${totalValueDiv}
       <div class="sublabel">${nonZeroPeriods} active ${periodWord}</div>
     </div>
   `;
+  grid.addEventListener('click', e => {
+    const card = e.target.closest('.summary-card');
+    if (!card) return;
+    const alreadyFocused = card.classList.contains('card-focused');
+    grid.classList.remove('cards-has-focus');
+    grid.querySelectorAll('.summary-card').forEach(c => c.classList.remove('card-focused'));
+    if (!alreadyFocused) {
+      card.classList.add('card-focused');
+      grid.classList.add('cards-has-focus');
+    }
+  });
   container.appendChild(grid);
 
   // --- Chart card ---
@@ -1470,7 +1480,7 @@ function renderLabelTrend(data, currency, container) {
   const roseColor = dark ? '#fb7185' : '#b91c1c';
   const gridColor = dark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.04)';
 
-  let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, comparison, chartTitleText, tooltipCb, yScale;
+  let chartData, spikeIndices, ceilingIndices, avgLabel, avgVal, avgRawAmt = null, comparison, chartTitleText, tooltipCb, yScale;
   let incomeData, rawPcts, pctCeiling, noIncomeIndices = new Set(), hasOverspend = false;
 
   const trendFn = (d, f, t, g) => labelTrendReport(d, _trendLabelId, f, t, g);
@@ -1554,6 +1564,7 @@ function renderLabelTrend(data, currency, container) {
     const avg = total !== 0 ? total / elapsedCount : 0;
     avgLabel = `Avg. ${granLabel}`;
     avgVal = escHtml(fmt(Math.abs(avg), currency));
+    avgRawAmt = Math.abs(avg);
     comparison = computeDynamicComparison(data, trendFn, from, to, granularity, total, elapsedCount);
     chartTitleText = `${granLabel} Spending`;
     tooltipCb = ctx => {
@@ -1568,13 +1579,18 @@ function renderLabelTrend(data, currency, container) {
 
   // --- Insight cards ---
   const totalCardClass = isExpenseLbl ? 'summary-card-expense' : 'summary-card-income';
+  const totalAbs = Math.abs(total);
+  const avgValueDiv = avgRawAmt !== null
+    ? `<div class="value ${abbrevValueClass(avgRawAmt)}" style="color:var(--primary)"><span class="value-short">${formatAmountShort(avgRawAmt, currency)}</span><span class="value-full">${avgVal}</span></div>`
+    : `<div class="value" style="color:var(--primary)">${avgVal}</div>`;
+  const totalValueDiv = `<div class="value ${abbrevValueClass(totalAbs)}"><span class="value-short">${formatAmountShort(totalAbs, currency)}</span><span class="value-full">${escHtml(fmt(totalAbs, currency))}</span></div>`;
   const grid = document.createElement('div');
   grid.className = 'summary-cards';
   grid.style.marginBottom = '1.25rem';
   grid.innerHTML = `
     <div class="summary-card">
       <div class="label">${avgLabel}</div>
-      <div class="value" style="color:var(--primary)">${avgVal}</div>
+      ${avgValueDiv}
       <div class="sublabel">Based on ${elapsedCount} ${periodWord}</div>
     </div>
     <div class="summary-card">
@@ -1586,10 +1602,21 @@ function renderLabelTrend(data, currency, container) {
     </div>
     <div class="summary-card ${totalCardClass}">
       <div class="label">Total in Period</div>
-      <div class="value">${escHtml(fmt(Math.abs(total), currency))}</div>
+      ${totalValueDiv}
       <div class="sublabel">${nonZeroPeriods} active ${periodWord}</div>
     </div>
   `;
+  grid.addEventListener('click', e => {
+    const card = e.target.closest('.summary-card');
+    if (!card) return;
+    const alreadyFocused = card.classList.contains('card-focused');
+    grid.classList.remove('cards-has-focus');
+    grid.querySelectorAll('.summary-card').forEach(c => c.classList.remove('card-focused'));
+    if (!alreadyFocused) {
+      card.classList.add('card-focused');
+      grid.classList.add('cards-has-focus');
+    }
+  });
   container.appendChild(grid);
 
   // --- Chart card ---
